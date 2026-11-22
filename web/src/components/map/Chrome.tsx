@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Conditions, Order, ScenarioName } from "@/lib/traktor";
 import { GMINA, SCENARIO_LABEL, fmtRange, miejsc } from "@/lib/traktor";
 
-type BasemapChoice = "osm" | "google-roadmap" | "google-satellite" | "ortho" | "schema";
+type BasemapChoice = "gugik-orto" | "s2-cloudless" | "osm" | "google-roadmap" | "google-satellite" | "schema";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
 
@@ -181,8 +181,9 @@ export function ScenarioDock({
                   ["google-satellite", "Google satelita"],
                 ] as const)
               : []),
-            ["osm", "OSM"],
-            ["ortho", "Ortofoto"],
+            ["s2-cloudless", "Satelita"],
+            ["gugik-orto", "Ortofoto"],
+            ["osm", "Mapa"],
             ["schema", "Schemat"],
           ] as [BasemapChoice, string][]
         ).map(([k, label]) => (

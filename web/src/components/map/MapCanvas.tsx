@@ -4,10 +4,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CrestHeight, Order, RefusalCode, Site, XY } from "@/lib/traktor";
 import { candidates, ditches, mapFeatures, sites } from "@/lib/traktor";
 import { C, ORDER_COLOR, centroid, neighbourParcel, ownParcel, path, pts, retentionPath } from "./geo";
-import { OsmTiles } from "./OsmTiles";
+import { IMAGERY, OsmTiles, type TileSource } from "./OsmTiles";
 
-export type Basemap = "osm" | "google-roadmap" | "google-satellite" | "ortho" | "schema";
-const isTiles = (b: Basemap) => b === "osm" || b === "google-roadmap" || b === "google-satellite";
+export type Basemap = TileSource | "schema";
+const isTiles = (b: Basemap): b is TileSource => b !== "schema";
+const isImagery = (b: Basemap) => b !== "schema" && IMAGERY.has(b);
 
 /* ---- static real layers, computed once ---- */
 const LAND_STYLE: Record<string, [string, number]> = {
@@ -44,7 +45,7 @@ const FULL: VB = { x: 0, y: 0, w: 1000, h: 640 };
 export type Focus = { xy: XY; w: number; key: number };
 
 const clampVB = (v: VB): VB => {
-  const w = Math.min(1400, Math.max(110, v.w));
+  const w = Math.min(1400, Math.max(80, v.w)); // 80 units = 800 m wide: orthophoto z18 detail
   const h = (w * 640) / 1000;
   return {
     w,
@@ -67,7 +68,7 @@ export function MapCanvas({
   focus,
   onSelectSite,
   onSelectCandidate,
-  basemap = "osm",
+  basemap = "gugik-orto",
 }: {
   basemap?: Basemap;
   orders: Record<string, Order>;
@@ -234,23 +235,22 @@ export function MapCanvas({
         </defs>
 
         <rect x={-1000} y={-1000} width={3000} height={2640} fill={C.cream} />
-        {/* GUGiK orthophoto (WMS, EPSG:2180, exact AOI bbox) or real land cover (BDOT10k PT*) */}
+        {/* live tiles (GUGiK ortho / Sentinel-2 / OSM / Google) or real land cover (BDOT10k PT*) */}
         {isTiles(basemap) ? (
           <>
-            <OsmTiles vb={vb} source={basemap as "osm" | "google-roadmap" | "google-satellite"} />
+            {/* offline fallback under the live GUGiK tiles: static GUGiK WMS orthophoto of the AOI */}
+            {basemap === "gugik-orto" && (
+              <image href="/maps/orto-bydgoszcz-west.jpg" x={0} y={0} width={1000} height={640} preserveAspectRatio="none" />
+            )}
+            <OsmTiles vb={vb} scale={scale} source={basemap} />
             <rect
               x={-1000}
               y={-1000}
               width={3000}
               height={2640}
-              fill={basemap === "google-satellite" ? C.forest : C.cream}
-              fillOpacity={basemap === "google-satellite" ? 0.15 : 0.12}
+              fill={isImagery(basemap) ? C.forest : C.cream}
+              fillOpacity={isImagery(basemap) ? 0.15 : 0.12}
             />
-          </>
-        ) : basemap === "ortho" ? (
-          <>
-            <image href="/maps/orto-bydgoszcz-west.jpg" x={0} y={0} width={1000} height={640} preserveAspectRatio="none" />
-            <rect x={0} y={0} width={1000} height={640} fill={C.forest} fillOpacity={0.18} />
           </>
         ) : (
           LAND.map((l, i) => (
@@ -333,14 +333,29 @@ export function MapCanvas({
         )}
 
         {/* ditches */}
+        {/* on imagery: cream 1 px halo under a thicker stroke so ditches read on fields and forest */}
+        {isImagery(basemap) &&
+          ditches.map((d) => (
+            <path
+              key={`h${d.id}`}
+              d={path(d.points)}
+              fill="none"
+              stroke={C.cream}
+              strokeOpacity={d.resolvable ? 0.85 : 0.5}
+              strokeWidth={d.resolvable ? 4.5 : 3.5}
+              strokeDasharray={d.resolvable ? undefined : "4 4"}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
         {ditches.map((d) => (
           <path
             key={d.id}
             d={path(d.points)}
             fill="none"
             stroke={C.water}
-            strokeOpacity={d.resolvable ? 0.95 : 0.5}
-            strokeWidth={d.resolvable ? 2 : 1.5}
+            strokeOpacity={d.resolvable ? (isImagery(basemap) ? 1 : 0.95) : isImagery(basemap) ? 0.8 : 0.5}
+            strokeWidth={isImagery(basemap) ? (d.resolvable ? 2.5 : 1.5) : d.resolvable ? 2 : 1.5}
             strokeDasharray={d.resolvable ? undefined : "4 4"}
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"

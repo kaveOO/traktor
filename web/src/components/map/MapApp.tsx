@@ -35,7 +35,8 @@ export default function MapApp() {
   const [scenario, setScenario] = useState<ScenarioChoice>(init.scenario);
   const [kowr, setKowr] = useState(init.kowr);
   const [flood, setFlood] = useState(false);
-  const [basemap, setBasemap] = useState<Basemap>("osm");
+  // default: live GUGiK orthophoto (free, no key, most detail)
+  const [basemap, setBasemap] = useState<Basemap>("gugik-orto");
   const [googleEnabled, setGoogleEnabled] = useState(false);
   // Google basemaps appear only when the server has GOOGLE_MAPS_API_KEY and a session works
   useEffect(() => {
@@ -45,7 +46,6 @@ export default function MapApp() {
       .then((j: { enabled?: boolean }) => {
         if (!alive || !j.enabled) return;
         setGoogleEnabled(true);
-        setBasemap((b) => (b === "osm" ? "google-roadmap" : b));
       })
       .catch(() => {});
     return () => {
@@ -208,7 +208,7 @@ export default function MapApp() {
           </div>
           <div className="pointer-events-none absolute bottom-2 left-4 z-10 flex flex-col items-start gap-2 [&>*]:pointer-events-auto max-[900px]:hidden">
             <Legend showFlood={flood} />
-            <MapSource google={basemap.startsWith("google")} />
+            <MapSource basemap={basemap} />
           </div>
         </main>
         <aside

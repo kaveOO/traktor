@@ -259,18 +259,55 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
   );
 }
 
-export function MapSource({ google = false }: { google?: boolean }) {
+type MapBasemap = "gugik-orto" | "s2-cloudless" | "osm" | "google-roadmap" | "google-satellite" | "schema";
+
+/** Attribution for the active basemap (required by each tile provider's terms). */
+function BasemapCredit({ basemap }: { basemap: MapBasemap }) {
+  const a = "underline";
+  switch (basemap) {
+    case "gugik-orto":
+      return (
+        <>
+          Ortofotomapa: GUGiK,{" "}
+          <a href="https://www.geoportal.gov.pl" target="_blank" rel="noreferrer" className={a}>
+            geoportal.gov.pl
+          </a>
+        </>
+      );
+    case "s2-cloudless":
+      return (
+        <>
+          Sentinel-2 cloudless –{" "}
+          <a href="https://s2maps.eu" target="_blank" rel="noreferrer" className={a}>
+            https://s2maps.eu
+          </a>{" "}
+          by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), CC BY 4.0
+        </>
+      );
+    case "osm":
+      return (
+        <>
+          Podkład: ©{" "}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className={a}>
+            autorzy OpenStreetMap
+          </a>
+        </>
+      );
+    case "google-roadmap":
+    case "google-satellite":
+      return <>Dane mapy ©{new Date().getFullYear()} Google</>;
+    case "schema":
+      return <>Podkład: BDOT10k (GUGiK)</>;
+  }
+}
+
+export function MapSource({ basemap = "gugik-orto" }: { basemap?: MapBasemap }) {
   return (
     <div data-ui className="max-w-[520px] rounded-[2px] bg-cream/90 px-2.5 py-1.5 text-forest">
       <SourceLine>{SOURCES_MAP}</SourceLine>
       <p className="text-[11px] opacity-75">{DEMO_NOTE}</p>
       <p className="text-[11px] opacity-75">
-        {google && <>Dane mapy ©{new Date().getFullYear()} Google · </>}
-        Podkład: ©{" "}
-        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline">
-          autorzy OpenStreetMap
-        </a>{" "}
-        · ortofotomapa GUGiK
+        <BasemapCredit basemap={basemap} />
       </p>
     </div>
   );
