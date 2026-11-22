@@ -74,7 +74,7 @@ export default function Home() {
           <div className="absolute inset-0">
             <PointCloud water={0.7} />
           </div>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-forest via-forest/55 to-forest/10" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-forest via-forest/55 to-forest/10" />
           <div className="relative mx-auto flex h-full max-w-6xl flex-col justify-end px-5 pb-16 md:px-8 md:pb-24">
             <Eyebrow className="rise opacity-80">01 — Pomysł</Eyebrow>
             <h1 className="hd rise mt-4 max-w-5xl text-[52px] md:text-[96px]">Przyszłość wody jest już w polu.</h1>
@@ -244,7 +244,7 @@ export default function Home() {
           <div className="absolute inset-x-0 top-0 h-40 opacity-60 md:h-56">
             <PointCloud water={0.5} />
           </div>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-transparent to-forest md:h-56" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-linear-to-b from-transparent to-forest md:h-56" />
           <div className="relative mx-auto max-w-6xl px-5 pt-44 pb-24 md:px-8 md:pt-60 md:pb-32">
             <Eyebrow className="opacity-80">08 — Pilotaż KOWR</Eyebrow>
             <h2 className="hd mt-4 max-w-5xl text-[44px] md:text-[80px]">Dajcie nam jeden oddział KOWR.</h2>
