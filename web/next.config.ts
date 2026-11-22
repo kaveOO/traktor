@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+// Cloudflare Workers (OpenNext): exposes wrangler bindings/vars to `next dev` via getCloudflareContext().
+// No effect on `next build` / Node hosting. See docs/DEPLOY-CLOUDFLARE.md.
+initOpenNextCloudflareForDev();
 
 // Security headers (docs/review/02-security.md M1). MapLibre needs blob: workers; tiles and public
 // data APIs (GUGiK, EOX, OSM, geocoders) are fetched from the browser over https.

@@ -1,7 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { fetchT } from "./util";
+import { cacheGet, cachePut, canUseFs } from "../runtime";
 
 /**
  * NASA POWER daily point data (MERRA-2 based, ~0.5°) for the 10-year climatology.
@@ -18,7 +16,32 @@ const PARAMS = "PRECTOTCORR,T2M_MAX,T2M_MIN,T2M,RH2M,WS2M,ALLSKY_SFC_SW_DWN";
 const TTL_MS = 12 * 3600_000;
 const mem = new Map<string, { start: string; at: number; days: Map<string, PowerDay> }>();
 const inflight = new Map<string, Promise<Map<string, PowerDay>>>();
-const CACHE_DIR = join(tmpdir(), "traktor-power-cache");
+type DiskEntry = { start: string; at: number; days: [string, PowerDay][] };
+/** OS temp-dir cache on Node only; Workers have no persistent fs (Cache API used instead). Loaded lazily so workerd never touches node:fs/os. */
+async function diskPath(key: string): Promise<string> {
+  const [{ tmpdir }, { join }] = await Promise.all([import("node:os"), import("node:path")]);
+  return join(tmpdir(), "traktor-power-cache", `${key}.json`);
+}
+async function diskGet(key: string): Promise<DiskEntry | null> {
+  if (!canUseFs()) return cacheGet<DiskEntry>(`power:${key}`);
+  try {
+    const { readFile } = await import("node:fs/promises");
+    return JSON.parse(await readFile(await diskPath(key), "utf8")) as DiskEntry;
+  } catch {
+    return null;
+  }
+}
+async function diskPut(key: string, v: DiskEntry): Promise<void> {
+  if (!canUseFs()) return cachePut(`power:${key}`, v, TTL_MS / 1000);
+  try {
+    const [{ mkdir, writeFile }, { dirname }] = await Promise.all([import("node:fs/promises"), import("node:path")]);
+    const file = await diskPath(key);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(v));
+  } catch {
+    /* best effort */
+  }
+}
 
 const es = (t: number) => 0.6108 * Math.exp((17.27 * t) / (t + 237.3));
 
@@ -63,16 +86,11 @@ export async function powerSeries(lon: number, lat: number, start: string, signa
   const key = `${CACHE_VER}_${c.lat.toFixed(1)}_${c.lon.toFixed(1)}`;
   const hit = mem.get(key);
   if (hit && hit.start <= start && Date.now() - hit.at < TTL_MS) return hit.days;
-  const file = join(CACHE_DIR, `${key}.json`);
-  try {
-    const raw = JSON.parse(await readFile(file, "utf8")) as { start: string; at: number; days: [string, PowerDay][] };
-    if (raw.start <= start && Date.now() - raw.at < TTL_MS) {
-      const days = new Map(raw.days);
-      mem.set(key, { start: raw.start, at: raw.at, days });
-      return days;
-    }
-  } catch {
-    /* no file cache */
+  const raw = await diskGet(key);
+  if (raw && raw.start <= start && Date.now() - raw.at < TTL_MS) {
+    const days = new Map(raw.days);
+    mem.set(key, { start: raw.start, at: raw.at, days });
+    return days;
   }
   const fk = `${key}|${start}`;
   const running = inflight.get(fk);
@@ -107,9 +125,9 @@ export async function powerSeries(lon: number, lat: number, start: string, signa
     const entry = { start, at: Date.now(), days };
     mem.set(key, entry);
     if (mem.size > 300) mem.delete(mem.keys().next().value as string);
-    mkdir(CACHE_DIR, { recursive: true })
-      .then(() => writeFile(file, JSON.stringify({ start, at: entry.at, days: [...days] })))
-      .catch(() => undefined);
+    // Node: fire-and-forget file write. Workers: awaited (un-awaited I/O may be cancelled after the response).
+    const put = diskPut(key, { start, at: entry.at, days: [...days] });
+    if (!canUseFs()) await put;
     return days;
   })();
   inflight.set(fk, job);

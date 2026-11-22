@@ -1,0 +1,39 @@
+/**
+ * TRAKTOR on Cloudflare Workers (OpenNext adapter). See docs/DEPLOY-CLOUDFLARE.md.
+ * Build: npm run cf:build   Preview (local workerd): npm run cf:preview   Deploy: npm run cf:deploy
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "traktor",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-15",
+  // nodejs_compat: Node APIs (node:timers for Cache Components, AsyncLocalStorage, Buffer) and
+  // process.env populated from vars/secrets. global_fetch_strictly_public: fetch() goes to the public
+  // internet only (no zone-internal loopback), as recommended by OpenNext.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Used by OpenNext's revalidation queue (self-reference). Harmless when ISR is not used.
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "traktor"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  // /api/analiza does FAO-56 ETP, satellite pixel loops (geotiff decode) and JSON parsing of a
+  // 10-year NASA POWER series. 30 s CPU requires Workers Paid; on the Free plan the limit is 10 ms
+  // and this key must be removed (deploy fails otherwise).
+  "limits": {
+    "cpu_ms": 30000
+  },
+  "vars": {
+    // Native @duckdb/node-api (BDOT10k lookup) cannot load in workerd: engine falls back to Overpass.
+    "TRAKTOR_DISABLE_DUCKDB": "1",
+    "TRAKTOR_RUNTIME": "cloudflare-workers"
+  }
+}
