@@ -8,30 +8,50 @@ import { Icon } from "@/components/brand/Icon";
 import { Button, FooterLine, ProgressLine, SkipLink } from "@/components/brand/ui";
 import { CROPS, type AnalysisError, type AnalysisResult, type CropId } from "@/lib/analiza";
 import { FIXTURE } from "./fixture";
-import { dateShort, dateTime } from "./format";
+import { cropName, dateShort, dateTime } from "./format";
 import { ReportSheet } from "./ReportSheet";
 import { getSaved, isValidResult, listSaved, removeSaved, reportKey, saveReport, type SavedReport } from "./saved";
 
-const printCss = (demo: boolean) => `
+/** CSS string literal: no quotes, backslashes or line breaks from data can escape it. */
+const cssStr = (s: string) => `"${s.replace(/[\\"\n\r]/g, " ")}"`;
+
+/**
+ * Print: A4, running header (parcel id + analysis date) and "Strona x z y" in the page margins.
+ * Margin boxes print in Chromium (Chrome, Edge, Opera); Firefox and Safari skip them, the sheet
+ * header and footer still carry the parcel id, the date and the method version.
+ */
+const printCss = (demo: boolean, r: AnalysisResult | null, marginBoxes: boolean) => {
+  const head = r ? `Działka ${r.parcel.id} · ${cropName(r)} · analiza na ${dateShort(r.request.date)}` : "Raport wodny działki";
+  const foot = `${demo ? "DEMO · dane przykładowe · " : ""}TRAKTOR · Raport wodny działki`;
+  // demo marker: in the page margin where margin boxes print (no overlap); else a fixed element on each page
+  const right = demo && marginBoxes ? "DEMO · dane przykładowe, nie wynik analizy" : r ? `wygenerowano ${dateTime(r.generatedAt, true)}` : "";
+  const rightCss = demo && marginBoxes ? "font: 600 7.5pt sans-serif; letter-spacing: .08em; color: #984630;" : "font: 7.5pt sans-serif; color: #4A5E4C;";
+  return `
 @page {
   size: A4 portrait;
-  margin: 12mm 12mm 14mm;
-  @bottom-left { content: "${demo ? "DEMO · dane przykładowe · " : ""}Let the land hold its water."; font: 8pt Inter, sans-serif; color: ${demo ? "#984630" : "#1F3A22"}; }
-  @bottom-right { content: "Strona " counter(page) " z " counter(pages); font: 8pt Inter, sans-serif; color: #1F3A22; }
+  margin: 13mm 12mm 13mm;
+  @top-left { content: ${cssStr(head)}; font: 7.5pt sans-serif; color: #4A5E4C; }
+  @top-right { content: ${cssStr(right)}; ${rightCss} }
+  @bottom-left { content: ${cssStr(foot)}; font: 7.5pt sans-serif; color: ${demo ? "#984630" : "#1F3A22"}; }
+  @bottom-right { content: "Strona " counter(page) " z " counter(pages); font: 7.5pt sans-serif; color: #1F3A22; }
 }
+@page :first { @top-left { content: none; } ${demo && marginBoxes ? "" : "@top-right { content: none; }"} }
 @media print {
+  ${demo && marginBoxes ? ".raport-wrap .raport-demo-print { display: none !important; }" : ""}
   /* demo marker repeated on every printed page (fixed elements print on each page) */
-  .raport-demo-print { display: block !important; position: fixed; top: 0; right: 0; font: 600 8pt Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #984630; border: 1px dashed #B5573B; padding: 1mm 2mm; background: #fff; }
+  .raport-demo-print { display: block !important; position: fixed; top: 0; right: 0; font: 600 7.5pt sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #984630; border: 1px dashed #B5573B; padding: .6mm 2mm; background: #fff; }
   html, body { background: #fff !important; }
-  .raport-wrap { background: #fff !important; padding: 0 !important; }
+  .raport-wrap { background: #fff !important; padding: 0 !important; min-height: 0 !important; }
   .raport-sheet { box-shadow: none !important; background: #fff !important; max-width: none !important; width: auto !important; padding: 0 !important; margin: 0 !important; zoom: 0.84; }
-  .raport-sheet * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .raport-avoid, .raport-sheet figure, .raport-sheet tr { break-inside: avoid; }
-  .raport-head, .raport-sheet h2, .raport-sheet h3, .raport-sheet caption { break-after: avoid; }
+  .raport-sheet, .raport-sheet * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .raport-avoid, .raport-sheet figure, .raport-sheet tr, .raport-sheet li { break-inside: avoid; page-break-inside: avoid; }
+  .raport-head, .raport-sheet h2, .raport-sheet h3, .raport-sheet caption, .raport-sheet thead { break-after: avoid; page-break-after: avoid; }
   .raport-sheet thead { display: table-header-group; }
-  .raport-sheet a { color: inherit; text-decoration: none; }
+  .raport-sheet p { orphans: 2; widows: 2; }
+  .raport-sheet a { color: inherit; }
 }
 `;
+};
 
 type Params = {
   parcelId: string | null;
@@ -39,9 +59,20 @@ type Params = {
   lat: string | null;
   crop: CropId;
   date: string;
-  demo: boolean;
+  /** "1" = illustrative fixture; "historical" / "today" = recorded engine outputs (still demo-marked) */
+  demo: DemoKind | null;
   saved: string | null;
 };
+
+type DemoKind = "1" | "historical" | "today";
+const DEMO_KINDS: DemoKind[] = ["1", "historical", "today"];
+
+/** Recorded engine samples load on demand, so they never weigh on the normal report bundle. */
+async function loadDemo(kind: DemoKind): Promise<AnalysisResult> {
+  if (kind === "historical") return (await import("@/lib/analiza/fixtures/sample-historical.json")).default as unknown as AnalysisResult;
+  if (kind === "today") return (await import("@/lib/analiza/fixtures/sample-today.json")).default as unknown as AnalysisResult;
+  return FIXTURE;
+}
 
 /** Today in Poland (the engine validates dates against Europe/Warsaw). */
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Warsaw" }).format(new Date());
@@ -56,7 +87,7 @@ function readParams(): Params {
     lat: q.get("lat"),
     crop: c && CROPS.some((x) => x.id === c) ? c : "pszenica_ozima",
     date: d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today(),
-    demo: q.get("demo") === "1",
+    demo: DEMO_KINDS.find((k) => k === q.get("demo")) ?? null,
     saved: q.get("saved"),
   };
 }
@@ -77,16 +108,34 @@ function queryOf(p: Params, r?: AnalysisResult | null) {
 type State =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "error"; messagePl: string; step?: string }
+  | { kind: "error"; messagePl: string; step?: string; code?: string }
   | { kind: "ok"; result: AnalysisResult; demo: boolean };
 
 const TIMEOUT_MS = 60_000;
 
+/**
+ * Engine answers that are not failures: the parcel itself is out of scope or not identified.
+ * Retrying gives the same answer, so these get their own words and no "Spróbuj ponownie".
+ */
+const NOT_APPLICABLE: Record<string, { eyebrow: string; title: string; action: string }> = {
+  NOT_AGRICULTURAL: { eyebrow: "Analiza nie dotyczy tej działki", title: "To nie jest grunt rolny.", action: "Wybierz inną działkę" },
+  parcel_too_large: { eyebrow: "Analiza nie dotyczy tej działki", title: "Działka jest za duża do analizy.", action: "Wybierz inną działkę" },
+  NEEDS_OBREB: { eyebrow: "Wskaż działkę dokładniej", title: "Podaj obręb albo pełny identyfikator.", action: "Popraw działkę" },
+  AMBIGUOUS: { eyebrow: "Wskaż działkę dokładniej", title: "Kilka działek pasuje do tego numeru.", action: "Wybierz działkę" },
+  parcel_not_found: { eyebrow: "Nie znaleziono działki", title: "Nie ma takiej działki w ULDK.", action: "Popraw działkę" },
+};
+
 export default function RaportApp() {
   use(browser("Raport działa tylko w przeglądarce."));
   const [params] = useState(readParams);
+  // @page margin boxes print in Chromium 131+ (Chrome, Edge, Opera); Firefox and Safari ignore them
+  const [marginBoxes] = useState(() => {
+    const v = /Chrom(?:e|ium)\/(\d+)/.exec(navigator.userAgent);
+    return !!v && Number(v[1]) >= 131;
+  });
   const [state, setState] = useState<State>(() => {
-    if (params.demo) return { kind: "ok", result: FIXTURE, demo: true };
+    if (params.demo === "1") return { kind: "ok", result: FIXTURE, demo: true };
+    if (params.demo) return { kind: "loading" };
     if (params.saved) {
       const s = getSaved(params.saved);
       if (s === "invalid") return { kind: "error", messagePl: "Zapisany raport ma stary lub uszkodzony format. Policz analizę ponownie." };
@@ -101,6 +150,18 @@ export default function RaportApp() {
   const [attempt, setAttempt] = useState(0);
 
   const needsFetch = !params.demo && !params.saved && !!(params.parcelId || (params.lon && params.lat));
+
+  useEffect(() => {
+    if (!params.demo || params.demo === "1") return;
+    let cancelled = false;
+    loadDemo(params.demo).then(
+      (result) => !cancelled && setState({ kind: "ok", result, demo: true }),
+      () => !cancelled && setState({ kind: "error", messagePl: "Nie udało się wczytać danych przykładowych." }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [params.demo]);
 
   useEffect(() => {
     if (!needsFetch) return;
@@ -119,7 +180,7 @@ export default function RaportApp() {
           );
         if (cancelled) return;
         if ("error" in body) {
-          setState({ kind: "error", messagePl: body.messagePl || "Analiza nie powiodła się.", step: body.step });
+          setState({ kind: "error", messagePl: body.messagePl || "Analiza nie powiodła się.", step: body.step, code: body.error });
           return;
         }
         if (!res.ok || !isValidResult(body)) throw new Error(`Nieoczekiwana odpowiedź serwera (HTTP ${res.status}).`);
@@ -150,20 +211,43 @@ export default function RaportApp() {
   }, []);
 
   const result = state.kind === "ok" ? state.result : null;
+  const demoMode = state.kind === "ok" && state.demo;
   const backHref = `/analiza?${queryOf(params, result)}`;
 
   const downloadJson = () => {
     if (!result) return;
-    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `raport-${result.parcel.id.replace(/[^\w.-]+/g, "_")}-${result.crop.id}-${result.request.date}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // Safari starts the download asynchronously: revoke later
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const name = `${demoMode ? "demo-" : ""}raport-${result.parcel.id.replace(/[^\w.-]+/g, "_")}-${result.crop.id}-${result.request.date}.json`;
+    const text = JSON.stringify(result, null, 2);
+    try {
+      const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.rel = "noopener";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      // Safari (macOS and iOS) reads the blob after click() returns: removing or revoking it early cancels the file
+      window.setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 30_000);
+      setNotice(`Pobieranie pliku ${name}. Na iPhonie i iPadzie plik trafia do aplikacji Pliki (Pobrane).`);
+    } catch {
+      // very old browsers without Blob URLs: data URL
+      const a = document.createElement("a");
+      a.href = `data:application/json;charset=utf-8,${encodeURIComponent(text)}`;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  };
+
+  const printPdf = () => {
+    setNotice(null);
+    window.print();
   };
 
   const saveLocal = () => {
@@ -174,31 +258,41 @@ export default function RaportApp() {
   };
 
   const isSaved = result ? saved.some((s) => s.key === reportKey(result)) : false;
+  const na = state.kind === "error" && state.code ? NOT_APPLICABLE[state.code] : undefined;
 
-  const tool = "!min-h-11 !px-4 !text-[14px]";
+  // brand §09: buttons keep the 48 px minimum height
+  const tool = "!px-4 !text-[14px]";
 
   return (
     <div className="raport-wrap flex min-h-screen flex-col bg-cream-deep pb-10 text-forest print:bg-white print:pb-0">
-      <style>{printCss(state.kind === "ok" && state.demo)}</style>
+      <style>{printCss(demoMode, result, marginBoxes)}</style>
       <SkipLink href="#raport">Przejdź do raportu</SkipLink>
 
       <div className="no-print sticky top-0 z-10 w-full border-b border-forest/15 bg-cream">
         <nav aria-label="Narzędzia raportu" className="mx-auto flex max-w-[210mm] flex-wrap items-center gap-2 px-4 py-2.5">
-          <Link href={backHref} className="inline-flex min-h-11 items-center pr-2 text-[14px] font-medium underline-offset-4 hover:underline">
+          <Link href={backHref} className="inline-flex min-h-12 items-center pr-2 text-[14px] font-medium underline-offset-4 hover:underline">
             <span aria-hidden>←</span>&nbsp;Wróć do analizy
           </Link>
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button type="button" onClick={() => window.print()} disabled={!result} className={tool}>
-              Drukuj / zapisz PDF
+            <Button type="button" onClick={printPdf} disabled={!result} className={tool} aria-describedby={result ? "pdf-help" : undefined}>
+              Zapisz PDF / drukuj
             </Button>
             <Button type="button" variant="secondary" onClick={downloadJson} disabled={!result} className={tool}>
               Pobierz JSON
             </Button>
-            <Button type="button" variant="secondary" onClick={saveLocal} disabled={!result} className={tool}>
-              {isSaved ? "Zapisano w przeglądarce" : "Zapisz w przeglądarce"}
-            </Button>
+            {!demoMode && (
+              <Button type="button" variant="secondary" onClick={saveLocal} disabled={!result} className={tool}>
+                {isSaved ? "Zapisano w przeglądarce" : "Zapisz w przeglądarce"}
+              </Button>
+            )}
           </div>
         </nav>
+        {result && (
+          <p id="pdf-help" className="mx-auto max-w-[210mm] px-4 pb-2 text-[13px] leading-snug text-forest-muted">
+            PDF: w oknie drukowania wybierz „Zapisz jako PDF”, papier A4, skala 100%. Wyłącz „Nagłówki i stopki” przeglądarki: raport ma własne. Safari:
+            Plik → Eksportuj jako PDF.
+          </p>
+        )}
         <p role="status" className="mx-auto max-w-[210mm] px-4 text-[13px] [&:not(:empty)]:pb-2">
           {notice ?? ""}
         </p>
@@ -209,8 +303,14 @@ export default function RaportApp() {
         {state.kind === "loading" && (
           <div className="mx-auto mt-10 w-full max-w-[210mm] px-6">
             <p className="eb text-forest-muted">01 — Raport wodny działki</p>
-            <h1 className="sh rise mt-2 text-[26px]">Liczymy analizę z aktualnych danych.</h1>
-            <p className="mt-2 text-[16px] leading-[1.5]">Granice działki, pogoda z 10 lat, gleba, teren i zdjęcie satelitarne. Zwykle 10–30 s.</p>
+            {params.demo ? (
+              <h1 className="sh rise mt-2 text-[26px]">Wczytujemy dane przykładowe.</h1>
+            ) : (
+              <>
+                <h1 className="sh rise mt-2 text-[26px]">Liczymy analizę z aktualnych danych.</h1>
+                <p className="mt-2 text-[16px] leading-[1.5]">Granice działki, pogoda z 10 lat, gleba, teren i zdjęcie satelitarne. Zwykle 10–30 s.</p>
+              </>
+            )}
           </div>
         )}
 
@@ -227,10 +327,28 @@ export default function RaportApp() {
           </div>
         )}
 
-        {state.kind === "error" && (
+        {state.kind === "error" && na && (
+          <div className="mx-auto mt-10 w-full max-w-[210mm] px-6" role="alert">
+            <p className="eb text-forest-muted">{na.eyebrow}</p>
+            <h1 className="hd mt-2 text-[40px]">{na.title}</h1>
+            <p className="mt-3 text-[16px] leading-[1.5]">{state.messagePl}</p>
+            <p className="mt-2 text-[14px] text-forest-muted">
+              Działka <span className="num">{params.parcelId ?? (params.lon ? `${params.lat}, ${params.lon}` : "?")}</span>, data{" "}
+              <span className="num">{dateShort(params.date)}</span>. Raportu nie tworzymy: ponowne liczenie da ten sam wynik.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button href={backHref}>
+                <Icon name="pin" size={18} />
+                {na.action}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {state.kind === "error" && !na && (
           <div className="mx-auto mt-10 w-full max-w-[210mm] px-6" role="alert">
             <p className="eb text-terra-ink">Błąd analizy{state.step ? ` · krok: ${state.step}` : ""}</p>
-            <h1 className="sh mt-2 text-[30px]">Nie udało się przygotować raportu.</h1>
+            <h1 className="hd mt-2 text-[40px]">Nie udało się przygotować raportu.</h1>
             <p className="mt-3 text-[16px] leading-[1.5]">{state.messagePl}</p>
             <p className="mt-2 text-[14px] text-forest-muted">
               Działka <span className="num">{params.parcelId ?? (params.lon ? `${params.lat}, ${params.lon}` : "?")}</span>, data{" "}

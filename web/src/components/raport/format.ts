@@ -6,9 +6,37 @@ export const TZ = "Europe/Warsaw";
 /** Polish number, fixed decimals; null -> "brak danych". */
 export function n(v: number | null | undefined, digits = 0, unit = ""): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return NA;
-  const s = v.toLocaleString("pl-PL", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  // typographic minus (U+2212), not a hyphen
+  const s = v.toLocaleString("pl-PL", { minimumFractionDigits: digits, maximumFractionDigits: digits }).replace(/^-/, "−");
   return unit ? `${s} ${unit}` : s;
 }
+
+/** Administrative unit name without a repeated prefix ("powiat inowrocławski" -> "inowrocławski"). */
+export const unitName = (v: string | null | undefined, prefix: RegExp) => (v ? v.replace(prefix, "").trim() || v : null);
+
+/**
+ * Sources that are absent by design, not by failure: ISOK is never queried (link only),
+ * IMGW warnings exist only for today's date. They do not make a report "incomplete".
+ */
+export function absentByDesign(x: SourceInfo, r: Pick<AnalysisResult, "request" | "generatedAt">): boolean {
+  if (x.status === "ok") return false;
+  if (x.id === "ISOK") return true;
+  if (x.id === "IMGW") {
+    const gen = r.generatedAt ? new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(r.generatedAt)) : null;
+    return !!gen && gen !== r.request.date;
+  }
+  return false;
+}
+
+/** Plain status words for a source row. */
+export function statusWord(x: SourceInfo, r: Pick<AnalysisResult, "request" | "generatedAt">): string {
+  if (x.id === "ISOK" && x.status !== "ok") return "nie pobierane (tylko link)";
+  if (x.id === "IMGW" && absentByDesign(x, r)) return "nie dotyczy (data nie jest dzisiejsza)";
+  return STATUS_PL[x.status];
+}
+
+/** "Brak danych: …" prefix only when the sentence does not already say what is missing. */
+export const missingSentence = (x: string) => (/(^|\s)(brak|nie\s|niedostęp|niepełn)/i.test(x) ? x : `Brak danych: ${x}`);
 
 export function signed(v: number | null | undefined, digits = 0, unit = ""): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return NA;
@@ -109,7 +137,8 @@ const FALLBACK_ATTR: Partial<Record<SourceInfo["id"], string>> = {
 };
 
 /** Short tag for a source row; the watercourse source may come from OpenStreetMap under the BDOT10k id. */
-export const srcTag = (x: SourceInfo | undefined, fallback: string) => (x && isOsm(x) ? "OSM" : fallback);
+export const srcTag = (x: SourceInfo | undefined, fallback: string) =>
+  x && isOsm(x) ? "OSM" : x && x.id === "OpenMeteo" && mentionsPower(x) ? "NASA POWER" : fallback;
 
 export const LLM_LABEL = "Tekst przeredagowany przez model językowy; liczby z analizy";
 
