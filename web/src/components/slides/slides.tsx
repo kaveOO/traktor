@@ -184,13 +184,13 @@ function Insight() {
 function How() {
   const pillars: { icon: IconName; t: string; en: string; d: string }[] = [
     { icon: "lidar", t: "Uziemione", en: "Grounded", d: "Istniejące rowy z BDOT10k i teren z NMT LiDAR 1 m. Żadnych nowych wykopów." },
-    { icon: "board", t: "Odwracalne", en: "Reversible", d: "Deska w górę, deska w dół. Jedno polecenie na tydzień. Nic nie betonujemy." },
+    { icon: "board", t: "Odwracalne", en: "Reversible", d: "Deska w górę, deska w dół. Jedno polecenie na dzień. Nic nie betonujemy." },
     { icon: "pin", t: "Precyzyjne", en: "Precise", d: "Każde miejsce ma wysokość deski, objętość w przedziale i powód odmowy." },
   ];
   return (
     <Shell className="flex flex-col">
       <h2 className="hd rise text-[96px]">Od rowu do decyzji.</h2>
-      <En className="rise mt-4">From every ditch to one weekly order.</En>
+      <En className="rise mt-4">From every ditch to one daily order.</En>
       <div className="rise mt-16 [&_li>span:last-child]:text-[15px]">
         <ProgressRail current={8} tone="onForest" />
       </div>

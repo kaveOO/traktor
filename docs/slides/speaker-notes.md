@@ -13,7 +13,7 @@ Demo numbers (from `summary` and S-007 in `web/src/lib/traktor/mock.ts`): 1 239 
 1. **Title.** Poland already built a water machine on 6.4 million hectares. It only runs one way: out. TRAKTOR makes it run both ways.
 2. **Problem.** 6.4 million hectares drained. In 2025 drought hit 394 gminas. Drought aid comes after the loss. A year earlier, the September flood. Same ditch.
 3. **Insight.** One board in an existing ditch. Two states. TRZYMAJ holds water in drought. OTWÓRZ frees the ditch before a storm.
-4. **How.** Seven steps: ditch network, LiDAR terrain, site scoring, safety checks, the board, the weekly order, monitoring.
+4. **How.** Seven steps: ditch network, LiDAR terrain, site scoring, safety checks, the board, the daily order, monitoring.
 5. **Refusal.** In our demo gmina: about twelve hundred points, thirty-one safe. Most places cannot take a board. TRAKTOR says no, and says why.
 6. **Demo.** (Skip in the 2-minute version, or 20 s: open S-007, push the board to 60 cm, show the refusal.)
 7. **Flip.** Same board. KBW minus 86 millimetres: TRZYMAJ. IMGW level-2 warning, 42 mm in 72 hours: OTWÓRZ, with a deadline.
