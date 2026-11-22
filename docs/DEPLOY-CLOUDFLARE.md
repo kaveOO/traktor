@@ -33,6 +33,10 @@ npm run cf:deploy           # build + wdrożenie -> https://traktor.<subdomena>.
 Inne skrypty: `npm run cf:build` (tylko build do `.open-next/`), `npm run cf:typegen` (typy `CloudflareEnv`
 z `wrangler.jsonc` do `cloudflare-env.d.ts`). Rozmiar paczki: `npx wrangler deploy --dry-run --outdir ../cf-dry`.
 
+### Automatycznie z GitHub Actions
+
+`.github/workflows/deploy.yml` wdraża `main` po zielonym CI (albo ręcznie: Actions → Deploy → Run workflow). Ustaw w repo: sekrety `CLOUDFLARE_API_TOKEN` (uprawnienie *Edit Cloudflare Workers*) i `CLOUDFLARE_ACCOUNT_ID`; opcjonalnie zmienną `DEPLOY_URL` (test dymny tras po wdrożeniu) oraz sekrety `ANTHROPIC_API_KEY` / `GOOGLE_MAPS_API_KEY` (wgrywane jako sekrety workera). Bez sekretów Cloudflare job kończy się ostrzeżeniem.
+
 ## 3. Zmienne i sekrety
 
 Zmienne jawne są w `wrangler.jsonc` → `vars` (z `nodejs_compat` trafiają do `process.env`, OpenNext też je

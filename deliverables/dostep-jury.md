@@ -1,6 +1,6 @@
 # Dostęp jury do prywatnego repozytorium (pkt 4.3, Regulamin § 5)
 
-Repozytorium: `https://github.com/kaveOO/traktor-hacknation2026` (właściciel konta wykonuje kroki poniżej).
+Repozytorium: `https://github.com/philpiano/traktor` (właściciel konta wykonuje kroki poniżej).
 Zasada: repozytorium jest **prywatne do końca wydarzenia** i dalej, do przekazania KOWR (jeśli wygramy). Nie udostępniamy go nikomu poza jury i zespołem.
 
 ## 0. Najpierw: wypchnij kod
@@ -38,8 +38,8 @@ Dotyczy konta osobistego. **Konto osobiste nie daje roli Read**: każdy zaproszo
   - *Permissions → Repository permissions*: **Contents: Read-only** (Metadata: Read-only dodaje się samo),
   - *Expiration*: data końca oceny + kilka dni.
   
-  Jury klonuje: `git clone https://<TOKEN>@github.com/kaveOO/traktor-hacknation2026.git`. Token przekaż **tylko kanałem wskazanym przez platformę**, nigdy w repozytorium ani na slajdzie. Po ocenie: **Revoke**.
-- **Deploy key** (tylko odczyt, SSH): jury generuje parę `ssh-keygen -t ed25519 -C "jury-hacknation"` i przysyła klucz **publiczny**. Repo → **Settings** → **Deploy keys** → **Add deploy key** → wklej, *Allow write access* **odznaczone**. Jury: `git clone git@github.com:kaveOO/traktor-hacknation2026.git`.
+  Jury klonuje: `git clone https://<TOKEN>@github.com/philpiano/traktor.git`. Token przekaż **tylko kanałem wskazanym przez platformę**, nigdy w repozytorium ani na slajdzie. Po ocenie: **Revoke**.
+- **Deploy key** (tylko odczyt, SSH): jury generuje parę `ssh-keygen -t ed25519 -C "jury-hacknation"` i przysyła klucz **publiczny**. Repo → **Settings** → **Deploy keys** → **Add deploy key** → wklej, *Allow write access* **odznaczone**. Jury: `git clone git@github.com:philpiano/traktor.git`.
 - **Archiwum** (gdy platforma przyjmuje plik): `git bundle create traktor.bundle --all` (pełna historia) i odtworzenie `git clone traktor.bundle traktor`. Plik wgraj tylko do platformy.
 
 ## 4. Jak utrzymać prywatność
@@ -53,8 +53,8 @@ Dotyczy konta osobistego. **Konto osobiste nie daje roli Read**: każdy zaproszo
 
 ## 5. Lista kontrolna prywatności (wykonaj przed wysłaniem zgłoszenia)
 
-- [ ] Okno incognito (wylogowany) → `https://github.com/kaveOO/traktor-hacknation2026` → **404 „Page not found”**.
-- [ ] Okno incognito → `https://raw.githubusercontent.com/kaveOO/traktor-hacknation2026/main/README.md` → **404**.
+- [ ] Okno incognito (wylogowany) → `https://github.com/philpiano/traktor` → **404 „Page not found”**.
+- [ ] Okno incognito → `https://raw.githubusercontent.com/philpiano/traktor/main/README.md` → **404**.
 - [ ] Settings → General: *Visibility* = **Private**.
 - [ ] Settings → Collaborators: tylko zespół + jury (porównaj z listą z platformy).
 - [ ] Settings → Deploy keys / tokeny: tylko te dla jury, wszystkie tylko do odczytu.
