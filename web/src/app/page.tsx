@@ -1,8 +1,9 @@
 import { Icon, type IconName } from "@/components/brand/Icon";
 import { Button, Card, Eyebrow, ProgressRail, SkipLink, SourceLine } from "@/components/brand/ui";
 import { BoardStates } from "@/components/landing/BoardStates";
-import { DEMO_PARCELS, Hero } from "@/components/landing/Hero";
+import { DEMO_PARCELS } from "@/components/landing/Hero";
 import { HeroFields } from "@/components/landing/HeroFields";
+import { ParallaxHero } from "@/components/landing/ParallaxHero";
 import { RefusalCounter, type RefusalRow } from "@/components/landing/RefusalCounter";
 import { Section } from "@/components/landing/Section";
 import { SiteFooter } from "@/components/landing/SiteFooter";
@@ -87,8 +88,8 @@ export default function Home() {
       <SkipLink href="#main">Przejdź do treści</SkipLink>
       <SiteNav />
       <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
-        {/* 01 HERO: forest block for words, flat field pattern from real ULDK parcels */}
-        <Hero />
+        {/* 01 HERO: layered Blender render (docs/blender/scripts/traktor_parallax.py), scroll parallax, static composite under reduced motion */}
+        <ParallaxHero />
 
         {/* 02 PROBLEM */}
         <Section
