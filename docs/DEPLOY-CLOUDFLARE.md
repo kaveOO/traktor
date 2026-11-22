@@ -113,8 +113,10 @@ Koszty zewnętrzne: zero (wszystkie źródła danych są darmowe i bez kluczy).
 
 Znany problem: w pełnej paczce OpenNext Sentinel-2 wraca jako `missing`/`partial` tam, gdzie Node daje `ok`
 (Głubczyce: brak sceny w obu datach). Ten sam kod satelity uruchomiony osobno w workerd (bez Next/Turbopack)
-działa: `ok`, 2,9 s, 152 zapytania zakresowe. Podejrzenie: leniwie ładowane chunki dekoderów geotiff
-(`import('./deflate.js')`) w paczce Turbopack po łataniu OpenNext na Windows. Do sprawdzenia w buildzie z WSL/Linux.
+działa: `ok`, 2,9 s, 152 zapytania zakresowe. Chunki dekoderów geotiff są wbudowane w `handler.mjs`
+(sprawdzone), więc przyczyna nieustalona; błędy są połykane w `bestScene()`. Kandydaci: chwilowe 429 z STAC
+Planetary Computer podczas serii testów, limit 6 połączeń na żądanie przy równoległych źródłach. Do sprawdzenia:
+tymczasowy `console.error` w `catch` w `bestScene()`/`search()` i `npx wrangler tail` po wdrożeniu.
 Overpass (rowy OSM) był w czasie testów niedostępny także z Node, więc BDOT10k = `missing` na obu środowiskach.
 
 ## Sekcja do README
