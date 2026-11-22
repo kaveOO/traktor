@@ -18,6 +18,33 @@ export type ApiError = {
 /** Client-side codes for failures without an engine body. */
 export const TIMEOUT = "TIMEOUT";
 export const NETWORK = "NETWORK";
+/** The caller cancelled the request (newer parcel / search / unmount). Never shown to the user. */
+export const ABORTED = "ABORTED";
+const aborted = (): { ok: false; error: ApiError } => ({ ok: false, error: { code: ABORTED, status: 0, messagePl: "Anulowano" } });
+export const isAborted = (r: Fetched<unknown>) => !r.ok && r.error.code === ABORTED;
+
+/** Polish plural: 1 działka, 2-4 działki, 5+ działek (12-14 → działek). */
+export const plPlural = (n: number, one: string, few: string, many: string) => {
+  if (n === 1) return one;
+  const d = n % 10;
+  const t = n % 100;
+  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
+};
+
+/** Wait `ms`, resolve false if the signal aborts first. */
+const sleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<boolean>((res) => {
+    if (signal?.aborted) return res(false);
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", stop);
+      res(true);
+    }, ms);
+    const stop = () => {
+      clearTimeout(t);
+      res(false);
+    };
+    signal?.addEventListener("abort", stop, { once: true });
+  });
 
 export type Fetched<T> = { ok: true; data: T; fixture?: boolean } | { ok: false; error: ApiError };
 
@@ -39,14 +66,19 @@ export const joinPl = (...parts: (string | null | undefined | false)[]) =>
     .map(sentence)
     .join(" ");
 
-async function getJson<T>(url: string, init?: RequestInit, timeoutMs = 45000): Promise<Fetched<T>> {
+async function getJson<T>(url: string, init?: RequestInit, timeoutMs = 45000, signal?: AbortSignal): Promise<Fetched<T>> {
+  if (signal?.aborted) return aborted();
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
+  const onAbort = () => ctl.abort();
+  signal?.addEventListener("abort", onAbort, { once: true });
   try {
     const r = await fetch(url, { ...init, signal: ctl.signal });
     const body = (await r.json().catch(() => null)) as (Record<string, unknown> & { error?: string; messagePl?: string }) | null;
     if (!r.ok || (body && typeof body.error === "string")) {
-      const ra = Number(r.headers.get("retry-after"));
+      // Retry-After: delta-seconds or an HTTP date
+      const raH = r.headers.get("retry-after");
+      const ra = raH == null ? NaN : /^\d+$/.test(raH.trim()) ? Number(raH) : Math.ceil((Date.parse(raH) - Date.now()) / 1000);
       const code = (body?.error as string | undefined) ?? `HTTP_${r.status}`;
       return {
         ok: false,
@@ -63,11 +95,13 @@ async function getJson<T>(url: string, init?: RequestInit, timeoutMs = 45000): P
     if (!body) return { ok: false, error: { code: "BAD_RESPONSE", status: r.status, messagePl: "Serwer zwrócił pustą odpowiedź" } };
     return { ok: true, data: body as T };
   } catch (e) {
+    if (signal?.aborted) return aborted();
     if ((e as Error).name === "AbortError")
       return { ok: false, error: { code: TIMEOUT, status: 0, messagePl: `Serwer nie odpowiedział w ${Math.round(timeoutMs / 1000)} s` } };
     return { ok: false, error: { code: NETWORK, status: 0, messagePl: "Brak połączenia z serwerem" } };
   } finally {
     clearTimeout(t);
+    signal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -75,24 +109,47 @@ async function getJson<T>(url: string, init?: RequestInit, timeoutMs = 45000): P
  * Parcel by id/text or by point. The fixture parcel is used only when `allowFixture`
  * (dev build or ?demo=1) and the server is unreachable, never silently in production.
  */
-export async function fetchParcel(q: { id: string } | { lonLat: LonLat }, allowFixture = false): Promise<Fetched<ParcelHit>> {
+export async function fetchParcel(
+  q: { id: string } | { lonLat: LonLat },
+  allowFixture = false,
+  signal?: AbortSignal,
+): Promise<Fetched<ParcelHit>> {
   const url =
     "id" in q
       ? `/api/dzialka?id=${encodeURIComponent(q.id.trim())}`
       : `/api/dzialka?lon=${q.lonLat[0].toFixed(6)}&lat=${q.lonLat[1].toFixed(6)}`;
-  const r = await getJson<ParcelHit>(url, undefined, 20000);
+  const r = await getJson<ParcelHit>(url, undefined, 20000, signal);
   if (r.ok && !r.data?.geometry) return { ok: false, error: { code: "BAD_RESPONSE", status: 200, messagePl: "Niepełna odpowiedź serwera" } };
   if (!r.ok && allowFixture && "id" in q && q.id.trim() === FIXTURE_PARCEL_ID && [NETWORK, TIMEOUT, "HTTP_404"].includes(r.error.code))
     return { ok: true, data: FIXTURE_PARCEL, fixture: true };
   return r;
 }
 
-export async function postAnalysis(req: AnalysisRequest): Promise<Fetched<AnalysisResult>> {
-  const r = await getJson<AnalysisResult>("/api/analiza", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(req),
-  });
+/** Longest Retry-After we wait for automatically; longer waits go to the visible countdown. */
+const AUTO_RETRY_MAX_S = 15;
+
+/**
+ * POST /api/analiza. A 503 (engine queue full) is retried once after Retry-After (capped at 15 s);
+ * `onRetryWait(s)` lets the UI say so. 429 is never retried automatically (60 s, shown as a countdown).
+ */
+export async function postAnalysis(
+  req: AnalysisRequest,
+  opts: { signal?: AbortSignal; onRetryWait?: (seconds: number) => void } = {},
+): Promise<Fetched<AnalysisResult>> {
+  const once = () =>
+    getJson<AnalysisResult>(
+      "/api/analiza",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(req) },
+      45000,
+      opts.signal,
+    );
+  let r = await once();
+  if (!r.ok && r.error.status === 503 && (r.error.retryAfterS ?? 5) <= AUTO_RETRY_MAX_S) {
+    const s = Math.max(1, r.error.retryAfterS ?? 5);
+    opts.onRetryWait?.(s);
+    if (!(await sleep(s * 1000, opts.signal))) return aborted();
+    r = await once();
+  }
   if (r.ok && !r.data?.assessment) return { ok: false, error: { code: "BAD_RESPONSE", status: 200, messagePl: "Niepełna odpowiedź serwera" } };
   return r;
 }
@@ -101,12 +158,12 @@ export async function postAnalysis(req: AnalysisRequest): Promise<Fetched<Analys
  * (OSM, ODbL): only on submit, only for queries without digits, at most 1 request per second, Poland only. */
 let lastGeocode = 0;
 export type Place = { label: string; lonLat: LonLat; bbox?: [number, number, number, number] };
-export async function geocode(q: string): Promise<Fetched<Place[]>> {
+export async function geocode(q: string, signal?: AbortSignal): Promise<Fetched<Place[]>> {
   const wait = 1100 - (Date.now() - lastGeocode);
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  if (wait > 0 && !(await sleep(wait, signal))) return aborted();
   lastGeocode = Date.now();
   const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=pl&limit=5&accept-language=pl&q=${encodeURIComponent(q)}`;
-  const r = await getJson<{ display_name: string; lon: string; lat: string; boundingbox?: string[] }[]>(url, undefined, 10000);
+  const r = await getJson<{ display_name: string; lon: string; lat: string; boundingbox?: string[] }[]>(url, undefined, 10000, signal);
   if (!r.ok) return r;
   return {
     ok: true,
