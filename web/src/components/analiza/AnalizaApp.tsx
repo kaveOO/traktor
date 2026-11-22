@@ -8,7 +8,22 @@ import { Icon, type IconName } from "@/components/brand/Icon";
 import { Segmented } from "@/components/brand/Segmented";
 import { Button, Callout, FooterLine, ProgressLine, SectionEyebrow, SourceLine, StepRail, type StepState } from "@/components/brand/ui";
 import { CROPS, type AnalysisResult, type CropId, type LonLat, type Parcel } from "@/lib/analiza";
-import { fetchParcel, fmt, geocode, looksLikeParcelId, minDateIso, postAnalysis, todayIso, type Place } from "./api";
+import {
+  fetchParcel,
+  fmt,
+  geocode,
+  joinPl,
+  looksLikeParcelQuery,
+  minDateIso,
+  postAnalysis,
+  TIMEOUT,
+  todayIso,
+  validDate,
+  type ApiError,
+  type ParcelCandidate,
+  type ParcelHit,
+  type Place,
+} from "./api";
 import { fixtureResult } from "./fixture";
 import MapView, { type Basemap, type MapMarker } from "./MapView";
 import Results from "./Results";
@@ -33,41 +48,67 @@ const CLICK_MIN_ZOOM = 13;
 const SHOW_DEV = process.env.NODE_ENV !== "production";
 
 type Phase = "form" | "loading" | "result" | "error";
+type ErrKind = "ambiguous" | "not_agri" | "too_large" | "not_found" | "bad_request" | "busy" | "timeout" | "other";
+
+/** Engine codes are mostly lowercase (bad_date, parcel_not_found, rate_limited), two are uppercase (AMBIGUOUS, NOT_AGRICULTURAL). */
+function kindOf(e: ApiError): ErrKind {
+  const c = e.code.toLowerCase();
+  if (c === "ambiguous") return "ambiguous";
+  if (c === "not_agricultural") return "not_agri";
+  if (c === "parcel_too_large") return "too_large";
+  if (c === "parcel_not_found" || c === "not_found") return "not_found";
+  if (c.startsWith("bad_") || c === "bad_request") return "bad_request";
+  if (c === "rate_limited" || c === "busy" || e.status === 429 || e.status === 503) return "busy";
+  if (e.code === TIMEOUT) return "timeout";
+  return "other";
+}
+
+const candidateLabel = (c: ParcelCandidate) =>
+  [c.commune && `gm. ${c.commune}`, c.county && `pow. ${c.county}`, c.voivodeship && `woj. ${c.voivodeship}`].filter(Boolean).join(" · ");
 
 export default function AnalizaApp() {
   use(browser("Mapa i analiza działają tylko w przeglądarce."));
 
+  const [today] = useState(todayIso);
+  const [minDate] = useState(minDateIso);
+
   const initial = useMemo(() => {
     const p = new URLSearchParams(window.location.search);
     const crop = p.get("crop");
+    const date = p.get("date") ?? "";
     return {
       parcelId: p.get("parcelId") ?? "",
       crop: (CROPS.some((c) => c.id === crop) ? crop : "") as CropId | "",
-      date: p.get("date") ?? "",
+      date,
+      dateOk: !date || validDate(date, minDate, today),
       demo: p.get("demo") === "1",
     };
-  }, []);
-
-  const [today] = useState(todayIso);
-  const [minDate] = useState(minDateIso);
+  }, [minDate, today]);
+  // the fixture parcel/result is allowed only in dev builds or with ?demo=1
+  const allowFixture = SHOW_DEV || initial.demo;
 
   const [query, setQuery] = useState(initial.parcelId);
   const [searchMsg, setSearchMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [candidates, setCandidates] = useState<ParcelCandidate[]>([]);
   const [busySearch, setBusySearch] = useState(false);
 
-  const [parcel, setParcel] = useState<Parcel | null>(null);
+  const [parcel, setParcel] = useState<ParcelHit | null>(null);
   const [parcelFixture, setParcelFixture] = useState(false);
   const [crop, setCrop] = useState<CropId | "">(initial.crop);
-  const [date, setDate] = useState(initial.date || today);
-  const [formErr, setFormErr] = useState<{ parcel?: string; crop?: string; date?: string }>({});
+  const [date, setDate] = useState(initial.date && initial.dateOk ? initial.date : today);
+  const [formErr, setFormErr] = useState<{ parcel?: string; crop?: string; date?: string }>(
+    initial.dateOk ? {} : { date: `Data z adresu „${initial.date}” jest nieprawidłowa. Podaj datę od ${minDate} do ${today}.` },
+  );
 
   const [phase, setPhase] = useState<Phase>("form");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isFixture, setIsFixture] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ApiError | null>(null);
+  const [retryIn, setRetryIn] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [live, setLive] = useState("");
+  const [sheetOpen, setSheetOpen] = useState(true);
 
   const [basemap, setBasemap] = useState<Basemap>("satelita");
   const [showParcels, setShowParcels] = useState(true);
@@ -76,86 +117,139 @@ export default function AnalizaApp() {
     null,
   );
 
-  const panelRef = useRef<HTMLElement>(null);
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
-  const resultRef = useRef<HTMLDivElement>(null);
   const runId = useRef(0);
+  /** a candidate picked after an AMBIGUOUS analysis continues straight into the analysis */
+  const pickContinues = useRef(false);
 
-  const announce = (t: string) => setLive(t);
+  const tooLarge = !!parcel?.tooLarge;
+  const tooLargeMsg = (p: Parcel) => `Działka ma ${fmt(p.areaHa, 0, "ha")}. To za dużo na jedną analizę. Wybierz mniejszą działkę.`;
 
-  const selectParcel = useCallback((p: Parcel, fixture = false) => {
+  /** Selecting a parcel is announced once, by the search status line (#q-msg), not by the live region. */
+  const selectParcel = useCallback((p: ParcelHit, fixture = false) => {
     setParcel(p);
     setParcelFixture(fixture);
-    setFormErr((e) => ({ ...e, parcel: undefined }));
+    setCandidates([]);
+    setFormErr((e) => ({ ...e, parcel: p.tooLarge ? tooLargeMsg(p) : undefined }));
     setResult(null);
+    setError(null);
     setPhase("form");
     setActiveRec(null);
-    announce(`Wybrano działkę ${p.id}${p.commune ? `, gmina ${p.commune}` : ""}, ${fmt(p.areaHa, 2)} ha.`);
   }, []);
 
+  /** Search status text for a failed parcel lookup, per error code. */
+  const parcelErrorText = (e: ApiError) => {
+    switch (kindOf(e)) {
+      case "busy":
+        return joinPl(e.messagePl, e.retryAfterS ? `Spróbuj za ${e.retryAfterS} s` : null);
+      case "timeout":
+        return joinPl("Serwer działek nie odpowiedział w 20 s", "Spróbuj ponownie");
+      default:
+        return joinPl(e.messagePl);
+    }
+  };
+
   const loadParcelById = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<ParcelHit | null> => {
       setBusySearch(true);
+      setPlaces([]);
       setSearchMsg({ text: "Szukam działki…" });
-      const r = await fetchParcel({ id });
+      const r = await fetchParcel({ id }, allowFixture);
       setBusySearch(false);
       if (r.ok) {
         selectParcel(r.data, !!r.fixture);
-        setSearchMsg({ text: r.fixture ? `Działka ${r.data.id} (dane przykładowe, serwer niedostępny).` : `Znaleziono działkę ${r.data.id}.` });
+        setSearchMsg(
+          r.data.tooLarge
+            ? { text: tooLargeMsg(r.data), error: true }
+            : {
+                text: `${r.fixture ? "Działka przykładowa (serwer niedostępny)" : "Wybrano działkę"} ${r.data.id}${
+                  r.data.commune ? `, gm. ${r.data.commune}` : ""
+                }, ${fmt(r.data.areaHa, 2, "ha")}.`,
+              },
+        );
         return r.data;
       }
-      setSearchMsg({ text: `Nie znaleziono działki: ${r.messagePl}. Sprawdź numer i spróbuj ponownie.`, error: true });
+      if (kindOf(r.error) === "ambiguous" && r.error.candidates?.length) {
+        setCandidates(r.error.candidates);
+        setSearchMsg({ text: `Pasuje ${r.error.candidates.length} działek. Wybierz właściwą z listy poniżej.`, error: true });
+        return null;
+      }
+      setCandidates([]);
+      setSearchMsg({ text: parcelErrorText(r.error), error: true });
       return null;
     },
-    [selectParcel],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectParcel, allowFixture],
   );
 
-  const runAnalysis = useCallback(
-    async (p: Parcel, c: CropId, d: string) => {
-      const id = ++runId.current;
-      setPhase("loading");
-      setError("");
-      setResult(null);
-      setActiveRec(null);
-      setElapsed(0);
-      announce("Analiza rozpoczęta. Pobieramy dane z pięciu źródeł.");
-      const url = new URL(window.location.href);
-      url.searchParams.set("parcelId", p.id);
-      url.searchParams.set("crop", c);
-      url.searchParams.set("date", d);
-      window.history.replaceState(null, "", url);
-      const r = await postAnalysis({ parcelId: p.id, crop: c, date: d });
-      if (id !== runId.current) return;
-      if (r.ok) {
-        setResult(r.data);
-        setIsFixture(false);
-        setPhase("result");
-        announce(`Analiza gotowa. Ryzyko suszy teraz: ${r.data.assessment.currentLevel ?? "brak danych"}.`);
-      } else {
-        setError(r.messagePl);
-        setPhase("error");
-        announce(`Nie udało się pobrać danych: ${r.messagePl}.`);
-      }
-    },
-    [],
-  );
+  const runAnalysis = useCallback(async (p: Parcel, c: CropId, d: string) => {
+    const id = ++runId.current;
+    setPhase("loading");
+    setError(null);
+    setRetryIn(0);
+    setResult(null);
+    setActiveRec(null);
+    setElapsed(0);
+    setSheetOpen(true);
+    setLive("Analiza rozpoczęta. Pobieramy dane z pięciu źródeł.");
+    const url = new URL(window.location.href);
+    url.searchParams.set("parcelId", p.id);
+    url.searchParams.set("crop", c);
+    url.searchParams.set("date", d);
+    window.history.replaceState(null, "", url);
+    const r = await postAnalysis({ parcelId: p.id, crop: c, date: d });
+    if (id !== runId.current) return;
+    setLive("");
+    if (r.ok) {
+      setResult(r.data);
+      setIsFixture(false);
+      setPhase("result");
+      return;
+    }
+    const e = r.error;
+    const k = kindOf(e);
+    if (k === "bad_request") {
+      // field-level message, no error box
+      const c0 = e.code.toLowerCase();
+      const field = c0 === "bad_date" ? "date" : c0 === "bad_crop" ? "crop" : "parcel";
+      setFormErr((x) => ({ ...x, [field]: joinPl(e.messagePl) }));
+      setPhase("form");
+      requestAnimationFrame(() => document.getElementById(field === "date" ? "f-date" : field === "crop" ? "f-crop" : "f-parcel")?.focus());
+      return;
+    }
+    if (k === "ambiguous" && e.candidates?.length) {
+      setCandidates(e.candidates);
+      pickContinues.current = true;
+    }
+    if (k === "busy") setRetryIn(e.retryAfterS ?? 10);
+    setError(e);
+    setPhase("error");
+  }, []);
 
-  // elapsed seconds while loading
+  // retry countdown for rate_limited / busy
+  useEffect(() => {
+    if (retryIn <= 0) return;
+    const t = setTimeout(() => setRetryIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [retryIn]);
+
+  // elapsed seconds while loading (announced every 10 s)
   useEffect(() => {
     if (phase !== "loading") return;
     const t0 = Date.now();
     const iv = setInterval(() => {
       const s = Math.round((Date.now() - t0) / 1000);
       setElapsed(s);
-      if (s > 0 && s % 5 === 0) setLive(`Trwa analiza, ${s} s.`);
+      if (s > 0 && s % 10 === 0) setLive(`Trwa analiza, ${s} s.`);
     }, 1000);
     return () => clearInterval(iv);
   }, [phase]);
 
-  // move focus to the result heading when it appears
+  // focus the labelled result / error heading (it carries the announcement; no extra live message)
   useEffect(() => {
-    if (phase === "result" || phase === "error") resultRef.current?.focus();
-  }, [phase]);
+    if (phase === "result") document.getElementById("wyniki-h")?.focus();
+    if (phase === "error") document.getElementById("err-h")?.focus();
+  }, [phase, result]);
 
   // URL state on load
   useEffect(() => {
@@ -163,8 +257,8 @@ export default function AnalizaApp() {
     let cancelled = false;
     (async () => {
       const p = await loadParcelById(initial.parcelId);
-      if (cancelled || !p) return;
-      if (initial.crop && initial.date) {
+      if (cancelled || !p || p.tooLarge) return;
+      if (initial.crop && initial.date && initial.dateOk) {
         if (initial.demo) {
           setResult(fixtureResult({ crop: initial.crop, date: initial.date }));
           setIsFixture(true);
@@ -177,15 +271,20 @@ export default function AnalizaApp() {
     };
   }, [initial, loadParcelById, runAnalysis]);
 
+  const goPlace = (pl: Place) => setFlyTarget({ lonLat: pl.lonLat, bbox: pl.bbox, zoom: 14, key: Date.now() });
+
   const onSearch = async (e: FormEvent) => {
     e.preventDefault();
     const q = query.trim();
     setPlaces([]);
+    setCandidates([]);
+    pickContinues.current = false;
     if (!q) {
       setSearchMsg({ text: "Wpisz numer działki lub nazwę miejscowości.", error: true });
       return;
     }
-    if (looksLikeParcelId(q)) {
+    // anything with a digit goes to the engine first: full id, id without _N, AR_ sheet, "Zakrzewo 306/2"
+    if (looksLikeParcelQuery(q)) {
       await loadParcelById(q);
       return;
     }
@@ -194,11 +293,11 @@ export default function AnalizaApp() {
     const r = await geocode(q);
     setBusySearch(false);
     if (!r.ok) {
-      setSearchMsg({ text: `Wyszukiwanie nie działa: ${r.messagePl}. Wpisz numer działki.`, error: true });
+      setSearchMsg({ text: joinPl(`Wyszukiwanie miejscowości nie działa: ${r.error.messagePl}`, "Wpisz numer działki"), error: true });
       return;
     }
     if (!r.data.length) {
-      setSearchMsg({ text: `Nie znaleziono „${q}”. Spróbuj innej nazwy albo numeru działki.`, error: true });
+      setSearchMsg({ text: `Nie znaleziono „${q}”. Spróbuj innej nazwy albo podaj obręb i numer działki.`, error: true });
       return;
     }
     setPlaces(r.data);
@@ -208,7 +307,14 @@ export default function AnalizaApp() {
     });
   };
 
-  const goPlace = (pl: Place) => setFlyTarget({ lonLat: pl.lonLat, bbox: pl.bbox, zoom: 14, key: Date.now() });
+  const pickCandidate = async (c: ParcelCandidate) => {
+    const cont = pickContinues.current;
+    pickContinues.current = false;
+    setCandidates([]);
+    setQuery(c.id);
+    const p = await loadParcelById(c.id);
+    if (p && cont && !p.tooLarge && crop && validDate(date, minDate, today)) runAnalysis(p, crop, date);
+  };
 
   const onMapClick = useCallback(
     async (lonLat: LonLat, zoom: number) => {
@@ -221,9 +327,14 @@ export default function AnalizaApp() {
       if (r.ok) {
         selectParcel(r.data);
         setQuery(r.data.id);
-        setSearchMsg({ text: `Wybrano działkę ${r.data.id}.` });
-      } else setSearchMsg({ text: `Nie udało się pobrać działki: ${r.messagePl}.`, error: true });
+        setSearchMsg(
+          r.data.tooLarge
+            ? { text: tooLargeMsg(r.data), error: true }
+            : { text: `Wybrano działkę ${r.data.id}${r.data.commune ? `, gm. ${r.data.commune}` : ""}, ${fmt(r.data.areaHa, 2, "ha")}.` },
+        );
+      } else setSearchMsg({ text: parcelErrorText(r.error), error: true });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectParcel],
   );
 
@@ -231,8 +342,9 @@ export default function AnalizaApp() {
     e.preventDefault();
     const err: typeof formErr = {};
     if (!parcel) err.parcel = "Najpierw wybierz działkę: wpisz numer w wyszukiwarce albo kliknij mapę.";
+    else if (tooLarge) err.parcel = tooLargeMsg(parcel);
     if (!crop) err.crop = "Wybierz uprawę.";
-    if (!date || date < minDate || date > today) err.date = `Podaj datę od ${minDate} do ${today}.`;
+    if (!date || !validDate(date, minDate, today)) err.date = `Podaj datę od ${minDate} do ${today}.`;
     setFormErr(err);
     if (Object.keys(err).length) {
       const first = err.parcel ? "f-parcel" : err.crop ? "f-crop" : "f-date";
@@ -245,8 +357,16 @@ export default function AnalizaApp() {
   const loadFixture = () => {
     setResult(fixtureResult({ crop: (crop || "pszenica_ozima") as CropId, date }));
     setIsFixture(true);
+    setError(null);
     setPhase("result");
-    announce("Wczytano dane przykładowe.");
+  };
+
+  const chooseAnother = () => {
+    setPhase("form");
+    setError(null);
+    const q = document.getElementById("q") as HTMLInputElement | null;
+    q?.focus();
+    q?.select();
   };
 
   // map markers from recommendations with a location
@@ -267,8 +387,9 @@ export default function AnalizaApp() {
   };
   const onMarkerClick = (id: string) => {
     setActiveRec(id);
+    setSheetOpen(true);
     const rec = result?.recommendations.find((r) => r.id === id);
-    announce(rec ? `Rekomendacja: ${rec.titlePl}` : "");
+    setLive(rec ? `Rekomendacja: ${rec.titlePl}` : "");
     requestAnimationFrame(() => document.getElementById(`rec-${id}`)?.scrollIntoView({ block: "nearest" }));
   };
 
@@ -278,12 +399,13 @@ export default function AnalizaApp() {
       } Strzałki przesuwają mapę, plus i minus zmieniają przybliżenie.`
     : "Mapa Polski. Nie wybrano działki. Strzałki przesuwają mapę, plus i minus zmieniają przybliżenie.";
 
-  const raportHref = shownParcel && result
-    ? `/raport?parcelId=${encodeURIComponent(shownParcel.id)}&crop=${result.crop.id}&date=${result.request.date}`
-    : "";
+  const raportHref =
+    shownParcel && result
+      ? `/raport?parcelId=${encodeURIComponent(shownParcel.id)}&crop=${result.crop.id}&date=${result.request.date}${isFixture ? "&demo=1" : ""}`
+      : "";
 
   const steps: { label: string; state: StepState }[] = (() => {
-    const done = [!!parcel, !!crop, !!date];
+    const done = [!!parcel && !tooLarge, !!crop, !!date && !formErr.date];
     const cur = done.indexOf(false);
     return ["Działka", "Uprawa", "Data"].map((label, i) => ({
       label,
@@ -291,6 +413,35 @@ export default function AnalizaApp() {
     }));
   })();
   const resultPhase = phase === "result" && !!result;
+  const ek = error ? kindOf(error) : null;
+  const canRetry = ek === "busy" || ek === "timeout" || ek === "other";
+
+  const errTitle: Record<ErrKind, string> = {
+    ambiguous: "Kilka działek pasuje",
+    not_agri: "To nie jest działka rolna",
+    too_large: "Działka za duża",
+    not_found: "Nie znaleziono działki",
+    bad_request: "Popraw dane",
+    busy: error?.code === "rate_limited" ? "Za dużo zapytań" : "Serwer jest zajęty",
+    timeout: "Serwer nie odpowiedział",
+    other: "Analiza nie powiodła się",
+  };
+  const errBody = (e: ApiError, k: ErrKind) => {
+    switch (k) {
+      case "ambiguous":
+        return joinPl(e.messagePl);
+      case "not_agri":
+        return joinPl(e.messagePl, /nie dotyczy/i.test(e.messagePl) ? null : "Analiza suszy rolniczej nie dotyczy tej działki");
+      case "busy":
+        return joinPl(e.messagePl);
+      case "timeout":
+        return joinPl("Serwer nie odpowiedział w 45 s", "Spróbuj ponownie");
+      case "other":
+        return joinPl(e.messagePl, /spróbuj/i.test(e.messagePl) ? null : "Spróbuj ponownie");
+      default:
+        return joinPl(e.messagePl);
+    }
+  };
 
   return (
     <div className="analiza-ui fixed inset-0 overflow-hidden bg-cream-deep text-forest">
@@ -298,6 +449,7 @@ export default function AnalizaApp() {
         href="#panel"
         onClick={(e) => {
           e.preventDefault();
+          setSheetOpen(true);
           panelHeadingRef.current?.focus();
         }}
         className="absolute top-2 left-2 z-50 -translate-y-24 rounded-[2px] bg-forest px-4 py-3 font-medium text-cream focus:translate-y-0"
@@ -321,14 +473,17 @@ export default function AnalizaApp() {
 
       {/* top-left: logo strip + search card */}
       <header className="pointer-events-none absolute top-3 left-3 z-20 w-[min(420px,calc(100vw-24px))] min-[900px]:w-[min(440px,calc(100vw-500px))]">
-        <div className="pointer-events-auto overflow-hidden rounded-[4px] bg-cream/95 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
+        <div className="pointer-events-auto max-h-[calc(100vh-24px)] overflow-y-auto rounded-[4px] bg-cream/95 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
           <div className="flex items-center justify-between gap-3 bg-forest px-4 text-cream">
-            <Link href="/" aria-label="TRAKTOR, strona główna" className="inline-flex min-h-12 items-center">
+            <Link href="/" aria-label="TRAKTOR, strona główna" className="inline-flex min-h-12 shrink-0 items-center">
               <Logo height={18} color="cream" />
             </Link>
-            <Link href="/mapa" className="inline-flex min-h-11 items-center gap-1.5 text-[13px] text-cream underline-offset-4 hover:underline">
-              <Icon name="board" size={18} />
-              Przykład: zastawki
+            <Link
+              href="/mapa"
+              className="inline-flex min-h-11 items-center gap-1.5 text-right text-[12px] leading-tight text-cream-muted underline-offset-4 hover:text-cream hover:underline"
+            >
+              <Icon name="board" size={16} className="shrink-0" />
+              Przykład: zastawki na rowach (pod Bydgoszczą)
             </Link>
           </div>
 
@@ -342,18 +497,41 @@ export default function AnalizaApp() {
                   id="q"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="np. 040307_2.0023.306/2"
-                  aria-describedby="q-msg"
+                  placeholder="np. Zakrzewo 306/2"
+                  aria-describedby="q-hint q-msg"
                   aria-invalid={searchMsg?.error || undefined}
                   autoComplete="off"
                   spellCheck={false}
                   className="num min-h-12 min-w-0 flex-1 rounded-[2px] border-[1.5px] border-forest bg-cream px-3 text-[16px] placeholder:text-forest-muted"
                 />
-                <Button type="submit" disabled={busySearch} className="!px-4" aria-label="Szukaj">
+                <Button type="submit" disabled={busySearch} className="!px-4">
                   <Icon name="pin" size={18} />
                   Szukaj
                 </Button>
               </div>
+              <p id="q-hint" className="mt-1.5 text-[12px] leading-snug text-forest-muted">
+                Pełny identyfikator: <span className="num">040307_2.0023.306/2</span> albo obręb i numer: <span className="num">Zakrzewo 306/2</span>.
+              </p>
+              <details className="mt-1 text-[12px] leading-snug">
+                <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium underline-offset-2 hover:underline">
+                  Gdzie znaleźć numer i jakie formaty działają?
+                </summary>
+                <ul className="mt-1 mb-2 list-disc space-y-1 pl-4 text-forest-muted">
+                  <li>Numer jest na wypisie z rejestru gruntów, we wniosku o dopłaty (ARiMR) i na geoportal.gov.pl.</li>
+                  <li>
+                    Pełny identyfikator: TERYT gminy, typ, obręb, numer, np. <span className="num">040307_2.0023.306/2</span>. Bez członu „_2”
+                    też zadziała.
+                  </li>
+                  <li>
+                    Obręb i numer: <span className="num">Zakrzewo 306/2</span>. Zamiast „/” można wpisać „-”.
+                  </li>
+                  <li>
+                    Arkusz mapy: <span className="num">…0023.AR_1.306/2</span>.
+                  </li>
+                  <li>Sam numer („306/2”) nie wystarczy: jest w wielu obrębach.</li>
+                  <li>Nazwę miejscowości bez cyfr szukamy w OpenStreetMap (Nominatim).</li>
+                </ul>
+              </details>
               {busySearch && <ProgressLine className="mt-2" label="Szukam…" />}
               <p
                 id="q-msg"
@@ -363,6 +541,33 @@ export default function AnalizaApp() {
                 {searchMsg?.text ?? ""}
               </p>
             </form>
+
+            {candidates.length > 0 && (
+              <div className="mt-2">
+                <p id="cand-h" className="eb text-forest-muted">
+                  Pasujące działki ({candidates.length})
+                </p>
+                <ul aria-labelledby="cand-h" className="mt-1 max-h-56 divide-y divide-forest/10 overflow-y-auto border-y border-forest/15">
+                  {candidates.map((c, i) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        id={i === 0 ? "cand-first" : undefined}
+                        onClick={() => pickCandidate(c)}
+                        className="flex min-h-11 w-full flex-col items-start justify-center px-1 py-1.5 text-left hover:bg-cream-deep"
+                      >
+                        <span className="num text-[14px] font-semibold break-all">{c.id}</span>
+                        <span className="text-[12px] leading-snug text-forest-muted">
+                          {candidateLabel(c) || "brak danych o położeniu"}
+                          {c.region ? ` · obręb ${c.region}` : ""}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {places.length > 1 && (
               <ul className="mt-1 max-h-40 divide-y divide-forest/10 overflow-y-auto border-y border-forest/15" aria-label="Wyniki wyszukiwania">
                 {places.map((p) => (
@@ -398,184 +603,215 @@ export default function AnalizaApp() {
         </div>
       </header>
 
-      {/* right panel (desktop) / bottom sheet (mobile) */}
+      {/* right panel (desktop) / collapsible bottom sheet (mobile: ~60% / ~25% of the screen) */}
       <main
         id="panel"
-        ref={panelRef}
-        className="absolute inset-x-0 bottom-0 z-30 max-h-[55vh] overflow-y-auto rounded-t-[8px] bg-cream/95 p-5 text-forest shadow-[0_-8px_24px_rgba(31,58,34,.18)] min-[900px]:inset-y-3 min-[900px]:right-3 min-[900px]:left-auto min-[900px]:max-h-none min-[900px]:w-[420px] min-[900px]:rounded-[4px] min-[900px]:p-6 min-[900px]:shadow-[0_8px_24px_rgba(31,58,34,.18)]"
+        className={`absolute inset-x-0 bottom-0 z-30 flex flex-col overflow-hidden rounded-t-[8px] bg-cream/95 text-forest shadow-[0_-8px_24px_rgba(31,58,34,.18)] transition-[height] duration-300 ease-in-out ${sheetOpen ? "h-[60vh]" : "h-[25vh]"} min-[900px]:inset-y-3 min-[900px]:right-3 min-[900px]:left-auto min-[900px]:h-auto min-[900px]:w-[420px] min-[900px]:rounded-[4px] min-[900px]:shadow-[0_8px_24px_rgba(31,58,34,.18)]`}
         aria-labelledby="panel-h"
       >
-        <SectionEyebrow no={resultPhase ? 2 : 1} className="text-forest-muted">
-          {resultPhase ? "Wynik" : "Dane działki"}
-        </SectionEyebrow>
-        <h2 id="panel-h" ref={panelHeadingRef} tabIndex={-1} className="hd rise mt-2 text-[40px]">
-          Sprawdź działkę
-        </h2>
-        <p className="mt-2 text-[15px] leading-[1.45]">Działka, uprawa, data. Resztę bierzemy z danych publicznych.</p>
+        <button
+          type="button"
+          onClick={() => setSheetOpen((o) => !o)}
+          aria-expanded={sheetOpen}
+          aria-controls="panel-body"
+          className="flex min-h-11 w-full shrink-0 flex-col items-center justify-center gap-1 border-b border-forest/15 min-[900px]:hidden"
+        >
+          <span aria-hidden className="h-1 w-10 rounded-full bg-forest/50" />
+          <span className="text-[12px] font-medium">{sheetOpen ? "Zwiń panel" : "Rozwiń panel"}</span>
+        </button>
 
-        <StepRail steps={steps} label="Kroki formularza" className="mt-5" />
+        <div id="panel-body" className="min-h-0 flex-1 overflow-y-auto p-5 min-[900px]:p-6">
+          <SectionEyebrow no={resultPhase ? 2 : 1} className="text-forest-muted">
+            {resultPhase ? "Wynik" : "Dane działki"}
+          </SectionEyebrow>
+          <h2 id="panel-h" ref={panelHeadingRef} tabIndex={-1} className="hd rise mt-2 text-[40px]">
+            Sprawdź działkę
+          </h2>
+          <p className="mt-2 text-[15px] leading-[1.45]">Działka, uprawa, data. Resztę bierzemy z danych publicznych.</p>
 
-        <form onSubmit={onAnalyze} noValidate className="mt-5 space-y-6">
-          <fieldset>
-            <legend className="flex items-baseline gap-2">
-              <span className="eb num text-forest-muted">01</span>
-              <span className="sh text-[20px]">Działka</span>
-            </legend>
-            <div
-              id="f-parcel"
-              tabIndex={-1}
-              aria-describedby={formErr.parcel ? "e-parcel" : undefined}
-              className={`mt-2 rounded-[4px] border bg-cream p-4 text-[15px] ${formErr.parcel ? "border-terra" : "border-forest/15"}`}
-            >
-              {parcel ? (
-                <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5">
-                  <dt className="eb text-forest-muted">Numer</dt>
-                  <dd className="num font-semibold break-all">{parcel.id}</dd>
-                  <dt className="eb text-forest-muted">Gmina</dt>
-                  <dd>
-                    {parcel.commune ?? "brak danych"}
-                    {parcel.county ? `, ${parcel.county}` : ""}
-                  </dd>
-                  {parcel.region && (
-                    <>
-                      <dt className="eb text-forest-muted">Obręb</dt>
-                      <dd>{parcel.region}</dd>
-                    </>
-                  )}
-                  <dt className="eb text-forest-muted">Pow.</dt>
-                  <dd className="num">{fmt(parcel.areaHa, 2, "ha")}</dd>
-                </dl>
-              ) : (
-                <p className="flex items-start gap-2">
-                  <Icon name="pin" size={20} className="mt-0.5 shrink-0" />
-                  <span>
-                    Wpisz numer w{" "}
-                    <button type="button" className="font-medium underline underline-offset-2" onClick={() => document.getElementById("q")?.focus()}>
-                      wyszukiwarce
-                    </button>{" "}
-                    albo kliknij działkę na mapie.
-                  </span>
+          <StepRail steps={steps} label="Kroki formularza" className="mt-5" />
+
+          <form onSubmit={onAnalyze} noValidate className="mt-5 space-y-6">
+            <fieldset>
+              <legend className="flex items-baseline gap-2">
+                <span className="eb num text-forest-muted">01</span>
+                <span className="sh text-[20px]">Działka</span>
+              </legend>
+              <div
+                id="f-parcel"
+                tabIndex={-1}
+                aria-describedby={formErr.parcel ? "e-parcel" : undefined}
+                className={`mt-2 rounded-[4px] border bg-cream p-4 text-[15px] ${formErr.parcel ? "border-terra" : "border-forest/15"}`}
+              >
+                {parcel ? (
+                  <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5">
+                    <dt className="eb text-forest-muted">Numer</dt>
+                    <dd className="num font-semibold break-all">{parcel.id}</dd>
+                    <dt className="eb text-forest-muted">Gmina</dt>
+                    <dd>
+                      {parcel.commune ?? "brak danych"}
+                      {parcel.county ? `, ${parcel.county}` : ""}
+                    </dd>
+                    {parcel.region && (
+                      <>
+                        <dt className="eb text-forest-muted">Obręb</dt>
+                        <dd>{parcel.region}</dd>
+                      </>
+                    )}
+                    <dt className="eb text-forest-muted">Pow.</dt>
+                    <dd className={`num ${tooLarge ? "font-semibold text-terra-ink" : ""}`}>{fmt(parcel.areaHa, 2, "ha")}</dd>
+                  </dl>
+                ) : (
+                  <p className="flex items-start gap-2">
+                    <Icon name="pin" size={20} className="mt-0.5 shrink-0" />
+                    <span>
+                      Wpisz numer w{" "}
+                      <button type="button" className="font-medium underline underline-offset-2" onClick={() => document.getElementById("q")?.focus()}>
+                        wyszukiwarce
+                      </button>{" "}
+                      albo kliknij działkę na mapie.
+                    </span>
+                  </p>
+                )}
+                {parcelFixture && <p className="mt-2 text-[13px] text-terra-ink">Granice z danych przykładowych.</p>}
+              </div>
+              {formErr.parcel && (
+                <p id="e-parcel" className={ERR}>
+                  {formErr.parcel}
                 </p>
               )}
-              {parcelFixture && <p className="mt-2 text-[13px] text-terra-ink">Granice z danych przykładowych.</p>}
-            </div>
-            {formErr.parcel && (
-              <p id="e-parcel" className={ERR}>
-                {formErr.parcel}
-              </p>
-            )}
-          </fieldset>
+            </fieldset>
 
-          <fieldset>
-            <legend className="flex items-baseline gap-2">
-              <span className="eb num text-forest-muted">02</span>
-              <span className="sh text-[20px]">Uprawa</span>
-            </legend>
-            <label htmlFor="f-crop" className="mt-2 block text-[14px]">
-              Co rośnie na działce?
-            </label>
-            <select
-              id="f-crop"
-              value={crop}
-              onChange={(e) => {
-                setCrop(e.target.value as CropId);
-                setFormErr((x) => ({ ...x, crop: undefined }));
-              }}
-              aria-invalid={!!formErr.crop || undefined}
-              aria-describedby={formErr.crop ? "e-crop" : undefined}
-              className={`mt-1.5 min-h-12 w-full rounded-[2px] border-[1.5px] bg-cream px-3 text-[16px] ${formErr.crop ? "border-terra-ink" : "border-forest"}`}
-            >
-              <option value="">Wybierz uprawę</option>
-              {CROPS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.namePl}
-                </option>
-              ))}
-            </select>
-            {formErr.crop && (
-              <p id="e-crop" className={ERR}>
-                {formErr.crop}
-              </p>
-            )}
-          </fieldset>
-
-          <fieldset>
-            <legend className="flex items-baseline gap-2">
-              <span className="eb num text-forest-muted">03</span>
-              <span className="sh text-[20px]">Data</span>
-            </legend>
-            <label htmlFor="f-date" className="mt-2 block text-[14px]">
-              Na jaki dzień liczymy?
-            </label>
-            <input
-              id="f-date"
-              type="date"
-              value={date}
-              min={minDate}
-              max={today}
-              onChange={(e) => {
-                setDate(e.target.value);
-                setFormErr((x) => ({ ...x, date: undefined }));
-              }}
-              aria-invalid={!!formErr.date || undefined}
-              aria-describedby={`d-hint${formErr.date ? " e-date" : ""}`}
-              className={`num mt-1.5 min-h-12 w-full rounded-[2px] border-[1.5px] bg-cream px-3 text-[16px] ${formErr.date ? "border-terra-ink" : "border-forest"}`}
-            />
-            <p id="d-hint" className="num mt-1.5 text-[13px] text-forest-muted">
-              Od {minDate} do {today} (do 10 lat wstecz).
-            </p>
-            {formErr.date && (
-              <p id="e-date" className={ERR}>
-                {formErr.date}
-              </p>
-            )}
-          </fieldset>
-
-          <Button type="submit" disabled={phase === "loading"} className="w-full">
-            <Icon name="water" size={20} />
-            Analizuj działkę
-          </Button>
-        </form>
-
-        <div aria-live="polite" role="status" className="sr-only">
-          {live}
-        </div>
-
-        {phase === "loading" && (
-          <section aria-labelledby="load-h" className="mt-8">
-            <p className="eb text-forest-muted">W toku</p>
-            <h2 id="load-h" className="sh mt-1 text-[26px]">
-              Liczymy
-            </h2>
-            <ProgressLine className="mt-3" label="Analiza w toku" />
-            <p className="num mt-2 text-[14px] text-forest-muted">
-              Minęło {elapsed} s. Zwykle 10–30 s. Pięć źródeł naraz:
-            </p>
-            <ul className="mt-3 grid grid-cols-1 gap-1.5 text-[15px]">
-              {LOAD_STEPS.map((s) => (
-                <li key={s.label} className="flex items-center gap-2.5">
-                  <Icon name={s.icon} size={20} />
-                  {s.label}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <div ref={resultRef} tabIndex={-1} className="outline-none">
-          {phase === "error" && (
-            <Callout tone="warning" icon="storm" title="Analiza nie powiodła się" className="mt-8" role="alert">
-              <p id="err-h" className="mt-1">
-                Brak danych: {error}. Spróbuj ponownie.
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="mt-3"
-                onClick={() => parcel && crop && runAnalysis(parcel, crop as CropId, date)}
+            <fieldset>
+              <legend className="flex items-baseline gap-2">
+                <span className="eb num text-forest-muted">02</span>
+                <span className="sh text-[20px]">Uprawa</span>
+              </legend>
+              <label htmlFor="f-crop" className="mt-2 block text-[14px]">
+                Co rośnie na działce?
+              </label>
+              <select
+                id="f-crop"
+                value={crop}
+                onChange={(e) => {
+                  setCrop(e.target.value as CropId);
+                  setFormErr((x) => ({ ...x, crop: undefined }));
+                }}
+                aria-invalid={!!formErr.crop || undefined}
+                aria-describedby={formErr.crop ? "e-crop" : undefined}
+                className={`mt-1.5 min-h-12 w-full rounded-[2px] border-[1.5px] bg-cream px-3 text-[16px] ${formErr.crop ? "border-terra-ink" : "border-forest"}`}
               >
-                Spróbuj ponownie
-              </Button>
+                <option value="">Wybierz uprawę</option>
+                {CROPS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.namePl}
+                  </option>
+                ))}
+              </select>
+              {formErr.crop && (
+                <p id="e-crop" className={ERR}>
+                  {formErr.crop}
+                </p>
+              )}
+            </fieldset>
+
+            <fieldset>
+              <legend className="flex items-baseline gap-2">
+                <span className="eb num text-forest-muted">03</span>
+                <span className="sh text-[20px]">Data</span>
+              </legend>
+              <label htmlFor="f-date" className="mt-2 block text-[14px]">
+                Na jaki dzień liczymy?
+              </label>
+              <input
+                id="f-date"
+                type="date"
+                value={date}
+                min={minDate}
+                max={today}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setFormErr((x) => ({ ...x, date: undefined }));
+                }}
+                aria-invalid={!!formErr.date || undefined}
+                aria-describedby={`d-hint${formErr.date ? " e-date" : ""}`}
+                className={`num mt-1.5 min-h-12 w-full rounded-[2px] border-[1.5px] bg-cream px-3 text-[16px] ${formErr.date ? "border-terra-ink" : "border-forest"}`}
+              />
+              <p id="d-hint" className="num mt-1.5 text-[13px] text-forest-muted">
+                Od {minDate} do {today} (do 10 lat wstecz, czas polski).
+              </p>
+              {formErr.date && (
+                <p id="e-date" className={ERR}>
+                  {formErr.date}
+                </p>
+              )}
+            </fieldset>
+
+            <Button type="submit" disabled={phase === "loading" || tooLarge} className="w-full">
+              <Icon name="water" size={20} />
+              Analizuj działkę
+            </Button>
+          </form>
+
+          <div aria-live="polite" role="status" className="sr-only">
+            {live}
+          </div>
+
+          {phase === "loading" && (
+            <section aria-labelledby="load-h" className="mt-8">
+              <p className="eb text-forest-muted">W toku</p>
+              <h2 id="load-h" className="sh mt-1 text-[26px]">
+                Liczymy
+              </h2>
+              <ProgressLine className="mt-3" label="Analiza w toku" />
+              <p className="num mt-2 text-[14px] text-forest-muted">Minęło {elapsed} s. Zwykle 10–30 s. Pięć źródeł naraz:</p>
+              <ul className="mt-3 grid grid-cols-1 gap-1.5 text-[15px]">
+                {LOAD_STEPS.map((s) => (
+                  <li key={s.label} className="flex items-center gap-2.5">
+                    <Icon name={s.icon} size={20} />
+                    {s.label}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {phase === "error" && error && ek && (
+            <Callout tone="warning" icon={ek === "not_agri" ? "tractor" : ek === "busy" || ek === "timeout" ? "storm" : "pin"} className="mt-8">
+              <h2 id="err-h" tabIndex={-1} aria-describedby="err-msg" className="sh text-[20px] text-terra-ink outline-none">
+                {errTitle[ek]}
+              </h2>
+              <p id="err-msg" className="mt-1">
+                {errBody(error, ek)}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {ek === "ambiguous" && candidates.length > 0 && (
+                  <Button type="button" variant="secondary" onClick={() => document.getElementById("cand-first")?.focus()}>
+                    Pokaż listę działek
+                  </Button>
+                )}
+                {canRetry && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={retryIn > 0}
+                    onClick={() => parcel && crop && runAnalysis(parcel, crop as CropId, date)}
+                  >
+                    {retryIn > 0 ? (
+                      <>
+                        Spróbuj za <span className="num">{retryIn}</span> s
+                      </>
+                    ) : (
+                      "Spróbuj ponownie"
+                    )}
+                  </Button>
+                )}
+                {(ek === "not_agri" || ek === "too_large" || ek === "not_found") && (
+                  <Button type="button" variant="secondary" onClick={chooseAnother}>
+                    Wybierz inną działkę
+                  </Button>
+                )}
+              </div>
             </Callout>
           )}
 
@@ -584,28 +820,29 @@ export default function AnalizaApp() {
               <Results r={result!} activeRec={activeRec} onSelectRec={onSelectRec} markerNumber={markerNumber} fixture={isFixture} />
               <div className="mt-8 flex flex-col gap-2">
                 <Button href={raportHref} target="_blank" className="w-full">
-                  Raport do druku (PDF)<span className="sr-only"> (otwiera się w nowej karcie)</span>
+                  Raport do druku (PDF){isFixture ? " · dane przykładowe" : ""}
+                  <span className="sr-only"> (otwiera się w nowej karcie)</span>
                 </Button>
               </div>
             </div>
           )}
+
+          {allowFixture && (
+            <div className="mt-8 border-t border-forest/15 pt-3">
+              <p className="eb text-forest-muted">Tryb deweloperski</p>
+              <button type="button" onClick={loadFixture} className="mt-1 min-h-11 text-[14px] underline underline-offset-2">
+                Wczytaj dane przykładowe
+              </button>
+            </div>
+          )}
+
+          <footer className="mt-8 border-t border-forest/15 pt-3">
+            <p className="text-[12px] leading-snug text-forest-muted">
+              Ocena z danych publicznych. Każde zalecenie wymaga wizji lokalnej. Nazwy miejscowości wyszukuje OpenStreetMap (Nominatim).
+            </p>
+            <FooterLine className="mt-1.5" />
+          </footer>
         </div>
-
-        {(SHOW_DEV || initial.demo) && (
-          <div className="mt-8 border-t border-forest/15 pt-3">
-            <p className="eb text-forest-muted">Tryb deweloperski</p>
-            <button type="button" onClick={loadFixture} className="mt-1 min-h-11 text-[14px] underline underline-offset-2">
-              Wczytaj dane przykładowe
-            </button>
-          </div>
-        )}
-
-        <footer className="mt-8 border-t border-forest/15 pt-3">
-          <p className="text-[12px] leading-snug text-forest-muted">
-            Ocena z danych publicznych. Każde zalecenie wymaga wizji lokalnej.
-          </p>
-          <FooterLine className="mt-1.5" />
-        </footer>
       </main>
     </div>
   );

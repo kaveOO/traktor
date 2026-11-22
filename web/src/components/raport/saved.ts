@@ -48,6 +48,35 @@ export function removeSaved(key: string): SavedReport[] {
   return list;
 }
 
-export function getSaved(key: string): AnalysisResult | null {
-  return listSaved().find((x) => x.key === key)?.result ?? null;
+/** Shape check before rendering (older saved entries or hand-edited JSON must not crash the sheet). */
+export function isValidResult(r: unknown): r is AnalysisResult {
+  const x = r as Partial<AnalysisResult> | null;
+  return !!(
+    x &&
+    typeof x === "object" &&
+    x.parcel?.id &&
+    x.parcel.geometry &&
+    x.crop?.id &&
+    x.request?.date &&
+    x.assessment?.meteo &&
+    x.assessment.satellite &&
+    x.assessment.soil &&
+    x.assessment.terrain &&
+    Array.isArray(x.assessment.meteo.seasons) &&
+    Array.isArray(x.assessment.meteo.warnings) &&
+    Array.isArray(x.causes) &&
+    Array.isArray(x.recommendations) &&
+    Array.isArray(x.sources) &&
+    x.uncertainty &&
+    Array.isArray(x.uncertainty.reasonsPl) &&
+    Array.isArray(x.uncertainty.missingPl) &&
+    Array.isArray(x.uncertainty.notConsideredPl)
+  );
+}
+
+/** Saved result, or "invalid" when the entry exists but has an old/unknown shape. */
+export function getSaved(key: string): AnalysisResult | "invalid" | null {
+  const e = listSaved().find((x) => x.key === key);
+  if (!e) return null;
+  return isValidResult(e.result) ? e.result : "invalid";
 }

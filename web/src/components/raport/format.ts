@@ -1,6 +1,7 @@
-import type { Level, SourceInfo, Uncertainty, Irrigation, Recommendation } from "@/lib/analiza";
+import { CROPS, type AnalysisResult, type Level, type SourceInfo, type Uncertainty, type Irrigation, type Recommendation } from "@/lib/analiza";
 
 export const NA = "brak danych";
+export const TZ = "Europe/Warsaw";
 
 /** Polish number, fixed decimals; null -> "brak danych". */
 export function n(v: number | null | undefined, digits = 0, unit = ""): string {
@@ -15,26 +16,34 @@ export function signed(v: number | null | undefined, digits = 0, unit = ""): str
   return v < 0 ? `−${s}` : v > 0 ? `+${s}` : s;
 }
 
+/** Date-only strings are read at noon UTC, so they stay on the same calendar day in Warsaw. */
+const toDate = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso);
+
 export function dateLong(iso: string | null | undefined): string {
   if (!iso) return NA;
-  const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
+  const d = toDate(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric", timeZone: TZ });
 }
 
 export function dateShort(iso: string | null | undefined): string {
   if (!iso) return NA;
-  const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
+  const d = toDate(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return d.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
 }
 
-export function dateTime(iso: string | null | undefined): string {
+/** Date and time in Polish time (Europe/Warsaw). `suffix` adds "czasu PL" so a PDF reads the same everywhere. */
+export function dateTime(iso: string | null | undefined, suffix = false): string {
   if (!iso) return NA;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const s = d.toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: TZ });
+  return suffix ? `${s} czasu PL` : s;
 }
+
+/** Polish crop name with diacritics from CROPS (the result may carry an older ASCII name). */
+export const cropName = (r: Pick<AnalysisResult, "crop">) => CROPS.find((c) => c.id === r.crop.id)?.namePl ?? r.crop.namePl;
 
 export const LEVEL_PL: Record<Level, string> = {
   niskie: "niskie",
@@ -68,39 +77,92 @@ export function monthsRange(months: number[]): string {
   return names.length === 1 ? names[0] : `${names[0]}–${names[names.length - 1]}`;
 }
 
+/* ---------- Attribution ---------- */
+
+export const OSM_ATTR = "© autorzy OpenStreetMap, ODbL";
+export const OSM_URL = "https://www.openstreetmap.org/copyright";
+const isOsm = (x: SourceInfo) => /openstreetmap/i.test(`${x.label} ${x.license}`);
+const mentionsPower = (x: SourceInfo) => /nasa\s*power/i.test(`${x.label} ${x.detail} ${x.license} ${x.note ?? ""}`);
+
 /**
- * Exact attribution texts from docs/review/03-licences.md. Shown only for sources present in the result.
- * GUGiK sources share one line. The report uses no map tiles, so no OSM line.
+ * Licence / attribution text for one source. The engine's `license` is authoritative;
+ * fixed texts only fill gaps. OSM-based sources always print the ODbL notice; NASA POWER is credited when used.
  */
-export const GUGIK_ATTR = "Dane: GUGiK (ULDK, NMT, BDOT10k)";
-export function attributionFor(id: SourceInfo["id"], year: number): string | null {
-  switch (id) {
-    case "IMGW":
-      return "Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (dane przetworzone)";
-    case "OpenMeteo":
-      return "Open-Meteo.com, CC BY 4.0";
-    case "Sentinel2":
-      return `Contains modified Copernicus Sentinel data ${year}`;
-    case "SoilGrids":
-      return "SoilGrids 2.0, ISRIC, CC BY 4.0";
-    case "ULDK":
-    case "NMT":
-    case "BDOT10k":
-      return GUGIK_ATTR;
-    case "IUNG":
-      return "IUNG-PIB, mapa podatności gleb na suszę";
-    default:
-      return null;
-  }
+export function attributionOf(x: SourceInfo): string {
+  if (isOsm(x)) return OSM_ATTR;
+  let t = (x.license ?? "").trim();
+  if (!t) t = FALLBACK_ATTR[x.id] ?? "";
+  if (mentionsPower(x) && !/nasa/i.test(t)) t = t ? `NASA POWER Project, NASA LaRC; ${t}` : "NASA POWER Project, NASA LaRC";
+  return t;
 }
-export const ATTR_URL: Partial<Record<SourceInfo["id"], string>> = { OpenMeteo: "https://open-meteo.com" };
+export const attributionUrl = (x: SourceInfo) => (isOsm(x) ? OSM_URL : x.url);
+
+const FALLBACK_ATTR: Partial<Record<SourceInfo["id"], string>> = {
+  IMGW: "Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (dane przetworzone)",
+  OpenMeteo: "Open-Meteo.com, CC BY 4.0",
+  Sentinel2: "Contains modified Copernicus Sentinel data",
+  SoilGrids: "SoilGrids 2.0, ISRIC, CC BY 4.0",
+  ULDK: "Dane: GUGiK (ULDK)",
+  NMT: "Dane: GUGiK (NMT)",
+  BDOT10k: "Dane: GUGiK (BDOT10k)",
+  IUNG: "IUNG-PIB, mapa podatności gleb na suszę",
+};
+
+/** Short tag for a source row; the watercourse source may come from OpenStreetMap under the BDOT10k id. */
+export const srcTag = (x: SourceInfo | undefined, fallback: string) => (x && isOsm(x) ? "OSM" : fallback);
 
 export const LLM_LABEL = "Tekst przeredagowany przez model językowy; liczby z analizy";
 
 /** Method limits always stated (science review). */
 export const METHOD_LIMITS = [
-  "Pogoda z reanalizy ERA5 (Open-Meteo) ma charakter regionalny (siatka ok. 10–30 km), nie opisuje pojedynczego pola.",
-  "Progi suszy SMSR (IUNG) stosujemy do bilansu liczonego z ET₀ Open-Meteo. IUNG liczy KBW inną metodą, więc ocena suszy jest przybliżona.",
+  "Pogoda: NASA POWER (siatka ok. 0,5°) i Open-Meteo dla ostatnich dni. To dane regionalne, nie pomiar na tym polu.",
 ];
+export const METEO_SOURCE = "NASA POWER (siatka ok. 0,5°) + Open-Meteo dla ostatnich dni";
 
 export const SCREENING_NOTE = "Rekomendacje mają charakter przesiewowy; przed inwestycją wymagana wizja lokalna.";
+
+/* ---------- KBW threshold ---------- */
+
+type Season = AnalysisResult["assessment"]["meteo"]["seasons"][number] & { thresholdMm?: number | null };
+export type KbwThreshold = {
+  /** seasons oldest → newest */
+  seasons: Season[];
+  /** one line for all seasons, or null */
+  line: number | null;
+  /** per-bar thresholds when they differ between seasons */
+  perSeason: (number | null)[] | null;
+  /** what the line is, for labels */
+  kind: "smsr" | "iung" | null;
+  /** a threshold existed but contradicted the engine's drought flags, so it is not drawn */
+  dropped: boolean;
+};
+
+/**
+ * Threshold the engine used: per-season `thresholdMm` → `smsrThresholdMm` (result or meteo) → crops.iungKbw fallback.
+ * A single line is drawn only if it agrees with every season's drought flag.
+ */
+export function kbwThreshold(r: AnalysisResult): KbwThreshold {
+  const m = r.assessment.meteo as AnalysisResult["assessment"]["meteo"] & { smsrThresholdMm?: number | null };
+  const seasons = [...(m.seasons as Season[])].sort((a, b) => a.year - b.year);
+  const per = seasons.map((s) => (typeof s.thresholdMm === "number" ? s.thresholdMm : null));
+  if (per.some((v) => v !== null)) {
+    const vals = per.filter((v): v is number => v !== null);
+    const same = vals.every((v) => v === vals[0]) && vals.length === per.length;
+    return same ? { seasons, line: vals[0], perSeason: null, kind: "smsr", dropped: false } : { seasons, line: null, perSeason: per, kind: "smsr", dropped: false };
+  }
+  const smsr = (r as AnalysisResult & { smsrThresholdMm?: number | null }).smsrThresholdMm ?? m.smsrThresholdMm;
+  let line: number | null = typeof smsr === "number" ? smsr : null;
+  let kind: KbwThreshold["kind"] = line !== null ? "smsr" : null;
+  if (line === null) {
+    const crop = CROPS.find((c) => c.id === r.crop.id);
+    const cat = r.assessment.soil.iungCategory;
+    const i = cat ? ["I", "II", "III", "IV"].indexOf(cat) : -1;
+    if (crop && i >= 0) {
+      line = crop.iungKbw[i];
+      kind = "iung";
+    }
+  }
+  if (line === null) return { seasons, line: null, perSeason: null, kind: null, dropped: false };
+  const contradicts = seasons.some((s) => (s.drought ? s.kbwCriticalMm > line! : s.kbwCriticalMm < line!));
+  return contradicts ? { seasons, line: null, perSeason: null, kind, dropped: true } : { seasons, line, perSeason: null, kind, dropped: false };
+}

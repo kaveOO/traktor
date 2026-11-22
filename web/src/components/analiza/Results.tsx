@@ -130,7 +130,10 @@ function BoardModes({ r }: { r: AnalysisResult }) {
   const mode = boardMode(r);
   return (
     <div className="mt-4 border-t border-forest/15 pt-3">
-      <p className="eb text-forest-muted">Tryb zastawki po montażu, według oceny na dziś</p>
+      <p className="eb text-forest-muted">Tryb zastawki po montażu · wskazanie orientacyjne</p>
+      <p className="mt-1 text-[12px] leading-snug text-forest-muted">
+        Z oceny na dziś: ostrzeżenie o burzy = OTWÓRZ, ryzyko suszy od umiarkowanego = TRZYMAJ, inaczej NIE RUSZAJ.
+      </p>
       <div className="mt-2">
         {mode === "NIE_RUSZAJ" ? (
           <p className="flex flex-wrap items-center gap-2 text-[14px]">
@@ -243,8 +246,11 @@ export default function Results({
   return (
     <section aria-labelledby="wyniki-h" className="mt-2">
       <p className="eb text-forest-muted">Wynik</p>
-      <h2 id="wyniki-h" className="hd rise mt-1 text-[36px]">
+      <h2 id="wyniki-h" tabIndex={-1} className="hd rise mt-1 text-[36px] outline-none">
         Wynik analizy
+        <span className="sr-only">
+          . Ryzyko suszy dziś: {a.currentLevel ? LEVEL_PL[a.currentLevel].word.toLowerCase() : "brak danych"}.
+        </span>
       </h2>
       <p className="mt-2 text-[14px] text-forest-muted">
         {r.crop.namePl} · działka <span className="num">{r.parcel.id}</span> · <span className="num">{r.request.date}</span>

@@ -10,16 +10,18 @@ import { CROPS, type AnalysisError, type AnalysisResult, type CropId } from "@/l
 import { FIXTURE } from "./fixture";
 import { dateShort, dateTime } from "./format";
 import { ReportSheet } from "./ReportSheet";
-import { getSaved, listSaved, removeSaved, reportKey, saveReport, type SavedReport } from "./saved";
+import { getSaved, isValidResult, listSaved, removeSaved, reportKey, saveReport, type SavedReport } from "./saved";
 
-const PRINT_CSS = `
+const printCss = (demo: boolean) => `
 @page {
   size: A4 portrait;
   margin: 12mm 12mm 14mm;
-  @bottom-left { content: "Let the land hold its water."; font: 8pt Inter, sans-serif; color: #1F3A22; }
+  @bottom-left { content: "${demo ? "DEMO · dane przykładowe · " : ""}Let the land hold its water."; font: 8pt Inter, sans-serif; color: ${demo ? "#984630" : "#1F3A22"}; }
   @bottom-right { content: "Strona " counter(page) " z " counter(pages); font: 8pt Inter, sans-serif; color: #1F3A22; }
 }
 @media print {
+  /* demo marker repeated on every printed page (fixed elements print on each page) */
+  .raport-demo-print { display: block !important; position: fixed; top: 0; right: 0; font: 600 8pt Inter, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #984630; border: 1px dashed #B5573B; padding: 1mm 2mm; background: #fff; }
   html, body { background: #fff !important; }
   .raport-wrap { background: #fff !important; padding: 0 !important; }
   .raport-sheet { box-shadow: none !important; background: #fff !important; max-width: none !important; width: auto !important; padding: 0 !important; margin: 0 !important; zoom: 0.84; }
@@ -41,10 +43,8 @@ type Params = {
   saved: string | null;
 };
 
-function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+/** Today in Poland (the engine validates dates against Europe/Warsaw). */
+const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Warsaw" }).format(new Date());
 
 function readParams(): Params {
   const q = new URLSearchParams(window.location.search);
@@ -89,6 +89,7 @@ export default function RaportApp() {
     if (params.demo) return { kind: "ok", result: FIXTURE, demo: true };
     if (params.saved) {
       const s = getSaved(params.saved);
+      if (s === "invalid") return { kind: "error", messagePl: "Zapisany raport ma stary lub uszkodzony format. Policz analizę ponownie." };
       if (s) return { kind: "ok", result: s, demo: false };
       return { kind: "error", messagePl: "Nie znaleziono zapisanego raportu w tej przeglądarce." };
     }
@@ -121,7 +122,7 @@ export default function RaportApp() {
           setState({ kind: "error", messagePl: body.messagePl || "Analiza nie powiodła się.", step: body.step });
           return;
         }
-        if (!res.ok || !body.parcel) throw new Error(`Nieoczekiwana odpowiedź serwera (HTTP ${res.status}).`);
+        if (!res.ok || !isValidResult(body)) throw new Error(`Nieoczekiwana odpowiedź serwera (HTTP ${res.status}).`);
         setState({ kind: "ok", result: body, demo: false });
       })
       .catch((e: unknown) => {
@@ -161,7 +162,8 @@ export default function RaportApp() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    // Safari starts the download asynchronously: revoke later
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const saveLocal = () => {
@@ -177,7 +179,7 @@ export default function RaportApp() {
 
   return (
     <div className="raport-wrap flex min-h-screen flex-col bg-cream-deep pb-10 text-forest print:bg-white print:pb-0">
-      <style>{PRINT_CSS}</style>
+      <style>{printCss(state.kind === "ok" && state.demo)}</style>
       <SkipLink href="#raport">Przejdź do raportu</SkipLink>
 
       <div className="no-print sticky top-0 z-10 w-full border-b border-forest/15 bg-cream">
@@ -261,7 +263,7 @@ export default function RaportApp() {
                 <a href={`/raport?saved=${encodeURIComponent(s.key)}`} className="num inline-flex min-h-11 items-center font-semibold underline-offset-4 hover:underline">
                   {s.parcelId}
                 </a>
-                <span>{s.cropPl}</span>
+                <span>{CROPS.find((c) => c.id === s.result?.crop?.id)?.namePl ?? s.cropPl}</span>
                 <span className="num text-forest-muted">analiza na {dateShort(s.date)}</span>
                 <span className="num ml-auto text-[12px] text-forest-muted">zapisano {dateTime(s.savedAt)}</span>
                 <button

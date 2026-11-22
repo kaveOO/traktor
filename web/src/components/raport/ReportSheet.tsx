@@ -6,8 +6,12 @@ import { getCrop, type AnalysisResult, type Cause, type Recommendation, type Sou
 import { LEGAL } from "@/lib/traktor/copy";
 import { KbwLegend, KbwSeasonsChart, ParcelOutline } from "./charts";
 import {
-  ATTR_URL,
-  attributionFor,
+  attributionOf,
+  attributionUrl,
+  cropName,
+  kbwThreshold,
+  METEO_SOURCE,
+  srcTag,
   DECISION_PL,
   LEVEL_PL,
   LEVEL_RANK,
@@ -45,7 +49,10 @@ function SrcTags({ ids, sources }: { ids: SourceInfo["id"][]; sources: SourceInf
   return (
     <SourceChipList
       size="sm"
-      items={ids.map((id) => ({ id, label: SRC_SHORT[id], status: sources.find((x) => x.id === id)?.status ?? "missing" }))}
+      items={ids.map((id) => {
+        const s = sources.find((x) => x.id === id);
+        return { id, label: srcTag(s, SRC_SHORT[id]), status: s?.status ?? "missing" };
+      })}
     />
   );
 }
@@ -105,7 +112,7 @@ function RecItem({ r, causes, sources }: { r: Recommendation; causes: Cause[]; s
               {r.location ? (
                 <span className="num text-forest-muted">
                   {" "}
-                  ({r.location[1].toFixed(5)} N, {r.location[0].toFixed(5)} E)
+                  ({n(r.location[1], 5)} N, {n(r.location[0], 5)} E)
                 </span>
               ) : null}
             </dd>
@@ -147,11 +154,23 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
   const t = a.terrain;
   const crop = getCrop(r.crop.id);
   const period = monthsRange(crop.critical);
-  const catIdx = so.iungCategory ? ["I", "II", "III", "IV"].indexOf(so.iungCategory) : -1;
-  const threshold = catIdx >= 0 ? crop.iungKbw[catIdx] : null;
+  const thr = kbwThreshold(r);
+  const threshold = thr.line;
+  const thrName = thr.kind === "smsr" ? "próg SMSR" : "próg IUNG";
+  const crop_ = cropName(r);
   const precipDelta =
     m.precip30Mm !== null && m.precip30NormMm ? Math.round(((m.precip30Mm - m.precip30NormMm) / m.precip30NormMm) * 100) : null;
-  const seasonsN = m.seasons.length || 10;
+  const seasonsN = m.seasons.length;
+  const firstYear = thr.seasons[0]?.year;
+  const lastYear = thr.seasons[thr.seasons.length - 1]?.year;
+  const thrCtx =
+    threshold !== null
+      ? `${thrName} ${signed(threshold)} mm${thr.kind === "iung" ? " (do kalibracji)" : ""}`
+      : thr.perSeason
+        ? `${thrName} liczony osobno dla każdego sezonu`
+        : thr.dropped
+          ? "próg z tabel IUNG nie zgadza się z oceną sezonów, pomijamy go"
+          : "próg nieznany: brak kategorii gleby";
   const recs = (k: Recommendation["kind"]) => r.recommendations.filter((x) => x.kind === k);
   const causes = [...r.causes].sort((x, y) => y.weight - x.weight);
 
@@ -164,22 +183,22 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
     },
     {
       label: "Opad, 30 dni",
-      value: n(m.precip30Mm, 1, "mm"),
-      ctx: `norma ${n(m.precip30NormMm, 1, "mm")}${precipDelta !== null ? ` (${signed(precipDelta, 0, "%")})` : ""}`,
+      value: n(m.precip30Mm, 0, "mm"),
+      ctx: `norma ${n(m.precip30NormMm, 0, "mm")}${precipDelta !== null ? ` (${signed(precipDelta, 0, "%")})` : ""}`,
       src: ["OpenMeteo"],
     },
     {
       label: "Parowanie uprawy ETc, 30 dni",
-      value: n(m.etc30Mm, 1, "mm"),
-      ctx: `ET₀ ${n(m.et0_30Mm, 1, "mm")} × Kc (FAO-56)`,
+      value: n(m.etc30Mm, 0, "mm"),
+      ctx: `ET₀ ${n(m.et0_30Mm, 0, "mm")} × Kc (FAO-56)`,
       src: ["OpenMeteo"],
     },
     { label: "Średnia Tmax, 30 dni", value: n(m.tmax30MeanC, 1, "°C"), ctx: "", src: ["OpenMeteo"] },
     { label: "Najdłuższy okres bez opadu (< 1 mm), 60 dni", value: n(m.dryDaysMax, 0, "dni"), ctx: "", src: ["OpenMeteo"] },
     {
-      label: `Sezony z suszą w okresie krytycznym (${period})`,
-      value: m.droughtYears !== null ? `${n(m.droughtYears)} / ${seasonsN}` : NA,
-      ctx: threshold !== null ? `próg KBW ${signed(threshold)} mm (do kalibracji)` : "próg nieznany: brak kategorii gleby",
+      label: `Sezony z suszą (najgorsze okno 60 dni, ${period})`,
+      value: m.droughtYears !== null && seasonsN ? `${n(m.droughtYears)} / ${seasonsN}` : NA,
+      ctx: thrCtx,
       src: ["OpenMeteo", "IUNG"],
     },
     {
@@ -225,20 +244,15 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
   const unc = r.uncertainty;
   const missing = unc.missingPl.map((x) => (/^brak danych/i.test(x) ? x : `Brak danych: ${x}`));
   const irr = r.irrigation;
-  const dataYear = Number((s.sceneDate ?? r.request.date).slice(0, 4)) || new Date(r.generatedAt).getFullYear();
-  const licenseOf = (x: SourceInfo) => attributionFor(x.id, dataYear) ?? x.license;
+  // licence text comes from each source (engine is authoritative); one line per distinct text
   const attributions = Array.from(
-    new Map(
-      r.sources
-        .map((x) => [attributionFor(x.id, dataYear), ATTR_URL[x.id]] as const)
-        .filter((e): e is readonly [string, string | undefined] => !!e[0])
-        .map((e) => [e[0], e[1]]),
-    ),
+    new Map(r.sources.map((x) => [attributionOf(x), attributionUrl(x)] as const).filter(([t]) => !!t)),
   );
-  // tolerate an older text-origin flag name as well
-  const extra = r as unknown as { summarySource?: string; textSource?: string };
-  const llm = extra.summarySource === "llm" || extra.textSource === "llm";
+  const llm = r.textSource === "llm";
   const anyMissing = r.sources.some((x) => x.status !== "ok");
+  const partial = r.sources.filter((x) => x.status === "partial");
+  const meteoSrc = r.sources.find((x) => x.id === "OpenMeteo");
+  const outOfSeason = irr?.decision === "nie_teraz" && irr.deficitMm === null;
 
   return (
     <article className="raport-sheet mx-auto mt-6 w-full max-w-[210mm] bg-cream px-[12mm] py-[11mm] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] narrow:mt-0 narrow:px-4 narrow:py-5 print:mt-0">
@@ -252,14 +266,20 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
               Niepełne dane
             </span>
           )}
-          <span className="num text-[11px]">{dateTime(r.generatedAt)}</span>
+          <span className="num text-[11px]">{dateTime(r.generatedAt, true)}</span>
         </div>
       </header>
 
       {demo && (
-        <p className="mt-3 rounded-[4px] border-2 border-dashed border-terra px-3 py-1 text-[11px] leading-snug font-semibold text-terra-ink">
-          Dane przykładowe (tryb demo). To nie jest wynik analizy tej działki.
-        </p>
+        <>
+          <p className="mt-3 rounded-[4px] border-2 border-dashed border-terra px-3 py-1 text-[11px] leading-snug font-semibold text-terra-ink">
+            Dane przykładowe (tryb demo). To nie jest wynik analizy tej działki.
+          </p>
+          {/* repeated on every printed page (position: fixed in print) */}
+          <p aria-hidden className="raport-demo-print hidden">
+            DEMO · dane przykładowe, nie wynik analizy
+          </p>
+        </>
       )}
 
       <section className="mt-4 flex items-start justify-between gap-4 narrow:flex-col">
@@ -267,7 +287,7 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
           <p className="eb text-forest-muted">Działka</p>
           <h1 className="sh num mt-1 text-[28px] break-all">{p.id}</h1>
           <p className="num mt-1.5 text-[14px] font-medium">
-            {n(p.areaHa, 2, "ha")} · {r.crop.namePl} · analiza na {dateLong(r.request.date)}
+            {n(p.areaHa, 2, "ha")} · {crop_} · analiza na {dateLong(r.request.date)}
           </p>
           <dl className="mt-2 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5 text-[11.5px]">
             <dt className="eb !text-[9.5px] text-forest-muted">Położenie</dt>
@@ -368,14 +388,25 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
 
         <figure className="raport-avoid mt-3 grid items-end gap-x-4 gap-y-1 print:grid-cols-[110mm_1fr]">
           <div>
-            <KbwSeasonsChart seasons={m.seasons} thresholdMm={threshold} periodPl={period} />
-            <KbwLegend className="mt-1 !text-[10px]" />
+            <KbwSeasonsChart
+              seasons={thr.seasons}
+              thresholdMm={threshold}
+              perSeason={thr.perSeason}
+              thresholdKind={thr.kind}
+              periodPl={period}
+            />
+            <KbwLegend
+              className="mt-1 !text-[10px]"
+              threshold={threshold !== null ? "line" : thr.perSeason ? "ticks" : "none"}
+              kind={thr.kind}
+            />
           </div>
           <figcaption className="text-[10px] leading-snug text-forest-muted">
-            KBW (opad − ET₀) w okresie krytycznym uprawy ({period}), sezony <span className="num">{m.seasons[0]?.year ?? "?"}</span>–
-            <span className="num">{m.seasons[m.seasons.length - 1]?.year ?? "?"}</span>. Kreskowane z literą S: susza (KBW poniżej progu IUNG dla
-            kat. {so.iungCategory ?? "?"}). {m.droughtYears !== null ? `Susza w ${n(m.droughtYears)} z ${seasonsN} sezonów.` : ""}
-            <SourceLine className="mt-0.5">Open-Meteo (ERA5), progi IUNG uproszczone, do kalibracji</SourceLine>
+            Najgorsze 60-dniowe okno bilansu wodnego (opad − parowanie) w sezonie uprawy ({period}), sezony{" "}
+            <span className="num">{firstYear ?? "?"}</span>–<span className="num">{lastYear ?? "?"}</span>, od najstarszego. Kreskowane z literą S:
+            susza według oceny sezonu. {m.droughtYears !== null && seasonsN ? `Susza w ${n(m.droughtYears)} z ${seasonsN} sezonów.` : ""}{" "}
+            {thr.dropped ? "Linii progu nie rysujemy: uproszczony próg IUNG nie zgadza się z oceną sezonów." : ""}
+            <SourceLine className="mt-0.5">{METEO_SOURCE}; progi SMSR (IUNG-PIB)</SourceLine>
           </figcaption>
         </figure>
       </Section>
@@ -427,9 +458,15 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
             <p className="hd mt-0.5 text-[22px]">{DECISION_PL[irr.decision]}</p>
             <dl className="num mt-1 grid grid-cols-[110px_1fr] gap-x-2 gap-y-0.5 text-[11px] leading-snug">
               <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Deficyt wody</dt>
-              <dd className="font-semibold">{n(irr.deficitMm, 0, "mm")}</dd>
-              <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Dawka</dt>
-              <dd className="font-semibold">{irr.doseMm !== null ? `${n(irr.doseMm, 0, "mm")} (= ${n(irr.doseMm * 10, 0, "m³/ha")})` : NA}</dd>
+              <dd className={outOfSeason ? "" : "font-semibold"}>{outOfSeason ? "nie liczono poza sezonem" : n(irr.deficitMm, 0, "mm")}</dd>
+              <dt className="eb !text-[9px] pt-[2px] text-forest-muted">{irr.doseMm !== null && irr.doseMm > 40 ? "Dawka sezonowa" : "Dawka"}</dt>
+              <dd className="font-semibold">
+                {irr.doseMm !== null
+                  ? `${n(irr.doseMm, 0, "mm")} (= ${n(irr.doseMm * 10, 0, "m³/ha")})${irr.doseMm > 40 ? ", w kilku dawkach po 20–35 mm" : ""}`
+                  : outOfSeason
+                    ? "nie liczono poza sezonem"
+                    : NA}
+              </dd>
               <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Termin</dt>
               <dd>{irr.timingPl || NA}</dd>
               <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Uzasadnienie</dt>
@@ -471,7 +508,7 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
           <div className="raport-avoid">
             <h3 className="eb !text-[9.5px] mb-1 text-forest-muted">Dlaczego taki poziom</h3>
             <ul className="list-disc space-y-0.5 pl-4">
-              {[...unc.reasonsPl, ...METHOD_LIMITS].map((x) => (
+              {[...unc.reasonsPl, ...(unc.reasonsPl.some((x) => /nasa power/i.test(x)) ? [] : METHOD_LIMITS)].map((x) => (
                 <li key={x}>{x}</li>
               ))}
             </ul>
@@ -487,8 +524,13 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p>Wszystkie źródła odpowiedziały.</p>
+            ) : partial.length ? null : (
+              <p>Wszystkie źródła odpowiedziały w pełni.</p>
+            )}
+            {partial.length > 0 && (
+              <p className={missing.length ? "mt-1" : ""}>
+                <span className="font-semibold text-terra-ink">Częściowe:</span> {partial.map((x) => x.label).join("; ")}.
+              </p>
             )}
           </div>
           <div className="raport-avoid">
@@ -501,8 +543,9 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
           </div>
         </div>
         <p className="mt-1.5 text-[10.5px] text-forest-muted">
-          Aktualność: dane meteo do <span className="num">{dateShort(r.request.date)}</span> (ERA5, ok. 5 dni opóźnienia), scena satelitarna z{" "}
-          <span className="num">{dateShort(s.sceneDate)}</span>. To szacunki z danych zdalnych, nie pomiary na działce.
+          Aktualność: pogoda z {METEO_SOURCE}
+          {meteoSrc?.detail ? ` (${meteoSrc.detail})` : ""}, scena satelitarna z <span className="num">{dateShort(s.sceneDate)}</span>. To
+          szacunki z danych zdalnych, nie pomiary na działce.
         </p>
         <div className="raport-avoid mt-2 flex flex-wrap items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
           <Icon name="pin" size={26} />
@@ -542,7 +585,7 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
                   )}
                 </td>
                 <td className="py-[3px] pr-2 whitespace-nowrap">{dateTime(x.fetchedAt)}</td>
-                <td className="py-[3px]">{licenseOf(x) || NA}</td>
+                <td className="py-[3px]">{attributionOf(x) || NA}</td>
               </tr>
             ))}
           </tbody>
@@ -573,7 +616,7 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
         <div className="min-w-0">
           <p className="text-forest-muted">
             Raport przesiewowy z danych zdalnych. Nie zastępuje opinii agronoma, projektu ani pozwolenia. Działka{" "}
-            <span className="num">{p.id}</span> · {r.crop.namePl} · <span className="num">{dateShort(r.request.date)}</span>
+            <span className="num">{p.id}</span> · {crop_} · <span className="num">{dateShort(r.request.date)}</span>
           </p>
           <SourceLine>ULDK, NMT, BDOT10k (GUGiK); Open-Meteo (CC BY 4.0); IMGW-PIB; Copernicus Sentinel-2; SoilGrids; IUNG-PIB</SourceLine>
         </div>

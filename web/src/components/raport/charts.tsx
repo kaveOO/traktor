@@ -77,31 +77,43 @@ export function ParcelOutline({ parcel, lowPoint, size = 112 }: { parcel: Parcel
  * (pattern and letter, not colour alone). Brand palette only. Shared by /raport and /analiza.
  */
 export function KbwSeasonsChart({
-  seasons,
+  seasons: input,
   thresholdMm,
+  perSeason = null,
+  thresholdKind = null,
   periodPl,
   fs = 8,
   idPrefix = "kbw",
   className = "max-w-[110mm]",
 }: {
   seasons: { year: number; kbwCriticalMm: number; drought: boolean }[];
+  /** one threshold line for all seasons (only when it agrees with the drought flags) */
   thresholdMm: number | null;
+  /** per-season thresholds (same order as `seasons`), drawn as a tick on each bar */
+  perSeason?: (number | null)[] | null;
+  thresholdKind?: "smsr" | "iung" | null;
   periodPl: string;
   /** label font size in viewBox units (330 wide) */
   fs?: number;
   idPrefix?: string;
   className?: string;
 }) {
-  if (!seasons.length) {
+  if (!input.length) {
     return <p className="text-[11px] text-terra-ink">Brak danych: archiwum meteo dla 10 sezonów niedostępne.</p>;
   }
+  // oldest → newest, left → right (the engine sends newest first)
+  const pairs = input.map((s, i) => ({ s, t: perSeason?.[i] ?? null })).sort((a, b) => a.s.year - b.s.year);
+  const seasons = pairs.map((p) => p.s);
+  const ticksPer = perSeason ? pairs.map((p) => p.t) : null;
+  const thrName = thresholdKind === "smsr" ? "próg SMSR" : "próg IUNG";
   const W = 330;
   const H = 118 + fs * 1.25;
   const L = 22 + fs * 1.5;
   const R = 6;
   const T = 6 + fs;
   const B = 6 + fs * 1.5;
-  const minV = Math.min(...seasons.map((s) => s.kbwCriticalMm), thresholdMm ?? 0, -50);
+  const perVals = (ticksPer ?? []).filter((v): v is number => v !== null);
+  const minV = Math.min(...seasons.map((s) => s.kbwCriticalMm), thresholdMm ?? 0, ...perVals, -50);
   const maxV = Math.max(0, ...seasons.map((s) => s.kbwCriticalMm));
   const lo = Math.floor(minV / 50) * 50;
   const hi = Math.ceil(maxV / 50) * 50;
@@ -110,8 +122,10 @@ export function KbwSeasonsChart({
   const ticks: number[] = [];
   for (let v = hi; v >= lo; v -= 50) ticks.push(v);
   const desc = seasons
-    .map((s) => `${s.year}: ${n(s.kbwCriticalMm)} mm${s.drought ? " (susza)" : ""}`)
+    .map((s, i) => `${s.year}: ${n(s.kbwCriticalMm)} mm${ticksPer?.[i] != null ? `, próg ${n(ticksPer[i])} mm` : ""}${s.drought ? " (susza)" : ""}`)
     .join("; ");
+  const thrDesc =
+    thresholdMm !== null ? `${thrName}: ${n(thresholdMm)} mm.` : ticksPer ? `${thrName} różny w każdym sezonie (kreska na słupku).` : "Linii progu nie rysujemy.";
   const tid = `${idPrefix}-t`;
   const did = `${idPrefix}-d`;
   const hid = `${idPrefix}-hatch`;
@@ -121,7 +135,7 @@ export function KbwSeasonsChart({
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-labelledby={`${tid} ${did}`} className={`block ${className}`}>
       <title id={tid}>Klimatyczny bilans wodny w okresie krytycznym ({periodPl}), 10 sezonów</title>
       <desc id={did}>
-        {desc}. {thresholdMm !== null ? `Próg suszy IUNG: ${n(thresholdMm)} mm.` : "Próg suszy nieznany."}
+        {desc}. {thrDesc}
       </desc>
       <defs>
         <pattern id={hid} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -162,6 +176,9 @@ export function KbwSeasonsChart({
                 S
               </text>
             )}
+            {ticksPer?.[i] != null && (
+              <line x1={x - 2} x2={x + w + 2} y1={y(ticksPer[i]!)} y2={y(ticksPer[i]!)} stroke={INK} strokeWidth="1.5" strokeDasharray="3 1.5" />
+            )}
             <text x={x + w / 2} y={H - 4} fontSize={fs} textAnchor="middle" fill={INK} className="num">
               {String(s.year).slice(2)}
             </text>
@@ -182,8 +199,8 @@ export function KbwSeasonsChart({
             strokeWidth="3"
             paintOrder="stroke"
           >
-            próg IUNG {thresholdMm < 0 ? "−" : ""}
-            {n(Math.abs(thresholdMm))} mm (do kalibracji)
+            {thrName} {thresholdMm < 0 ? "−" : ""}
+            {n(Math.abs(thresholdMm))} mm{thresholdKind === "iung" ? " (do kalibracji)" : ""}
           </text>
         </g>
       )}
@@ -191,8 +208,17 @@ export function KbwSeasonsChart({
   );
 }
 
-/** Chart legend: water bar = season, hatched = drought (S), dashed = IUNG threshold. */
-export function KbwLegend({ className = "" }: { className?: string }) {
+/** Chart legend: water bar = season, hatched = drought (S), dashed = threshold (line or per-bar tick; hidden when none is drawn). */
+export function KbwLegend({
+  className = "",
+  threshold = "line",
+  kind = "iung",
+}: {
+  className?: string;
+  threshold?: "line" | "ticks" | "none";
+  kind?: "smsr" | "iung" | null;
+}) {
+  const name = kind === "smsr" ? "próg SMSR" : "próg IUNG";
   return (
     <ul className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${className}`} aria-label="Legenda wykresu">
       <li className="inline-flex items-center gap-1.5">
@@ -206,9 +232,12 @@ export function KbwLegend({ className = "" }: { className?: string }) {
         />{" "}
         S = susza
       </li>
-      <li className="inline-flex items-center gap-1.5">
-        <span className="inline-block w-4 border-t-[1.5px] border-dashed border-forest" aria-hidden /> próg IUNG
-      </li>
+      {threshold !== "none" && (
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block w-4 border-t-[1.5px] border-dashed border-forest" aria-hidden /> {name}
+          {threshold === "ticks" ? " (kreska na słupku, inny w każdym sezonie)" : ""}
+        </li>
+      )}
     </ul>
   );
 }
