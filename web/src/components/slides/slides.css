@@ -1,0 +1,79 @@
+/* TRAKTOR deck: fixed 1600x900 stage, scaled to fit. One slide per printed page. */
+.deck-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #142816;
+}
+.deck-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1600px;
+  height: 900px;
+  transform-origin: 0 0;
+}
+.deck-slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+  overflow: hidden;
+}
+.deck-slide.is-active {
+  display: block;
+}
+.deck-slide .rise:nth-child(2) {
+  animation-delay: 80ms;
+}
+.deck-slide .rise:nth-child(3) {
+  animation-delay: 160ms;
+}
+.deck-slide .rise:nth-child(4) {
+  animation-delay: 240ms;
+}
+.deck-water {
+  transition: transform 1600ms ease-in-out;
+}
+.deck-board {
+  transition: transform 1600ms ease-in-out;
+}
+
+@page {
+  size: 1600px 900px;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    width: 1600px;
+    margin: 0;
+    background: #1f3a22 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .deck-root {
+    position: static;
+    overflow: visible;
+    background: none;
+  }
+  .deck-stage {
+    position: static;
+    transform: none !important;
+    width: 1600px;
+    height: auto;
+  }
+  .deck-slide {
+    position: relative;
+    display: block !important;
+    width: 1600px;
+    height: 900px;
+    break-after: page;
+    page-break-after: always;
+  }
+  .deck-slide .rise {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
