@@ -34,6 +34,10 @@ npm run start -- -p 3010
 
 Otwórz **http://localhost:3010/analiza**.
 
+- `npm ci` zamiast `npm install` instaluje dokładnie wersje z `package-lock.json` (zalecane do odtworzenia zgłoszonej wersji).
+- Sprawdzone w Windows PowerShell 5.1: `npm run start -- -p 3010` przekazuje port do `next start`. Gdy port 3010 jest zajęty, podaj inny (`-p 3011`).
+- Pierwsza analiza działki trwa do ok. 25 s (źródła na żywo). Bez internetu strony się otworzą, ale analiza zwróci wynik częściowy lub błąd źródeł.
+
 Wersja online: **<LINK DO WERSJI DZIAŁAJĄCEJ>** (do uzupełnienia przez zespół; do tego czasu obowiązuje uruchomienie lokalne powyżej).
 
 Zmienne środowiskowe nie są wymagane. Wzór jest w `web/.env.example` (same nazwy, puste wartości). Aby ustawić klucz, skopiuj go do `web/.env.local` (plik poza repozytorium, w `.gitignore`):
@@ -125,10 +129,11 @@ Trasy API (`web/src/app/api/**`):
 | `/api/traktor/order` | `POST` | polecenia TRZYMAJ / OTWÓRZ dla zastawek przykładu `/mapa` przy danych warunkach |
 | `/api/traktor/parcel` | `GET ?id=..` lub `?q=..` | wyszukiwanie działki w danych przykładu `/mapa` (bez ULDK) |
 | `/api/traktor/explain` | `POST` | opis miejsca zastawki: szablon, opcjonalnie przeredagowany przez Anthropic API (tylko z `ANTHROPIC_API_KEY`) |
+| `/api/tiles/google/status` | `GET` | czy podkłady Google są dostępne (bez klucza: wyłączone) |
+| `/api/tiles/google/[type]/[z]/[x]/[y]` | `GET` | proxy podkładów Google; bez `GOOGLE_MAPS_API_KEY` zwraca 404 |
+| `/api/health` | `GET` | `{ ok, sha, demo: true, time }`; `sha` z `VERCEL_GIT_COMMIT_SHA` albo `"local"`. Flaga `demo: true` oznacza wersję konkursową |
 
 Interfejs wywołuje `/api/analiza`, `/api/dzialka` (kreator i raport), `/api/traktor/conditions` i `/api/tiles/google/status` (`/mapa`). Trasy `order`, `parcel`, `scenario`, `explain` i `health` to API dla integracji i testów; strony liczą polecenia zastawek w przeglądarce z tych samych reguł (`web/src/lib/traktor`).
-| `/api/tiles/google/**` | `GET` | proxy podkładów Google; bez `GOOGLE_MAPS_API_KEY` zwraca 404 |
-| `/api/health` | `GET` | `{ ok, sha, demo: true, time }`; `sha` z `VERCEL_GIT_COMMIT_SHA` albo `"local"`. Flaga `demo: true` oznacza wersję konkursową |
 
 - **Mapa `/analiza`**: MapLibre GL. Podkład: ortofotomapa GUGiK (WMTS EPSG:3857), przy małym przybliżeniu EOX Sentinel-2 cloudless **2016** (CC BY 4.0). Do wyboru mapa OSM, granice działek KIEG od przybliżenia 15, wyszukiwanie miejscowości przez Nominatim.
 - **Google Map Tiles**: opcjonalne podkłady na `/mapa` przez serwerowe proxy. **Wyłączone w wersji dla jury**: bez `GOOGLE_MAPS_API_KEY` trasy zwracają 404, a podkład jest ukryty.
@@ -141,7 +146,7 @@ Interfejs wywołuje `/api/analiza`, `/api/dzialka` (kreator i raport), `/api/tra
 |---|---|---|---|---|
 | przestrzenne | ULDK (GUGiK) `GetParcelById`, `GetParcelByXY` | obrys, TERYT, gmina, powiat, powierzchnia | cała Polska, działka ewidencyjna | stan bieżący |
 | meteorologiczne | NASA POWER (LaRC), API daily point, community AG | dobowy opad, temperatura, wilgotność, wiatr, promieniowanie → ET0 FAO-56 (Penman-Monteith, zapasowo Hargreaves) | centroid działki (cache per komórka 0,1°), siatka źródłowa ok. 0,5° | 10 lat wstecz od daty analizy do wczoraj |
-| meteorologiczne | Open-Meteo, prognoza (`past_days=92`, `forecast_days=10`) | opad, ET0 FAO, Tmax/Tśr dla dni, których NASA POWER jeszcze nie ma, oraz prognoza | centroid działki, siatka kilka km | ostatnie 92 dni + 10 dni prognozy |
+| meteorologiczne | Open-Meteo, prognoza (`past_days=92`, `forecast_days=10`) | opad, ET0 FAO, Tmax/Tśr dla dni, których NASA POWER jeszcze nie ma, oraz prognoza. Pobierane tylko, gdy data analizy jest nie dalej niż ok. 85 dni przed dziś. Dla dat z przeszłości nie używamy danych po dacie analizy; prognoza tylko dla daty = dziś | centroid działki, siatka kilka km | ostatnie 92 dni + 10 dni prognozy |
 | meteorologiczne | Open-Meteo, archiwum ERA5 (`archive-api.open-meteo.com`) | **tylko `/mapa`**: opad i ET0 FAO → KBW z 60 dni dla przykładu pod Bydgoszczą. W silniku `/analiza` **nieużywane** (darmowe archiwum zwracało 429, limit dzienny; 10 lat bierzemy z NASA POWER). Przy 429 `/mapa` liczy KBW z prognozy z `past_days=60` | jeden punkt: środek gminy przykładu | 60 dni kończące się 5 dni przed dziś |
 | meteorologiczne | Open-Meteo, prognoza dla `/mapa` (`forecast_days=7`) | opad 72 h i 7 dni, ET0 na dziś | jw. | 7 dni prognozy |
 | meteorologiczne | IMGW-PIB, ostrzeżenia | aktywne ostrzeżenia meteorologiczne | powiat działki (`/analiza`), powiat bydgoski 0403 (`/mapa`) | `/analiza`: tylko gdy data = dziś; `/mapa`: zawsze bieżące |
@@ -167,6 +172,7 @@ Każdy raport zawiera tabelę źródeł: nazwa, użyty zakres (np. „NASA POWER
 | Przykład `/mapa`: warstwy BDOT10k, próbki NMT, działki ULDK, obraz ortofotomapy GUGiK | pobrane wcześniej skryptami `scripts/geo` | **22.11.2026** |
 | Scenariusze `/mapa` (`drought-aug`, `storm-warning`, `spring-wet`) | stałe w kodzie, `web/src/lib/traktor` | do pokazania reguł, oznaczone w interfejsie |
 | Tabela upraw (Kc, okres krytyczny, progi KBW) | stała w kodzie, `web/src/lib/analiza/crops.ts` | wg FAO-56 i IUNG SMSR, progi „do kalibracji” |
+| Progi suszy SMSR (rozporządzenie MRiRW z 11.04.2019) | stałe w kodzie, `web/src/lib/analiza/smsr.ts`, przepisane z `susza.iung.pulawy.pl/progi/` | sprawdzone **22.11.2026** |
 
 Ocena, przyczyny, rekomendacje i nawadnianie **liczy aplikacja** z pobranych danych. Nie wyświetlamy gotowych rekomendacji.
 
@@ -192,18 +198,18 @@ Skrypty potrzebują internetu: dane GUGiK oraz rozszerzenia DuckDB (`extensions.
 | geotiff | ^3.0 | odczyt okien z COG Sentinel-2 i WCS IUNG |
 | typescript | ^5 | typy |
 | eslint, eslint-config-next | ^9 / 16.4.6 | lint |
-| @duckdb/node-api (tylko `scripts/geo`) | ^2.0 | odczyt BDOT10k GeoParquet |
+| @duckdb/node-api | ^2.0 | odczyt BDOT10k GeoParquet w `scripts/geo`. Od 22.11.2026 także w `web/package.json`, ale kod `web/src` go jeszcze nie importuje (nie wpływa na działanie aplikacji; `npm install` pobiera binarium DuckDB, ok. 60 MB) |
 | Archivo, Inter (`next/font`) | — | kroje pisma |
 
 Usługi zewnętrzne: wszystkie z tabeli w pkt 4, plus podkłady mapy (ortofotomapa GUGiK, EOX s2cloudless 2016, kafle OSM, KIEG) i wyszukiwarka Nominatim. Bez kont i bez płatnych usług w podstawowych funkcjach. Dwie usługi płatne są opcjonalne i **wyłączone w wersji dla jury**: Google Map Tiles i Anthropic API. Koszty i alternatywy: `docs/LICENCJE.md` §3. Pełna lista pakietów z licencjami: `docs/THIRD_PARTY_NOTICES.md`.
 
 ### AI w projekcie
 
-- **Przy tworzeniu kodu** korzystaliśmy z asystenta AI do programowania: **Claude (Anthropic) w środowisku OpenCode**. Pomagał pisać i przeglądać kod, dokumentację i slajdy, a także przygotował przeglądy w `docs/review/`. Projekt, reguły, decyzje i weryfikacja wyników należą do zespołu. Warunki Anthropic przyznają wyniki użytkownikowi, więc nic nie blokuje przeniesienia kodu na KOWR.
+- **Przy tworzeniu kodu** korzystaliśmy z asystenta AI do programowania: **Claude (Anthropic) w środowisku OpenCode**. Pomagał pisać i przeglądać kod, dokumentację i slajdy, a także przygotował przeglądy w `docs/review/` i `docs/review2/`. Projekt, reguły, decyzje i weryfikacja wyników należą do zespołu. Warunki Anthropic przyznają wyniki użytkownikowi, więc nic nie blokuje przeniesienia kodu na KOWR.
 - **W aplikacji analiza jest deterministyczna**: reguły i wzory (FAO-56, progi SMSR, NDVI/NDMI), bez modelu. Te same dane wejściowe dają ten sam wynik. Pole `textSource` w wyniku ma wartość `"template"`.
 - **Opcjonalny model językowy** (`ANTHROPIC_API_KEY`) służy tylko do przeredagowania gotowego opisu miejsca zastawki na prostszy język, w trasie API `/api/traktor/explain` (strony `/karta` i `/mapa` jej obecnie nie wywołują i pokazują tekst z reguł). **Domyślnie wyłączony.** Strażnik liczb odrzuca tekst, w którym pojawia się liczba spoza szablonu, i wtedy pokazujemy tekst z reguł. Do modelu trafiają tylko wskaźniki, bez danych osobowych.
 - Nie używamy uczenia maszynowego do oceny. ML ma sens po pilotażu, gdy będą dane z pola.
-- W aplikacji i prezentacji nie ma obrazów wygenerowanych przez AI (zasada marki, `docs/blender/prompts.md`). Grafiki to SVG i wycinek ortofotomapy GUGiK.
+- W aplikacji i prezentacji nie ma obrazów wygenerowanych przez AI (zasada marki, `docs/blender/prompts.md`). Grafiki to SVG i wycinek ortofotomapy GUGiK. `docs/blender/` to tylko opis i skrypty sceny Blendera (program GPL-2.0+; skrypty `bpy` traktujemy jako GPL, rendery nie są nią objęte), poza aplikacją `web/`; żaden render nie jest w aplikacji. Jeśli render trafi do filmu, dopisujemy to w `docs/LICENCJE.md` §5.
 
 ## 7. Licencje i warunki
 

@@ -129,7 +129,7 @@ export async function getSoilGrids(
   const lic = "SoilGrids 2.0, ISRIC, CC BY 4.0";
   const empty = { sandPct: null, clayPct: null, socGkg: null, awcMm: null, textureClassPl: null };
   try {
-    const res = await fetchT(url, { timeoutMs: 8000, signal, init: { headers: { Accept: "application/json" } } });
+    const res = await fetchT(url, { timeoutMs: 12000, signal, init: { headers: { Accept: "application/json" } } });
     const j = (await res.json()) as { properties?: { layers?: SgLayer[] } };
     const W: Record<string, number> = { "0-5cm": 5, "5-15cm": 10, "15-30cm": 15 };
     const get = (name: string) => {
@@ -174,6 +174,6 @@ export async function getSoilGrids(
       ),
     };
   } catch {
-    return { data: empty, source: source("SoilGrids", label, lic, t0, "missing", "SoilGrids nie odpowiedział w 8 s", { url: "https://soilgrids.org/" }) };
+    return { data: empty, source: source("SoilGrids", label, lic, t0, "missing", "SoilGrids nie odpowiedział w 12 s", { url: "https://soilgrids.org/" }) };
   }
 }

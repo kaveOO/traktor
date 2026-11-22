@@ -9,7 +9,7 @@ const json = (body: unknown, status = 200) => Response.json(body, { status, head
 
 /** GET /api/dzialka?id=.. or ?lon=..&lat=.. → Parcel (ULDK, WGS84) */
 export async function GET(req: Request) {
-  if (rateLimited("dz:" + clientIp(req), 60)) return json({ error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, 429);
+  if (rateLimited("dz:" + clientIp(req), 120)) return json({ error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, 429);
   const q = new URL(req.url).searchParams;
   const id = q.get("id") ?? q.get("parcelId");
   try {
@@ -24,6 +24,7 @@ export async function GET(req: Request) {
     return json({ ...r.parcel, tooLarge: r.parcel.areaHa > MAX_AREA_HA, matches: 1 });
   } catch (e) {
     if (e instanceof AmbiguousParcel) return json({ error: "AMBIGUOUS", messagePl: e.userPl, candidates: e.candidates }, 409);
+    if (e instanceof UpstreamError && e.message === "need obreb") return json({ error: "NEEDS_OBREB", messagePl: e.userPl }, 422);
     if (e instanceof UpstreamError && e.userPl) return json({ error: e.message === "not found" ? "parcel_not_found" : "uldk_error", messagePl: e.userPl }, e.message === "not found" ? 404 : 502);
     return json({ error: "uldk_error", messagePl: "Nie udało się pobrać działki z ULDK. Spróbuj ponownie." }, 502);
   }

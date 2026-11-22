@@ -7,11 +7,13 @@ const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =
   Response.json(body, { status, headers: { "Cache-Control": "no-store", ...extra } });
 
 async function handle(req: Request, input: Record<string, unknown>) {
-  if (rateLimited(clientIp(req))) return json({ error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, 429);
+  const ip = clientIp(req);
+  // coarse flood guard for invalid requests; the real per-client limit is applied only to uncached analyses
+  if (rateLimited("req:" + ip, 300)) return json({ error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, 429, { "Retry-After": "60" });
   const v = validateRequest(input);
   if (!v.ok) return json(v.err, 400);
-  const out = await runAnalysis(v.req);
-  return json(out.body, out.status, out.cached ? { "X-Cache": "HIT" } : {});
+  const out = await runAnalysis(v.req, { ip, signal: req.signal });
+  return json(out.body, out.status, { ...(out.cached ? { "X-Cache": "HIT" } : {}), ...(out.headers ?? {}) });
 }
 
 export async function GET(req: Request) {
@@ -25,13 +27,38 @@ export async function GET(req: Request) {
   });
 }
 
+/** reads the body with a byte counter (also for chunked requests without Content-Length) */
+async function readCapped(req: Request, max: number): Promise<string | null> {
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.byteLength;
+    if (n > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(n);
+  let o = 0;
+  for (const c of chunks) {
+    all.set(c, o);
+    o += c.byteLength;
+  }
+  return new TextDecoder().decode(all);
+}
+
 export async function POST(req: Request) {
   const len = Number(req.headers.get("content-length") ?? 0);
   if (len > MAX_BODY) return json({ error: "too_large", messagePl: "Zapytanie jest za duże." }, 413);
   let body: unknown;
   try {
-    const text = await req.text();
-    if (text.length > MAX_BODY) return json({ error: "too_large", messagePl: "Zapytanie jest za duże." }, 413);
+    const text = await readCapped(req, MAX_BODY);
+    if (text === null) return json({ error: "too_large", messagePl: "Zapytanie jest za duże." }, 413);
     body = JSON.parse(text);
   } catch {
     return json({ error: "bad_json", messagePl: "Nieprawidłowe zapytanie (oczekiwany JSON)." }, 400);

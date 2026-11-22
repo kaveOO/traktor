@@ -8,8 +8,11 @@ import { fetchT } from "./util";
  * Open-Meteo's archive API is rate-limited (429) on the free tier, so POWER is the primary history source.
  * ET0 = FAO-56 Penman-Monteith (eq. 6) from Tmax/Tmin/RH/u2/Rs; sunshine hours from Angstrom (a=0.25, b=0.5).
  */
-export const LICENSE_POWER = "NASA POWER Project, LaRC (dane otwarte)";
-export type PowerDay = { p: number | null; e: number | null; t: number | null; tm: number | null; sun: number | null };
+export const LICENSE_POWER = "NASA POWER Project, NASA Langley Research Center (LaRC), domena publiczna";
+/** f = RH at ~13:00 (%), estimated as 100·ea/es(Tmax) + 5 pp (docs/review2/02 §4); v = wind at 10 m (m/s) = WS2M / 0.748 */
+export type PowerDay = { p: number | null; e: number | null; t: number | null; tm: number | null; sun: number | null; f?: number | null; v?: number | null };
+/** bump when the PowerDay shape changes (invalidates the disk cache) */
+const CACHE_VER = "v2";
 
 const PARAMS = "PRECTOTCORR,T2M_MAX,T2M_MIN,T2M,RH2M,WS2M,ALLSKY_SFC_SW_DWN";
 const TTL_MS = 12 * 3600_000;
@@ -57,7 +60,7 @@ export const cellOf = (lon: number, lat: number) => ({ lon: Math.round(lon * 10)
 /** Daily series for a 0.1° cell from `start` (YYYY-MM-DD) to yesterday; cached in memory and in the OS temp dir. */
 export async function powerSeries(lon: number, lat: number, start: string, signal?: AbortSignal): Promise<Map<string, PowerDay>> {
   const c = cellOf(lon, lat);
-  const key = `${c.lat.toFixed(1)}_${c.lon.toFixed(1)}`;
+  const key = `${CACHE_VER}_${c.lat.toFixed(1)}_${c.lon.toFixed(1)}`;
   const hit = mem.get(key);
   if (hit && hit.start <= start && Date.now() - hit.at < TTL_MS) return hit.days;
   const file = join(CACHE_DIR, `${key}.json`);
@@ -97,7 +100,9 @@ export async function powerSeries(lon: number, lat: number, start: string, signa
         const { Ra, N } = ra(c.lat, doy);
         sun = Math.max(0, Math.min(N, (N * (rs / Math.max(0.1, Ra) - 0.25)) / 0.5)) * 3600;
       }
-      days.set(d, { p: Math.max(0, p), e: Math.round(e * 100) / 100, t: tx, tm: tm ?? (tx + tn) / 2, sun });
+      const ea = rh !== null ? (Math.min(100, Math.max(0, rh)) / 100) * ((es(tx) + es(tn)) / 2) : null;
+      const f = ea !== null ? Math.min(100, (100 * ea) / es(tx) + 5) : null;
+      days.set(d, { p: Math.max(0, p), e: Math.round(e * 100) / 100, t: tx, tm: tm ?? (tx + tn) / 2, sun, f: f === null ? null : Math.round(f * 10) / 10, v: u === null ? null : Math.round((u / 0.748) * 100) / 100 });
     }
     const entry = { start, at: Date.now(), days };
     mem.set(key, entry);
@@ -123,7 +128,7 @@ export async function omForecast(lon: number, lat: number, signal?: AbortSignal)
   const key = `${c.lat}_${c.lon}`;
   const hit = omMem.get(key);
   if (hit && Date.now() - hit.at < 3600_000) return hit.d;
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_mean,sunshine_duration&timezone=Europe%2FWarsaw&past_days=92&forecast_days=10`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_mean,sunshine_duration,relative_humidity_2m_min,wind_speed_10m_mean&wind_speed_unit=ms&timezone=Europe%2FWarsaw&past_days=92&forecast_days=10`;
   const res = await fetchT(url, { timeoutMs: 7000, retries: 1, signal });
   const j = (await res.json()) as { daily?: OmDaily };
   if (!j.daily?.time?.length) throw new Error("no daily");

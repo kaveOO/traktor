@@ -92,13 +92,22 @@ const STAC_PC = "https://planetarycomputer.microsoft.com/api/stac/v1";
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 let sas: { token: string; exp: number } | null = null;
+let sasInflight: Promise<string> | null = null;
+/** anonymous SAS token, cached and refreshed 5 min before expiry; parallel callers share one request */
 async function pcToken(signal: AbortSignal): Promise<string> {
   if (sas && sas.exp - Date.now() > 5 * 60000) return sas.token;
-  const r = await fetch("https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-2-l2a", { signal });
-  if (!r.ok) throw new Error(`SAS ${r.status}`);
-  const j = (await r.json()) as { token: string; "msft:expiry": string };
-  sas = { token: j.token, exp: Date.parse(j["msft:expiry"]) };
-  return j.token;
+  if (!sasInflight)
+    sasInflight = (async () => {
+      const r = await fetch("https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-2-l2a", { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) throw new Error(`SAS ${r.status}`);
+      const j = (await r.json()) as { token: string; "msft:expiry": string };
+      sas = { token: j.token, exp: Date.parse(j["msft:expiry"]) };
+      return j.token;
+    })().finally(() => {
+      sasInflight = null;
+    });
+  if (signal.aborted) throw new Error("aborted");
+  return sasInflight;
 }
 
 const baselineGe4 = (p: RawItem["properties"]) => parseFloat(String(p["s2:processing_baseline"] ?? "0")) >= 4;
@@ -227,14 +236,14 @@ async function evalScene(it: Item, parcel: Parcel, signal: AbortSignal): Promise
   const [red, nir, n8, sw] = await Promise.all([readWin(hRed, ub, signal), readWin(hNir, ub, signal), readWin(hN8, ub, signal), readWin(hSw, ub, signal)]);
   if (!red || !nir || !n8 || !sw) return { rejected: "outside" };
   const o = it.offset;
-  const refl = (dn: number) => Math.max(0, dn * 1e-4 + o);
+  const refl = (dn: number) => dn * 1e-4 + o;
   let n = 0, sv = 0, sm = 0;
   for (const [x, y] of pts) {
     if (!OK.has(at(scl, x, y))) continue;
     const R = at(red, x, y), N = at(nir, x, y), N8 = at(n8, x, y), S = at(sw, x, y);
     if (!R || !N || !N8 || !S) continue; // nodata = 0
     const r = refl(R), nn = refl(N), a = refl(N8), s = refl(S);
-    if (nn + r <= 0 || a + s <= 0) continue;
+    if (r <= 0 || nn <= 0 || a <= 0 || s <= 0) continue; // dark pixel below the BOA offset: skip, do not clamp to 0 (NDVI 1.0)
     sv += (nn - r) / (nn + r);
     sm += (a - s) / (a + s);
     n++;
@@ -253,18 +262,36 @@ async function evalScene(it: Item, parcel: Parcel, signal: AbortSignal): Promise
   };
 }
 
-/** Try candidate scenes in order until one is clear over the parcel. */
-async function bestScene(items: Item[], parcel: Parcel, signal: AbortSignal, maxTries = 4): Promise<SceneResult | null> {
+type Best = { scene: SceneResult | null; tries: number; errors: number };
+
+/** Try candidate scenes in order until one is clear over the parcel; counts read errors separately from cloud rejections. */
+async function bestScene(items: Item[], parcel: Parcel, signal: AbortSignal, maxTries = 4): Promise<Best> {
+  let tries = 0, errors = 0;
   for (const it of items.slice(0, maxTries)) {
-    if (signal.aborted) return null;
+    if (signal.aborted) break;
+    tries++;
     try {
       const r = await evalScene(it, parcel, signal);
-      if ("ndvi" in r) return r;
+      if ("ndvi" in r) return { scene: r, tries, errors };
     } catch {
-      if (signal.aborted) return null;
+      if (signal.aborted) break;
+      errors++;
     }
   }
-  return null;
+  return { scene: null, tries, errors };
+}
+
+/** search + best scene; if every COG read on Planetary Computer failed (403, expired SAS, timeout), retry once on Earth Search */
+async function findScene(bb: number[], from: string, to: string, parcel: Parcel, signal: AbortSignal, maxTries: number, order?: (a: Item, b: Item) => number): Promise<Best & { readError: boolean }> {
+  const items = await search(bb, from, to, signal);
+  if (order) items.sort(order);
+  let r = await bestScene(items, parcel, signal, maxTries);
+  if (!r.scene && r.tries > 0 && r.errors === r.tries && items[0]?.provider === "pc" && !signal.aborted) {
+    const es = await searchOne("es", bb, from, to, signal).catch(() => [] as Item[]);
+    if (order) es.sort(order);
+    if (es.length) r = await bestScene(es, parcel, signal, maxTries);
+  }
+  return { ...r, readError: !r.scene && r.tries > 0 && r.errors === r.tries };
 }
 
 /* ---------- interpretation ---------- */
@@ -278,8 +305,15 @@ function median(v: number[]): number | null {
 
 /** anomaly thresholds: smaller differences are within scene-to-scene noise (phenology ±2 weeks, atmosphere, BRDF). Do kalibracji. */
 const NOISE = 0.1;
+/** NDMI reacts to water sooner and with a smaller range (07-science: 0.08) */
+const NOISE_NDMI = 0.08;
 /** history NDVI spread above which the parcel's past years are not comparable (crop rotation) */
 const MAX_SPREAD = 0.3;
+/** fewer previous years than this: no anomaly conclusions, values only */
+const MIN_YEARS = 2;
+
+/** norm usable for anomalies: ≥ 2 previous years that agree with each other */
+export const normComparable = (nYears: number, spread: number | null) => nYears >= MIN_YEARS && (spread == null || spread <= MAX_SPREAD);
 
 export function interpret(
   s: Pick<Sat, "ndvi" | "ndmi" | "ndviNorm" | "ndmiNorm">,
@@ -287,41 +321,50 @@ export function interpret(
   crop: Crop,
   nYears: number,
   spread: number | null,
+  date?: string,
 ): string | null {
   const { ndvi, ndmi } = s;
   if (ndvi == null) return null;
-  // norm comparable only when the parcel's past years agree with each other
-  const comparable = spread == null || spread <= MAX_SPREAD;
+  // norm comparable only with ≥ 2 previous years that agree with each other
+  const comparable = normComparable(nYears, spread);
   const ndviNorm = comparable ? s.ndviNorm : null;
   const ndmiNorm = comparable ? s.ndmiNorm : null;
   const kc = crop.kc[month - 1] ?? 0;
-  const kcPrev = crop.kc[(month + 10) % 12] ?? 0;
-  const winterCrop = crop.kc[0] > 0; // overwinters in the field
-  const cereal = ["pszenica_ozima", "jeczmien_jary", "zyto", "rzepak_ozimy"].includes(crop.id);
+  const winterCrop = crop.kc[0] > 0 && !crop.permanent; // overwinters in the field
   const name = crop.namePl.toLowerCase();
+  const md = date ? date.slice(5) : `${String(month).padStart(2, "0")}-15`;
+  const ripePhase = !!crop.ripeningFrom && md >= crop.ripeningFrom && md < (crop.phaseEndsAt ?? "12-32");
+  const lastHarvest = Math.max(0, ...(crop.harvestMonths ?? []));
   const out: string[] = [];
   out.push(`NDVI ${pl(ndvi)}${ndmi != null ? `, NDMI ${pl(ndmi)}` : ""}.`);
   if (s.ndviNorm != null) {
-    const base = `${nYears === 1 ? "Wartość z poprzedniego roku" : `Mediana z ${nYears} poprzednich lat`} na tej działce (uprawy mogły się różnić): NDVI ${pl(s.ndviNorm)}${s.ndmiNorm != null ? `, NDMI ${pl(s.ndmiNorm)}` : ""}.`;
-    out.push(comparable ? base : `${base} Poprzednie lata różnią się między sobą o ${pl(spread!)} NDVI, prawdopodobnie inne uprawy: porównania z normą nie wyciągamy.`);
+    const vals = `NDVI ${pl(s.ndviNorm)}${s.ndmiNorm != null ? `, NDMI ${pl(s.ndmiNorm)}` : ""}`;
+    if (nYears < MIN_YEARS) out.push(`Tylko ${nYears} wcześniejszy rok ze zdjęciem bez chmur na tej działce (${vals}): za mało lat do porównania, anomalii nie wyznaczamy.`);
+    else {
+      const base = `Mediana z ${nYears} poprzednich lat na tej działce (uprawy mogły się różnić): ${vals}.`;
+      out.push(comparable ? base : `${base} Poprzednie lata różnią się między sobą o ${pl(spread!)} NDVI, prawdopodobnie inne uprawy: porównania z normą nie wyciągamy.`);
+    }
   }
 
-  // phase-aware expectation (Polish calendar)
+  // phase-aware expectation (Polish calendar, crop table)
   let offSeason = false;
-  if (cereal && month >= 7 && month <= 9 && kc <= 0.5) {
+  if (ripePhase && lastHarvest && month >= Math.min(...(crop.harvestMonths ?? [month])) && ndvi < 0.4) {
     offSeason = true;
-    if (ndvi < 0.4) out.push(`Niski NDVI jest typowy po żniwach (${name}): to goła gleba lub ściernisko, nie oznaka suszy.`);
-    else if (ndvi >= 0.6) out.push("Wysoki NDVI po terminie żniw: na działce rośnie prawdopodobnie inna uprawa, międzyplon lub zboże nie jest jeszcze zebrane. Wymaga wizji lokalnej.");
-  } else if (winterCrop && (month <= 2 || month === 12)) {
+    out.push(`Niski NDVI jest typowy w czasie żniw i po nich (${name}): dojrzały łan, ściernisko lub goła gleba, nie oznaka suszy.`);
+  } else if (ripePhase && month > lastHarvest && ndvi >= 0.6) {
     offSeason = true;
-    out.push(`Zimą ${name} ma niski NDVI (spoczynek), indeks słabo mówi o wodzie.`);
+    out.push("Wysoki NDVI po terminie zbioru: na działce rośnie prawdopodobnie inna uprawa lub międzyplon. Wymaga wizji lokalnej.");
+  } else if (ripePhase) {
+    offSeason = true;
+    const fell = s.ndviNorm != null && ndvi < s.ndviNorm;
+    out.push(fell ? "To okres dojrzewania: spadek NDVI jest naturalny, nie oznacza sam w sobie suszy." : "To okres dojrzewania: NDVI zmienia się wtedy szybko, porównanie z innymi latami jest mało pewne.");
+  } else if (winterCrop && (month >= 10 || month <= 3)) {
+    offSeason = true;
+    out.push(month >= 11 || month <= 2 ? `Zimą ${name} jest w spoczynku i ma niski NDVI: indeks nie mówi o niedoborze wody.` : `${month === 10 ? "Jesienią" : "Na przedwiośniu"} ${name} rośnie słabo: NDVI słabo mówi o wodzie.`);
   } else if (kc <= 0.35) {
     offSeason = true;
     if (ndvi < 0.4) out.push(`Poza sezonem wegetacji (${name}) niski NDVI jest spodziewany: przed siewem lub po zbiorze.`);
   }
-  const ripening = !offSeason && cereal && (month === 6 || month === 7) && kc < kcPrev;
-  if (ripening) out.push("To okres dojrzewania: spadek NDVI jest naturalny, ważniejsze jest porównanie z poprzednimi latami niż sama wartość.");
-
   if (!offSeason) {
     if (ndviNorm != null) {
       const d = ndvi - ndviNorm;
@@ -329,19 +372,19 @@ export function interpret(
       else if (d >= NOISE) out.push(`NDVI o ${pl(d)} wyższy niż zwykle o tej porze.`);
       else out.push("NDVI w normie (różnica poniżej 0,10, w granicach szumu).");
     }
-    if (kc >= 0.8 && !ripening && ndvi < 0.6 * crop.ndviHealthy)
+    if (kc >= 0.8 && ndvi < 0.6 * crop.ndviHealthy)
       out.push(`To wyraźnie mniej niż typowe ${pl(crop.ndviHealthy)} dla zdrowej uprawy w pełni wegetacji: możliwy stres, słaby wschód albo inna uprawa na działce. Wymaga wizji lokalnej.`);
   }
 
   // water content (meaningful only over vegetation); at full canopy (NDVI > 0.8) NDVI saturates, NDMI reacts first
   if (ndmi != null && ndvi >= 0.3) {
-    if (ndmiNorm != null) {
+    if (ndmiNorm != null && !offSeason) {
       const d = ndmi - ndmiNorm;
-      if (d <= -NOISE) out.push(`NDMI o ${pl(-d)} niższy niż zwykle o tej porze: rośliny mają mniej wody.`);
-      else if (d >= NOISE) out.push(`NDMI o ${pl(d)} wyższy niż zwykle o tej porze: rośliny mają więcej wody niż w poprzednich latach.`);
-      else out.push("NDMI w normie (różnica poniżej 0,10).");
+      if (d <= -NOISE_NDMI) out.push(`NDMI o ${pl(-d)} niższy niż zwykle o tej porze: rośliny mają mniej wody.`);
+      else if (d >= NOISE_NDMI) out.push(`NDMI o ${pl(d)} wyższy niż zwykle o tej porze: rośliny mają więcej wody niż w poprzednich latach.`);
+      else out.push("NDMI w normie (różnica poniżej 0,08).");
     }
-    if (!offSeason && ndmi < 0) out.push("NDMI poniżej zera przy zielonej roślinności może oznaczać stres wodny (próg do kalibracji).");
+    if (!offSeason && ndmi < 0 && ndvi >= 0.6 && kc >= 0.8) out.push("NDMI poniżej zera przy pełnej zielonej roślinności może oznaczać stres wodny (próg do kalibracji).");
   } else if (ndmi != null) {
     out.push("Przy słabym pokryciu roślinnością NDMI opisuje głównie wilgotność powierzchni gleby.");
   }
@@ -350,40 +393,66 @@ export function interpret(
 }
 
 /* ---------- main ---------- */
-export async function getSatellite(parcel: Parcel, date: string, crop: Crop): Promise<{ data: Sat; source: SourceInfo }> {
+/** raw scene results per parcel|date (crop only changes the interpretation), 30 min, 100 entries */
+type Raw = { cur: SceneResult | null; histOk: SceneResult[]; years: number; timedOut: boolean; readError: boolean; windowDays: number; at: number };
+const rawCache = new Map<string, Raw>();
+const RAW_TTL = 30 * 60000;
+
+export async function getSatellite(parcel: Parcel, date: string, crop: Crop, opts: { budgetMs?: number; signal?: AbortSignal } = {}): Promise<{ data: Sat; source: SourceInfo }> {
   const t0 = Date.now();
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), BUDGET_MS);
-  const signal = ctl.signal;
-  const bb = bbox(rings(parcel));
-  const pad = 0.001;
-  const bb4 = [bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad];
+  const budget = opts.budgetMs ?? BUDGET_MS;
   const t = Date.parse(`${date}T12:00:00Z`);
   const month = new Date(t).getUTCMonth() + 1;
   const year = new Date(t).getUTCFullYear();
+  const key = `${parcel.id}|${date}`;
+  let raw = rawCache.get(key);
+  if (raw && Date.now() - raw.at > RAW_TTL) raw = undefined;
+  if (!raw) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), budget);
+    const onOuter = () => ctl.abort();
+    opts.signal?.addEventListener("abort", onOuter, { once: true });
+    const signal = ctl.signal;
+    const bb = bbox(rings(parcel));
+    const pad = 0.001;
+    const bb4 = [bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad];
+    // autumn/winter: many cloudy days, look further back
+    const firstDays = month >= 10 || month <= 3 ? 40 : 20;
+    let windowDays = firstDays;
+    const current = (async () => {
+      let r = await findScene(bb4, iso(t - firstDays * DAY), date, parcel, signal, 5); // newest first
+      if (!r.scene && !r.readError && !signal.aborted && firstDays < 45) {
+        windowDays = 45;
+        r = await findScene(bb4, iso(t - 45 * DAY), iso(t - (firstDays + 1) * DAY), parcel, signal, 4);
+      }
+      return r;
+    })().catch(() => ({ scene: null, tries: 0, errors: 0, readError: false }));
 
-  const current = (async () => {
-    const items = await search(bb4, iso(t - 20 * DAY), date, signal); // newest first
-    return bestScene(items, parcel, signal, 5);
-  })().catch(() => null);
+    const years = [1, 2, 3, 4, 5].map((k) => year - k).filter((y) => y >= 2017);
+    const hist = years.map(async (y) => {
+      const tc = Date.UTC(y, new Date(t).getUTCMonth(), new Date(t).getUTCDate(), 12);
+      // closest to the same day-of-year first (±10 days), then the least cloudy
+      const order = (a: Item, b: Item) => Number(Math.abs(a.dt - tc) > 10 * DAY) - Number(Math.abs(b.dt - tc) > 10 * DAY) || a.cloud - b.cloud || Math.abs(a.dt - tc) - Math.abs(b.dt - tc);
+      return (await findScene(bb4, iso(tc - 15 * DAY), iso(tc + 15 * DAY), parcel, signal, 3, order)).scene;
+    });
 
-  const years = [1, 2, 3, 4, 5].map((k) => year - k).filter((y) => y >= 2017);
-  const hist = years.map(async (y) => {
-    const tc = Date.UTC(y, new Date(t).getUTCMonth(), new Date(t).getUTCDate(), 12);
-    const items = await search(bb4, iso(tc - 15 * DAY), iso(tc + 15 * DAY), signal);
-    // least cloudy first, ties: closest to the same day-of-year
-    items.sort((a, b) => a.cloud - b.cloud || Math.abs(a.dt - tc) - Math.abs(b.dt - tc));
-    return bestScene(items, parcel, signal, 3);
-  });
+    const [c, ...hs] = await Promise.all([current, ...hist.map((p) => p.catch(() => null))]);
+    const timedOut = signal.aborted && !opts.signal?.aborted;
+    clearTimeout(timer);
+    opts.signal?.removeEventListener("abort", onOuter);
+    raw = { cur: c.scene, histOk: hs.filter((h): h is SceneResult => !!h).sort((a, b) => a.date.localeCompare(b.date)), years: years.length, timedOut, readError: c.readError, windowDays, at: Date.now() };
+    if (!timedOut && !c.readError && !signal.aborted) {
+      rawCache.set(key, raw);
+      if (rawCache.size > 100) rawCache.delete(rawCache.keys().next().value as string);
+    }
+  }
+  const { cur, histOk, timedOut, readError, windowDays } = raw;
+  const nYears = raw.years;
 
-  const [cur, ...hs] = await Promise.all([current, ...hist.map((p) => p.catch(() => null))]);
-  const timedOut = signal.aborted;
-  clearTimeout(timer);
-
-  const histOk = hs.filter((h): h is SceneResult => !!h).sort((a, b) => a.date.localeCompare(b.date));
-  const ndviNorm = median(histOk.map((h) => h.ndvi));
-  const ndmiNorm = median(histOk.map((h) => h.ndmi));
+  const ndviMed = median(histOk.map((h) => h.ndvi));
+  const ndmiMed = median(histOk.map((h) => h.ndmi));
   const spread = histOk.length >= 2 ? +(Math.max(...histOk.map((h) => h.ndvi)) - Math.min(...histOk.map((h) => h.ndvi))).toFixed(3) : null;
+  const comparable = normComparable(histOk.length, spread);
   const history = histOk.map((h) => ({ date: h.date, ndvi: h.ndvi, ndmi: h.ndmi }));
   if (cur) history.push({ date: cur.date, ndvi: cur.ndvi, ndmi: cur.ndmi });
 
@@ -392,16 +461,27 @@ export async function getSatellite(parcel: Parcel, date: string, crop: Crop): Pr
     cloudPct: cur?.cloud ?? null,
     ndvi: cur?.ndvi ?? null,
     ndmi: cur?.ndmi ?? null,
-    ndviNorm,
-    ndmiNorm,
-    anomalyPl: cur ? interpret({ ndvi: cur.ndvi, ndmi: cur.ndmi, ndviNorm, ndmiNorm }, month, crop, histOk.length, spread) : null,
+    // the norm is published only when it is comparable (≥ 2 years that agree); the raw years stay in `history`
+    ndviNorm: comparable ? ndviMed : null,
+    ndmiNorm: comparable ? ndmiMed : null,
+    anomalyPl: cur ? interpret({ ndvi: cur.ndvi, ndmi: cur.ndmi, ndviNorm: ndviMed, ndmiNorm: ndmiMed }, month, crop, histOk.length, spread, date) : null,
     history,
   };
 
+  const ageDays = cur ? Math.round((t - Date.parse(`${cur.date}T12:00:00Z`)) / DAY) : null;
   const notes: string[] = [];
-  if (!cur) notes.push(timedOut ? "Brak danych satelitarnych: limit czasu (15 s) minął przed odczytem bieżącej sceny" : "Brak bezchmurnej sceny w 20 dniach przed datą");
-  if (histOk.length < years.length) notes.push(`Norma z ${histOk.length} z ${years.length} lat${timedOut ? " (limit czasu)" : " (zachmurzenie lub brak scen)"}`);
-  if (histOk.length) notes.push("Norma to mediana z poprzednich lat na tej działce (uprawy mogły się różnić)");
+  if (!cur)
+    notes.push(
+      timedOut
+        ? `Brak danych satelitarnych: limit czasu (${Math.round(budget / 1000)} s) minął przed odczytem bieżącej sceny`
+        : readError
+          ? "Błąd odczytu zdjęć (COG) u obu dostawców: to nie zachmurzenie"
+          : `Brak bezchmurnej sceny w ${windowDays} dniach przed datą`,
+    );
+  if (ageDays !== null && ageDays > 20) notes.push(`Scena sprzed ${ageDays} dni (brak bezchmurnej sceny bliżej daty)`);
+  if (histOk.length < nYears) notes.push(`Norma z ${histOk.length} z ${nYears} lat${timedOut ? " (limit czasu)" : " (zachmurzenie lub brak scen)"}`);
+  if (histOk.length && histOk.length < MIN_YEARS) notes.push("Za mało lat do porównania: anomalii nie wyznaczono");
+  if (histOk.length >= MIN_YEARS) notes.push("Norma to mediana z poprzednich lat na tej działce (uprawy mogły się różnić)");
   if (spread != null && spread > MAX_SPREAD) notes.push(`Rozrzut NDVI między latami ${pl(spread)}: prawdopodobnie zmiana uprawy, anomalii nie wyznaczono`);
   if (cur?.usedUnclassified) notes.push("Maska SCL: dopuszczono piksele niesklasyfikowane (7), mniej pewny odczyt");
   const status: SourceInfo["status"] = !cur ? "missing" : histOk.length >= 3 ? "ok" : "partial";

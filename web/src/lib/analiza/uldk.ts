@@ -15,7 +15,8 @@ export function normalizeParcelId(raw: string): string {
     .replace(/^(\d{6})\s*[-\s]\s*(\d)\s*\./, "$1_$2.")
     .replace(/(\d)\s*[-\\]\s*(\d)/g, "$1/$2")
     .replace(/\s*\/\s*/g, "/")
-    .replace(/\s*\.\s*/g, ".")
+    // collapse spaces around dots only inside ids ("040706_5 . 0021"), not in obręb names ("Brzezie k. Sulechowa")
+    .replace(/(\d)\s*\.\s*(?=\d|AR_|ar_)/g, "$1.")
     .replace(/\s+/g, " ")
     .replace(/\bar_/gi, "AR_");
 }
@@ -104,7 +105,7 @@ export async function getParcelById(raw: string, signal?: AbortSignal): Promise<
       `Nie znaleziono działki „${id}”. Podaj pełny identyfikator (np. 040706_5.0021.44) albo nazwę obrębu i numer (np. Kraszyce 44).`,
     );
   if (NUMBER_ONLY.test(id))
-    throw new UpstreamError("not found", `Sam numer „${id}” nie wystarczy: taki numer jest w wielu obrębach. Podaj pełny identyfikator (np. 040706_5.0021.44) albo nazwę obrębu i numer (np. Kraszyce 44).`);
+    throw new UpstreamError("need obreb", `Sam numer „${id}” nie wystarczy: taki numer jest w wielu obrębach. Podaj pełny identyfikator (np. 040706_5.0021.44) albo nazwę obrębu i numer (np. Kraszyce 44).`);
   let lines: string[] = [];
   let how = "GetParcelById";
   try {

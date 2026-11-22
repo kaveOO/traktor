@@ -8,7 +8,7 @@ Kod TRAKTOR jest naszym utworem. Poniższe komponenty zostają na licencjach ich
 | Zakres | Pakiety | Licencje |
 |---|---|---|
 | `web/`, wszystkie (z narzędziami dev) | 386 | MIT 312 · Apache-2.0 23 · ISC 22 · BSD-2-Clause 9 · BSD-3-Clause 5 · MPL-2.0 3 · BlueOak-1.0.0 3 · CC0-1.0 2 · 0BSD 1 · CC-BY-4.0 1 · Python-2.0 1 · (MIT OR Apache-2.0) 1 · (MIT AND Zlib) 1 · MIT AND BSD-3-Clause 1 · Apache-2.0 AND LGPL-3.0-or-later 1 |
-| `web/`, produkcyjne (`npm ls --omit=dev`) | 56 | tabela niżej |
+| `web/`, produkcyjne (`npm ls --omit=dev`) | 60 | tabela niżej (stan po dodaniu `@duckdb/node-api` do `web/package.json`, 22.11.2026) |
 | `scripts/geo/` | 4 | MIT 3 · Apache-2.0 1 |
 
 **Brak licencji GPL, AGPL, SSPL, BUSL, niekomercyjnych i pakietów bez licencji.**
@@ -19,7 +19,7 @@ Słaby copyleft dotyczy tylko niezmienionych binariów:
 
 Nie modyfikujemy tych pakietów.
 
-Bezpieczeństwo zależności: `npm audit --omit=dev` w `web/` uruchomiony ponownie 22.11.2026 po scaleniu silnika (z `geotiff`): **0 podatności** (info 0, low 0, moderate 0, high 0, critical 0).
+Bezpieczeństwo zależności: `npm audit --omit=dev` w `web/` uruchomiony ponownie 22.11.2026 po scaleniu silnika (z `geotiff`) i po dodaniu `@duckdb/node-api`: **0 podatności** (info 0, low 0, moderate 0, high 0, critical 0).
 
 ## Zależności bezpośrednie (`web/package.json`)
 
@@ -29,15 +29,19 @@ Bezpieczeństwo zależności: `npm audit --omit=dev` w `web/` uruchomiony ponown
 | react, react-dom | 19.3.0 | MIT | github.com/facebook/react |
 | maplibre-gl | 6.19.0 | BSD-3-Clause | github.com/maplibre/maplibre-gl-js |
 | geotiff | 3.0.5 | MIT | github.com/geotiffjs/geotiff.js |
+| @duckdb/node-api | 2.0.1-r.1 | MIT | github.com/duckdb/duckdb-node-neo |
 | tailwindcss, @tailwindcss/turbopack (dev) | 4.3.3 | MIT | github.com/tailwindlabs/tailwindcss |
 | typescript (dev) | 5.x | Apache-2.0 | github.com/microsoft/TypeScript |
 | eslint (dev), eslint-config-next (dev) | 9.x / 16.4.6 | MIT | github.com/eslint/eslint |
 | @types/node, @types/react, @types/react-dom (dev) | – | MIT | DefinitelyTyped |
 
-## Zależności produkcyjne (pełna lista, 56)
+## Zależności produkcyjne (pełna lista, 60)
 
 | Pakiet | Wersja | Licencja |
 |---|---|---|
+| @duckdb/node-api | 2.0.1-r.1 | MIT |
+| @duckdb/node-bindings | 2.0.1-r.1 | MIT |
+| @duckdb/node-bindings-win32-x64 | 2.0.1-r.1 | MIT (binarium DuckDB, zależne od platformy) |
 | @img/colour | 1.1.0 | MIT |
 | @img/sharp-win32-x64 | 0.35.5 | Apache-2.0 AND LGPL-3.0-or-later |
 | @mapbox/jsonlint-lines-primitives | 2.0.3 | MIT |
@@ -85,6 +89,7 @@ Bezpieczeństwo zależności: `npm audit --omit=dev` w `web/` uruchomiony ponown
 | react-dom | 19.3.0 | MIT |
 | require-from-string | 2.0.2 | MIT |
 | scheduler | 0.28.0 | MIT |
+| semver (zależność `sharp`) | 7.8.6 | ISC |
 | sharp | 0.35.5 | Apache-2.0 |
 | source-map-js | 1.2.4 | BSD-3-Clause |
 | styled-jsx | 5.1.6 | MIT |
@@ -95,7 +100,9 @@ Bezpieczeństwo zależności: `npm audit --omit=dev` w `web/` uruchomiony ponown
 | zstddec | 0.2.0 | MIT AND BSD-3-Clause |
 | zustand | 5.1.0 | MIT |
 
-Binaria `@next/swc-*` i `@img/sharp-*` zależą od platformy. Na Linuksie/macOS instalują się odpowiedniki z tą samą licencją.
+Binaria `@next/swc-*`, `@img/sharp-*` i `@duckdb/node-bindings-*` zależą od platformy.
+
+`@duckdb/node-api` jest w `web/package.json` (zmiana z 22.11.2026), ale kod `web/src` go jeszcze nie importuje, więc nie trafia do zbudowanej aplikacji. Jeśli zostanie użyty w trasie API, DuckDB pobiera rozszerzenia z `extensions.duckdb.org` (MIT) przy pierwszym użyciu. Na Linuksie/macOS instalują się odpowiedniki z tą samą licencją.
 
 ## `scripts/geo/` (przygotowanie danych offline, nie trafia do aplikacji)
 

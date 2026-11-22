@@ -9,6 +9,8 @@ Dokument na wypadek wygranej. Opisuje, co przekazujemy, jak, w jakim terminie i 
 - Przekazanie kodu i dokumentacji: **prywatne repozytorium** albo **nośnik danych**.
 - **Do przekazania repozytorium pozostaje prywatne.** Nie udostępniamy kodu nikomu poza jury, organizatorem i KOWR.
 - Nazwa zespołu bez imion i nazwisk (§ 6).
+- **Nagroda: 25 000 zł netto**, dzielona **po równo** między członków zespołu, chyba że zespół złoży deklarację innego podziału (**Załącznik nr 2**). Brak deklaracji = podział równy.
+- Rozwiązanie powstało **podczas wydarzenia** (§ 2 ust. 10). Dowód: historia gita (pkt 4). Użyte biblioteki open source, dane publiczne i narzędzia AI są wymienione z warunkami licencji w `docs/LICENCJE.md` i `docs/THIRD_PARTY_NOTICES.md`; żadne z nich nie blokuje korzystania z rozwiązania przez KOWR.
 
 ## 2. Harmonogram (D = dzień ogłoszenia wyników / wezwania)
 
@@ -28,7 +30,7 @@ Tytuły i treść załączników według Regulaminu wydarzenia (wpisz dokładne 
 | Załącznik | Tytuł (z Regulaminu) | Członek 1 | Członek 2 | Członek 3 | Członek 4 | Członek 5 |
 |---|---|---|---|---|---|---|
 | Załącznik nr 1 | `<tytuł>` | ☐ | ☐ | ☐ | ☐ | ☐ |
-| Załącznik nr 2 | `<tytuł>` | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Załącznik nr 2 | `<tytuł>` (deklaracja podziału nagrody innego niż równy; tylko jeśli zespół jej chce) | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Załącznik nr 3 | `<tytuł>` | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Załącznik nr 4 | `<tytuł>` | ☐ | ☐ | ☐ | ☐ | ☐ |
 
@@ -37,6 +39,8 @@ Do dokumentów dołączamy (jako opis przedmiotu przeniesienia):
 - [ ] `docs/LICENCJE.md`: rejestr źródeł danych, usług i narzędzi AI (§ 2 ust. 10),
 - [ ] `docs/THIRD_PARTY_NOTICES.md`: komponenty na licencjach zewnętrznych, które **nie** są przedmiotem przeniesienia,
 - [ ] ten dokument.
+
+Liczba kolumn = liczba członków zespołu (usuń nadmiarowe). Podpisuje **każdy** członek, w terminie **7 dni**; jeden brak podpisu = utrata nagrody przez zespół.
 
 Członków zespołu w tabeli oznaczamy numerami. Dane osobowe są tylko w podpisanych dokumentach, nie w repozytorium.
 
@@ -86,7 +90,7 @@ npm run build
 npm run start -- -p 3010      # http://localhost:3010/analiza
 ```
 
-Aplikacja działa **bez żadnych kluczy**. Serwer Node, nie funkcje serverless: analiza trwa do ok. 25 s, a cache jest w pamięci procesu. `npm run build` wymaga internetu (`next/font` pobiera kroje Archivo i Inter). `npm audit --omit=dev` w `web/`: 0 podatności (22.11.2026).
+Aplikacja działa **bez żadnych kluczy**. `npm ci` pobiera też binaria platformowe (`@next/swc-*`, `sharp`, `@duckdb/node-bindings-*`), więc instalacja wymaga internetu albo lokalnego mirrora npm. Serwer Node, nie funkcje serverless: analiza trwa do ok. 25 s, a cache jest w pamięci procesu. `npm run build` wymaga internetu (`next/font` pobiera kroje Archivo i Inter). `npm audit --omit=dev` w `web/`: 0 podatności (22.11.2026).
 
 ### Zmienne środowiskowe (`web/.env.local`, poza repozytorium; wzór: `web/.env.example`)
 
@@ -137,7 +141,11 @@ Szczegóły: `docs/LICENCJE.md`. Decyzje do podjęcia przed wdrożeniem produkcy
 | EOX s2cloudless | rocznik 2016 CC BY. Hostowana usługa niekomercyjna | usunąć warstwę albo umowa z EOX |
 | Microsoft Planetary Computer / Earth Search | bezpłatne, bez SLA | przy dużym ruchu: Copernicus Data Space lub własny magazyn scen |
 | IUNG WCS | brak jawnej licencji | pisemne warunki od IUNG-PIB |
-| Google Map Tiles | płatne, umowy i klucza nie da się przenieść | własna umowa Google Maps Platform albo rezygnacja (GUGiK wystarcza) |
+| NASA POWER | dane NASA, otwarte (bez ograniczeń praw autorskich, bez opłat i kont); NASA prosi o cytowanie projektu POWER | bez zmian; zachować cytowanie w raporcie |
+| GUGiK (ULDK, NMT, ortofotomapa, KIEG, BDOT10k) | bezpłatne (art. 40a Pgik), obowiązek podania źródła, bez SLA | bez zmian; przy dużym ruchu uzgodnić z GUGiK |
+| Copernicus Sentinel-2, SoilGrids | wolny dostęp / CC BY 4.0: wymagana atrybucja | bez zmian; zachować atrybucję |
+| Skrypty Blendera (`docs/blender/scripts`, poza aplikacją) | korzystają z `bpy`, traktowane jako GPL-2.0+ | przy redystrybucji zachować GPL albo nie redystrybuować (aplikacja `web/` ich nie używa) |
+| Google Map Tiles | płatne, umowy i klucza nie da się przenieść; **w przekazanej wersji wyłączone** (brak klucza) | własna umowa Google Maps Platform albo rezygnacja (GUGiK wystarcza) |
 | Anthropic API | płatne, klucz zespołu nieprzenoszalny | własny klucz lub inny model, albo pozostawić wyłączone |
 
 Komponenty open source (`docs/THIRD_PARTY_NOTICES.md`) są permisywne, więc KOWR może ich używać komercyjnie. Przy redystrybucji trzeba zachować teksty licencji.

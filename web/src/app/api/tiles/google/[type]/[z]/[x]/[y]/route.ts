@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { clientIp, rateLimited } from "@/lib/analiza/ratelimit";
 import { getSession, googleKey, type GoogleMapType } from "../../../../_session";
 
 /** Tile proxy: /api/tiles/google/{roadmap|satellite}/{z}/{x}/{y}. Keeps the key server-side. */
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/tiles/google
   if (Z > 20 || X >= 2 ** Z || Y >= 2 ** Z) return Response.json({ error: "bad tile" }, { status: 400 });
   // only our own pages may use the proxy (protects the paid quota)
   if (req.headers.get("sec-fetch-site") === "cross-site") return new Response(null, { status: 403 });
+  // a map view needs ~20-60 tiles; cap per client so curl loops cannot burn the paid quota
+  if (rateLimited("tiles:" + clientIp(req), 600)) return new Response(null, { status: 429, headers: { "Retry-After": "60" } });
   try {
     const session = await getSession(type as GoogleMapType);
     const res = await fetch(

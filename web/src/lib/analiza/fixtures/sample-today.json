@@ -5,9 +5,9 @@
     "date": "2026-11-22"
   },
   "textSource": "template",
-  "methodVersion": "traktor-analiza 0.1 (SMSR progi do kalibracji)",
-  "generatedAt": "2026-11-22T08:33:08.878Z",
-  "durationMs": 6046,
+  "methodVersion": "traktor-analiza 0.2 (SMSR: okna od 21.III do daty, ETP SMSR; progi do kalibracji)",
+  "generatedAt": "2026-11-22T09:08:21.119Z",
+  "durationMs": 3470,
   "parcel": {
     "id": "040706_5.0021.44",
     "teryt": "040706_5.0021.44",
@@ -69,69 +69,89 @@
     "namePl": "Pszenica ozima"
   },
   "assessment": {
-    "currentLevel": "umiarkowane",
+    "currentLevel": "niskie",
     "historicalLevel": "niskie",
-    "summaryPl": "Ryzyko niedoboru wody dziś: umiarkowane. Bilans P − ET0 z 60 dni: −12 mm (5. percentyl na tle 10 lat). Susza w 0 z 10 ostatnich sezonów. Gleba: kat. III, glina piaszczysta. Poza okresem monitoringu suszy SMSR (21.III–30.IX): SMSR nie ocenia wtedy suszy rolniczej. Ostatni sezon (2026): bez suszy wg progów SMSR, najgorsze okno KBW −102 mm.",
+    "summaryPl": "Ryzyko niedoboru wody dziś: niskie. Bilans opadu i parowania (ET0 FAO-56) z 60 dni do 19 listopada 2026: −12 mm (5. percentyl na tle 10 lat). Susza w 0 z 10 poprzednich sezonów. Gleba: kat. III, glina piaszczysta. Poza okresem monitoringu suszy SMSR (21.III–30.IX): poziom ryzyka z ostatniego sezonu i gleby, bez bieżącego bilansu. Ostatni sezon (2026): bez suszy wg progów SMSR, najgorsze okno 1.IV–31.V KBW −115 mm przy progu −191 mm. Dane nie wskazują przyczyn niedoboru wody; brak zaleceń.",
     "meteo": {
       "kbw60Mm": -12,
       "kbw60Percentile": 5,
-      "precip30Mm": 29,
-      "precip30NormMm": 45,
-      "et0_30Mm": 16,
-      "etc30Mm": 8,
-      "tmax30MeanC": 8.3,
+      "precip30Mm": 39,
+      "precip30NormMm": 49,
+      "et0_30Mm": 17,
+      "etc30Mm": 9,
+      "tmax30MeanC": 9.2,
       "dryDaysMax": 13,
       "droughtYears": 0,
       "seasons": [
         {
           "year": 2026,
-          "kbwCriticalMm": -102,
-          "drought": false
+          "kbwCriticalMm": -115,
+          "drought": false,
+          "thresholdMm": -191,
+          "windowPl": "1.IV–31.V"
         },
         {
           "year": 2025,
-          "kbwCriticalMm": -100,
-          "drought": false
+          "kbwCriticalMm": -128,
+          "drought": false,
+          "thresholdMm": -213,
+          "windowPl": "1.V–30.VI"
         },
         {
           "year": 2024,
-          "kbwCriticalMm": -118,
-          "drought": false
+          "kbwCriticalMm": -110,
+          "drought": false,
+          "thresholdMm": -204,
+          "windowPl": "21.IV–20.VI"
         },
         {
           "year": 2023,
-          "kbwCriticalMm": -168,
-          "drought": false
+          "kbwCriticalMm": -181,
+          "drought": false,
+          "thresholdMm": -204,
+          "windowPl": "21.IV–20.VI"
         },
         {
           "year": 2022,
-          "kbwCriticalMm": -143,
-          "drought": false
+          "kbwCriticalMm": -154,
+          "drought": false,
+          "thresholdMm": -213,
+          "windowPl": "1.V–30.VI"
         },
         {
           "year": 2021,
-          "kbwCriticalMm": -117,
-          "drought": false
+          "kbwCriticalMm": -114,
+          "drought": false,
+          "thresholdMm": -258,
+          "windowPl": "1.VI–31.VII"
         },
         {
           "year": 2020,
-          "kbwCriticalMm": -116,
-          "drought": false
+          "kbwCriticalMm": -141,
+          "drought": false,
+          "thresholdMm": -188,
+          "windowPl": "21.III–20.V"
         },
         {
           "year": 2019,
-          "kbwCriticalMm": -222,
-          "drought": false
+          "kbwCriticalMm": -247,
+          "drought": false,
+          "thresholdMm": -258,
+          "windowPl": "1.VI–31.VII"
         },
         {
           "year": 2018,
-          "kbwCriticalMm": -184,
-          "drought": false
+          "kbwCriticalMm": -191,
+          "drought": false,
+          "thresholdMm": -204,
+          "windowPl": "21.IV–20.VI"
         },
         {
           "year": 2017,
-          "kbwCriticalMm": -80,
-          "drought": false
+          "kbwCriticalMm": -102,
+          "drought": false,
+          "thresholdMm": -224,
+          "windowPl": "11.V–10.VII"
         }
       ],
       "monthly": [
@@ -196,16 +216,20 @@
           "etcMm": 3
         }
       ],
-      "warnings": []
+      "warnings": [],
+      "smsrThresholdMm": null,
+      "smsrWindowPl": null,
+      "smsrKbwMm": null,
+      "etpMethodPl": "ET0 FAO-56"
     },
     "satellite": {
       "sceneDate": "2026-11-15",
       "cloudPct": 4,
       "ndvi": 0.254,
       "ndmi": -0.231,
-      "ndviNorm": 0.213,
-      "ndmiNorm": -0.003,
-      "anomalyPl": "NDVI 0,25, NDMI −0,23. Mediana z 4 poprzednich lat na tej działce (uprawy mogły się różnić): NDVI 0,21, NDMI −0,00. Poprzednie lata różnią się między sobą o 0,47 NDVI, prawdopodobnie inne uprawy: porównania z normą nie wyciągamy. Przy słabym pokryciu roślinnością NDMI opisuje głównie wilgotność powierzchni gleby. Satelita tylko potwierdza sygnał z bilansu wodnego, nie rozstrzyga sam.",
+      "ndviNorm": null,
+      "ndmiNorm": null,
+      "anomalyPl": "NDVI 0,25, NDMI −0,23. Mediana z 4 poprzednich lat na tej działce (uprawy mogły się różnić): NDVI 0,21, NDMI 0,11. Poprzednie lata różnią się między sobą o 0,63 NDVI, prawdopodobnie inne uprawy: porównania z normą nie wyciągamy. Zimą pszenica ozima jest w spoczynku i ma niski NDVI: indeks nie mówi o niedoborze wody. Przy słabym pokryciu roślinnością NDMI opisuje głównie wilgotność powierzchni gleby. Satelita tylko potwierdza sygnał z bilansu wodnego, nie rozstrzyga sam.",
       "history": [
         {
           "date": "2021-11-11",
@@ -213,9 +237,9 @@
           "ndmi": -0.22
         },
         {
-          "date": "2022-11-08",
-          "ndvi": 0.191,
-          "ndmi": -0.216
+          "date": "2022-11-26",
+          "ndvi": 0.025,
+          "ndmi": 0.003
         },
         {
           "date": "2024-11-22",
@@ -250,56 +274,62 @@
         18.247737,
         52.649403
       ],
-      "ditchDistM": null,
-      "watercourses": [],
+      "ditchDistM": 0,
+      "watercourses": [
+        {
+          "name": "rów melioracyjny (bez nazwy)",
+          "kind": "rów",
+          "distM": 0
+        },
+        {
+          "name": "rów melioracyjny (bez nazwy)",
+          "kind": "rów",
+          "distM": 20
+        },
+        {
+          "name": "rów melioracyjny (bez nazwy)",
+          "kind": "rów",
+          "distM": 92
+        },
+        {
+          "name": "rów melioracyjny (bez nazwy)",
+          "kind": "rów",
+          "distM": 217
+        },
+        {
+          "name": "rów melioracyjny (bez nazwy)",
+          "kind": "rów",
+          "distM": 341
+        },
+        {
+          "name": "rów melioracyjny (bez nazwy)",
+          "kind": "rów",
+          "distM": 374
+        }
+      ],
       "floodZone": null
     }
   },
-  "causes": [
-    {
-      "id": "stres_roslin",
-      "titlePl": "Zdjęcie satelitarne potwierdza słabszy stan roślin",
-      "evidencePl": "Sentinel-2 2026-11-15: NDVI 0,25 (ta sama działka w poprzednich latach: 0,21), NDMI -0,23 (-0). Uprawy w poprzednich latach mogły być inne. NDVI 0,25, NDMI −0,23. Mediana z 4 poprzednich lat na tej działce (uprawy mogły się różnić): NDVI 0,21, NDMI −0,00. Poprzednie lata różnią się między sobą o 0,47 NDVI, prawdopodobnie inne uprawy: porównania z normą nie wyciągamy. Przy słabym pokryciu roślinnością NDMI opisuje głównie wilgotność powierzchni gleby. Satelita tylko potwierdza sygnał z bilansu wodnego, nie rozstrzyga sam.",
-      "weight": 3,
-      "sources": [
-        "Sentinel2"
-      ]
-    }
-  ],
-  "recommendations": [
-    {
-      "id": "lustracja",
-      "kind": "agrotechnika",
-      "titlePl": "Sprawdzić łan w terenie",
-      "whyPl": "Zdjęcie satelitarne pokazuje słabszy stan roślin niż w poprzednich latach na tej działce, przy niedoborze wody w bilansie lub słabej glebie.",
-      "howPl": "Obejrzeć miejsca o niskim NDVI: susza, choroby, szkodniki czy zagęszczenie gleby. Sprawdzić wilgotność gleby łopatą na 20–30 cm.",
-      "priority": 1,
-      "basedOn": [
-        "stres_roslin"
-      ],
-      "sources": [
-        "Sentinel2"
-      ]
-    }
-  ],
+  "causes": [],
+  "recommendations": [],
   "irrigation": {
     "decision": "nie_teraz",
     "deficitMm": null,
     "doseMm": null,
     "timingPl": "nie nawadniać.",
-    "reasonPl": "Poza okresem intensywnego wzrostu (listopad, Kc 0,5); roślina zużywa mało wody. W zbożach i na użytkach zielonych nawadnianie jest rzadkie; najpierw retencja i agrotechnika."
+    "reasonPl": "Poza okresem intensywnego wzrostu (listopad, współczynnik uprawy Kc 0,5); roślina zużywa mało wody. W zbożach i na użytkach zielonych nawadnianie jest rzadkie; najpierw retencja i agrotechnika."
   },
   "uncertainty": {
     "level": "średnia",
     "reasonsPl": [
-      "Opady i parowanie z modeli dla rejonu (NASA POWER ~50 km, Open-Meteo ~10 km), nie pomiar na polu.",
-      "Progi SMSR są kalibrowane na ETP IUNG z danych stacji IMGW; tu ETP IUNG liczone ze wzoru miesięcznego z danych modelowych, usłonecznienie szacowane z promieniowania (przybliżenie).",
-      "Ostatnie dni z modelu prognostycznego lub z opóźnieniem archiwum (od 2026-11-20).",
-      "Poza okresem monitoringu suszy SMSR (21.III–30.IX): SMSR nie ocenia wtedy suszy; ocena z bilansu P − ET0 (FAO) na tle 10 lat.",
-      "Gleba z map (IUNG, SoilGrids 250 m) w środku działki: szacunek, nie pomiar."
+      "Opady i parowanie z modeli dla rejonu (NASA POWER ok. 50 km, ostatnie dni Open-Meteo ok. 10 km), nie pomiar na polu.",
+      "Progi SMSR (rozporządzenie MRiRW z 2019 r.) porównujemy z ETP liczonym wzorem SMSR (Doroszewski i in. 2012) z danych modelowych; SMSR liczy z danych stacji IMGW. Wilgotność o 13:00 szacowana z temperatury maksymalnej, usłonecznienie z promieniowania.",
+      "Ostatnie dni z modelu prognostycznego lub z opóźnieniem archiwum.",
+      "Spoczynek zimowy (pszenica ozima): zdjęcie satelitarne nie mówi o niedoborze wody.",
+      "Gleba z map (IUNG, SoilGrids 250 m): szacunek, nie pomiar."
     ],
     "missingPl": [
-      "Brak danych o ciekach (usługa niedostępna): nie oceniono zastawek na rowach.",
+      "Rowy i cieki z OpenStreetMap (BDOT10k niedostępny): mapa rowów może być niepełna.",
       "Nie sprawdzono strefy zagrożenia powodziowego (ISOK): sprawdź na mapie ISOK przed budową zbiornika."
     ],
     "notConsideredPl": [
@@ -317,49 +347,50 @@
       "label": "Granice działki (ULDK GUGiK)",
       "detail": "GetParcelById: 040706_5.0021.44 → 040706_5.0021.44",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:03.403Z",
-      "ms": 569,
+      "fetchedAt": "2026-11-22T09:08:18.063Z",
+      "ms": 398,
       "license": "GUGiK ULDK, dane publiczne (art. 40a Pgik)",
       "url": "https://uldk.gugik.gov.pl/"
     },
     {
       "id": "OpenMeteo",
       "label": "Opady, parowanie, temperatura (NASA POWER + Open-Meteo)",
-      "detail": "NASA POWER (MERRA-2, ~50 km) 2016-01-01..2026-11-22, ET0 FAO-56 Penman-Monteith liczone z T, RH, wiatru i promieniowania; ostatnie dni i prognoza: Open-Meteo forecast API (ET0 FAO); od 2026-11-20 z Open-Meteo (opóźnienie archiwum); dane po dacie analizy do 2026-12-01; komórka 0,1° 52.6N 18.2E (warunki rejonu)",
+      "detail": "NASA POWER (MERRA-2, ~0,5°, ok. 50 km) 2008-01-01..2026-11-19; ETP SMSR (Doroszewski i in. 2012, wzór 2) do progów suszy, ET0 FAO-56 do bilansu wody w glebie; bez danych po dacie analizy; punkt 52.65N 18.25E (warunki rejonu, nie pomiar na polu)",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:06.016Z",
-      "ms": 2041,
-      "license": "NASA POWER Project, LaRC (dane otwarte); Open-Meteo.com, CC BY 4.0",
-      "url": "https://power.larc.nasa.gov"
+      "fetchedAt": "2026-11-22T09:08:18.248Z",
+      "ms": 182,
+      "license": "NASA POWER Project, NASA Langley Research Center (LaRC), domena publiczna; Open-Meteo.com, CC BY 4.0",
+      "url": "https://power.larc.nasa.gov",
+      "note": "Ostatni dzień z danymi: 2026-11-19. Dane meteorologiczne: NASA POWER Project (LaRC) oraz Open-Meteo.com (CC BY 4.0)."
     },
     {
       "id": "IMGW",
       "label": "Ostrzeżenia meteorologiczne (IMGW-PIB)",
       "detail": "ostrzeżenia aktualne dla powiatu 0407: 0",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:04.071Z",
-      "ms": 83,
+      "fetchedAt": "2026-11-22T09:08:18.171Z",
+      "ms": 66,
       "license": "Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (dane przetworzone)",
       "url": "https://danepubliczne.imgw.pl"
     },
     {
       "id": "Sentinel2",
       "label": "Sentinel-2 L2A (Copernicus) via Microsoft Planetary Computer",
-      "detail": "scena S2B_MSIL2A_20261115T100209_R122_T34UCD_20261115T142502 (2026-11-15), zachmurzenie sceny 4%, ważne piksele działki 100%; norma (mediana): 2021-11-11, 2022-11-08, 2024-11-22, 2025-11-07; NDVI B08/B04 10 m, NDMI B8A/B11 20 m, maska SCL 4-5",
+      "detail": "scena S2B_MSIL2A_20261115T100209_R122_T34UCD_20261115T142502 (2026-11-15), zachmurzenie sceny 4%, ważne piksele działki 100%; norma (mediana): 2021-11-11, 2022-11-26, 2024-11-22, 2025-11-07; NDVI B08/B04 10 m, NDMI B8A/B11 20 m, maska SCL 4-5",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:06.782Z",
-      "ms": 2788,
+      "fetchedAt": "2026-11-22T09:08:21.100Z",
+      "ms": 2991,
       "license": "Contains modified Copernicus Sentinel data 2021-2026 (Copernicus Sentinel Data Legal Notice); Microsoft Planetary Computer (zapas: Earth Search by Element 84, AWS Open Data)",
       "url": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/sentinel-2-l2a/items/S2B_MSIL2A_20261115T100209_R122_T34UCD_20261115T142502",
-      "note": "Norma z 4 z 5 lat (zachmurzenie lub brak scen). Norma to mediana z poprzednich lat na tej działce (uprawy mogły się różnić). Rozrzut NDVI między latami 0,47: prawdopodobnie zmiana uprawy, anomalii nie wyznaczono"
+      "note": "Norma z 4 z 5 lat (zachmurzenie lub brak scen). Norma to mediana z poprzednich lat na tej działce (uprawy mogły się różnić). Rozrzut NDVI między latami 0,63: prawdopodobnie zmiana uprawy, anomalii nie wyznaczono"
     },
     {
       "id": "IUNG",
       "label": "Kategoria podatności gleby na suszę (IUNG-PIB)",
       "detail": "WCS Susza:katgl_landuse2024, 4019 pikseli 5 m na działce: kat. III (100% gruntów rolnych)",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:03.975Z",
-      "ms": 572,
+      "fetchedAt": "2026-11-22T09:08:18.685Z",
+      "ms": 621,
       "license": "IUNG-PIB, mapa podatności gleb na suszę (warunki ponownego wykorzystania do potwierdzenia)",
       "url": "https://susza.iung.pulawy.pl/kategorie/"
     },
@@ -368,8 +399,8 @@
       "label": "Uziarnienie i węgiel organiczny gleby (SoilGrids 250 m)",
       "detail": "średnia 0–30 cm w punkcie 52.649N 18.250E; AWC z równań Saxton–Rawls (2006) × strefa korzeni 1.2 m",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:06.516Z",
-      "ms": 2537,
+      "fetchedAt": "2026-11-22T09:08:20.521Z",
+      "ms": 2452,
       "license": "SoilGrids 2.0, ISRIC, CC BY 4.0",
       "url": "https://soilgrids.org/"
     },
@@ -378,27 +409,28 @@
       "label": "Wysokości terenu (NMT GUGiK)",
       "detail": "NMT 1 m, 62/62 punktów co ~40 m",
       "status": "ok",
-      "fetchedAt": "2026-11-22T08:33:04.233Z",
-      "ms": 253,
+      "fetchedAt": "2026-11-22T09:08:18.284Z",
+      "ms": 213,
       "license": "GUGiK NMT, dane publiczne",
       "url": "https://services.gugik.gov.pl/nmt/"
     },
     {
       "id": "BDOT10k",
       "label": "Rowy i cieki w promieniu 1 km (OpenStreetMap)",
-      "detail": "Brak danych o ciekach (usługa niedostępna)",
-      "status": "missing",
-      "fetchedAt": "2026-11-22T08:33:08.790Z",
-      "ms": 4807,
+      "detail": "OSM Overpass, 13 odcinków w 1 km; BDOT10k nie odpytywany na żywo (kompletność OSM niepełna)",
+      "status": "partial",
+      "fetchedAt": "2026-11-22T09:08:19.793Z",
+      "ms": 1720,
       "license": "© OpenStreetMap contributors, ODbL",
-      "url": "https://www.openstreetmap.org/"
+      "url": "https://www.openstreetmap.org/",
+      "note": "Brak rowu w OSM nie oznacza braku rowu w terenie."
     },
     {
       "id": "ISOK",
       "label": "Strefy zagrożenia powodziowego (ISOK)",
       "detail": "nie sprawdzano automatycznie",
       "status": "missing",
-      "fetchedAt": "2026-11-22T08:33:08.790Z",
+      "fetchedAt": "2026-11-22T09:08:21.100Z",
       "ms": 0,
       "license": "Wody Polskie / ISOK",
       "url": "https://wody.isok.gov.pl/imap_kzgw/"

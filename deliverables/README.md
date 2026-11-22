@@ -13,14 +13,19 @@
 
 ## DO UZUPEŁNIENIA PRZEZ ZESPÓŁ
 
-Te pola są celowo zostawione jako znaczniki `<…>`. Nie wysyłamy zgłoszenia, dopóki któryś z nich zostaje w plikach (sprawdzenie: `Select-String -Path README.md,docs\*.md,deliverables\*.md -Pattern '<NAZWA ZESPOŁU>|<LINK DO|<SHA>'`).
+Te pola są celowo zostawione jako znaczniki `<…>`. Nie wysyłamy zgłoszenia, dopóki któryś z nich zostaje w plikach, poza tabelą znaczników w tym pliku (sprawdzenie: `Select-String -Path README.md,docs\*.md,deliverables\*.md -Pattern '<NAZWA ZESPOŁU>|<LINK DO|<SHA>|<ORGANIZACJA>'`; `<ORGANIZACJA>` może zostać, jeśli nie używamy wariantu B).
 
 | Znacznik | Gdzie wpisać | Skąd wziąć |
 |---|---|---|
 | `<NAZWA ZESPOŁU>` | `README.md` (tabela „Zgłoszenie” i sekcja „Zespół”), `docs/ZGLOSZENIE.md`, `deliverables/opis-rozwiazania.md`, ten plik (tabela wyżej) | decyzja zespołu, bez imion i nazwisk (§ 6) |
-| `<LINK DO FILMU>` | `README.md` (tabela „Zgłoszenie”), ten plik | po nagraniu wg `film-scenariusz.md` (YouTube niepubliczny / Drive) |
+| `<LINK DO FILMU>` | `README.md` (tabela „Zgłoszenie”), ten plik, `film-scenariusz.md` (koniec) | po nagraniu wg `film-scenariusz.md` (YouTube niepubliczny / Drive) |
 | `<LINK DO WERSJI DZIAŁAJĄCEJ>` | `README.md` §1, ten plik, `demo-final.md` (T−60) | po wdrożeniu na serwer Node; jeśli nie wdrażamy: zamienić na „uruchomienie lokalne, README pkt 1” |
 | `<SHA>` | ten plik (tabela wyżej) | `git log -1 --format=%H` po ostatnim pushu |
+| Dostęp jury (loginy / e-maile jurorów) | nie do repo: GitHub → Settings → Collaborators, wg `dostep-jury.md` §1–3 | instrukcja platformy HackNation |
+| `<ORGANIZACJA>` | `dostep-jury.md` §2 (tylko wariant B) i link do repo w tym pliku oraz `README.md` | nazwa organizacji GitHub, bez imion i nazwisk |
+| `<TOKEN>` | **nigdzie w repo**: tylko kanałem platformy (`dostep-jury.md` §3, wariant C) | fine-grained token tylko do odczytu |
+
+Szablony, których **nie** wypełniamy w zgłoszeniu: `<tytuł>` załączników w `docs/PRZEKAZANIE.md` §3 (dopiero po wygranej, z Regulaminu), `<woj>/<uprawa>/<data>/<ID>` w poleceniach eksportu, `<imię>` w poleceniu sprawdzającym w `dostep-jury.md` §5, `<pakiet>` w `docs/THIRD_PARTY_NOTICES.md`.
 
 Do ponownego eksportu po poprawkach silnika (robi lider):
 - `deliverables/prezentacja.pdf` (slajdy zmieniły się po eksporcie z 09:30; sprawdzić ≤ 10 stron),
@@ -48,8 +53,9 @@ Legenda: ✅ gotowe · ⏳ zostało do zrobienia (z opisem)
 | Wymaganie | Stan | Gdzie |
 |---|---|---|
 | 9 punktów README (uruchomienie, funkcje, architektura, źródła i zakresy, dane na żywo vs pobrane z datami, biblioteki/usługi/AI, licencje, ograniczenia, weryfikacja) | ✅ | `README.md` §1–9 |
-| Skalowalność (5.5), bezpieczeństwo (5.6), dostępność (5.4) | ✅ opis / ⏳ część wdrożeń | `README.md` (sekcje na końcu) |
-| Usługi płatne oznaczone, z kosztem i alternatywą | ✅ | `docs/LICENCJE.md` §3 |
+| Zakres użycia AI zadeklarowany (5.1) | ✅ | `README.md` §6 „AI w projekcie”, `docs/LICENCJE.md` §5 |
+| Skalowalność: limity, cache, aktualizacja danych, koszty (5.5); bezpieczeństwo i brak danych osobowych (5.6); dostępność WCAG | ✅ opis / ⏳ część wdrożeń | `README.md` (sekcje na końcu) |
+| Usługi płatne oznaczone, z kosztem i alternatywą (5.4) | ✅ | `docs/LICENCJE.md` §3, `README.md` §6–7 |
 | Rejestr bibliotek, danych i narzędzi AI z licencjami (§ 2 ust. 10) | ✅ | `docs/LICENCJE.md`, `docs/THIRD_PARTY_NOTICES.md` |
 | Repo prywatne do końca wydarzenia (4.3, § 5) | ⏳ | sprawdzić wg `dostep-jury.md` §5 |
 | Brak imion i nazwisk w repo (§ 6) | ✅ autorzy commitów: `traktor-dev` | ponowić `git log --format="%an" | sort -u` przed wysłaniem |

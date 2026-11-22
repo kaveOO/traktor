@@ -61,6 +61,8 @@ Warunki usług to nasza lektura opublikowanych regulaminów. Pozycje oznaczone *
 
 Nie używamy wygenerowanych obrazów w aplikacji ani w prezentacji. Jeśli pojawią się w filmie, dopiszemy narzędzie i jego warunki.
 
+Inne narzędzia (nie są częścią aplikacji): **Blender** (`docs/blender/`: opis sceny i skrypty Python). Program jest na GPL-2.0-or-later. Rendery należą do zespołu (GPL ich nie obejmuje). Skrypty korzystające z API `bpy` Blender Foundation traktuje jako objęte GPL, więc przy ich redystrybucji KOWR musi zachować GPL; nie są częścią aplikacji `web/`. Na dziś żaden render nie jest w aplikacji ani w `deliverables/`.
+
 ## 6. Gdzie atrybucje są wyświetlane
 
 1. Róg mapy: podkład aktywny (GUGiK, EOX 2016, OSM, BDOT10k).

@@ -4,6 +4,7 @@ import type { AnalysisError, AnalysisRequest, AnalysisResult, CropId, LonLat } f
 import { looksLikeParcelId, normalizeParcelId, type ParcelCandidate } from "./uldk";
 import { shiftYears, todayPL } from "./util";
 import { analyze, AnalysisFailure } from "./analyze";
+import { rateLimited } from "./ratelimit";
 
 /* ---------- validation ---------- */
 export type Valid = { ok: true; req: AnalysisRequest } | { ok: false; err: AnalysisError };
@@ -45,25 +46,24 @@ export function validateRequest(input: { parcelId?: unknown; lon?: unknown; lat?
 }
 
 /* ---------- cache, concurrency, rate limit ---------- */
+export { clientIp, rateLimited } from "./ratelimit";
 const CACHE_TTL = 3600_000;
+/** results with a missing/partial source (timeouts) are kept only briefly, so a retry can get the full answer */
+const CACHE_TTL_DEGRADED = 120_000;
 const CACHE_MAX = 200;
-const cache = new Map<string, { at: number; r: AnalysisResult }>();
-const inflight = new Map<string, Promise<AnalysisResult>>();
-const MAX_CONCURRENT = 4;
+const cache = new Map<string, { at: number; ttl: number; r: AnalysisResult }>();
+type Job = { p: Promise<AnalysisResult>; ctrl: AbortController; clients: number };
+const inflight = new Map<string, Job>();
+const MAX_CONCURRENT = 10;
+const QUEUE_WAIT_MS = 15000;
+export const PER_IP_PER_MIN = 60;
 let running = 0;
 const waiters: (() => void)[] = [];
-const hits = new Map<string, number[]>();
 
-export function rateLimited(ip: string, perMin = 30): boolean {
-  const now = Date.now();
-  const list = (hits.get(ip) ?? []).filter((t) => now - t < 60_000);
-  list.push(now);
-  hits.set(ip, list);
-  if (hits.size > 5000) hits.delete(hits.keys().next().value as string);
-  return list.length > perMin;
-}
-
-export const clientIp = (req: Request) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+/** ISOK is never queried automatically, IMGW only matters today: they do not make a result "degraded" */
+const DEGRADING = new Set(["OpenMeteo", "Sentinel2", "IUNG", "SoilGrids", "NMT", "BDOT10k", "ULDK"]);
+const degraded = (r: AnalysisResult) =>
+  r.sources.some((s) => DEGRADING.has(s.id) && (s.status === "missing" || (s.status === "partial" && /limit czasu|nie odpowiedzia|niedostępn/i.test(`${s.detail} ${s.note ?? ""}`))));
 
 async function slot(waitMs: number): Promise<boolean> {
   if (running < MAX_CONCURRENT) {
@@ -94,40 +94,77 @@ const keyOf = (r: AnalysisRequest) => `${r.parcelId ?? r.lonLat?.map((v) => v.to
 
 /** AnalysisError + optional parcel candidates (code "AMBIGUOUS") for a picker in the UI */
 export type AnalysisErrorOut = AnalysisError & { candidates?: ParcelCandidate[] };
-export type RunOut = { status: number; body: AnalysisResult | AnalysisErrorOut; cached?: boolean };
+export type RunOut = { status: number; body: AnalysisResult | AnalysisErrorOut; cached?: boolean; headers?: Record<string, string> };
 
-export async function runAnalysis(req: AnalysisRequest): Promise<RunOut> {
-  const key = keyOf(req);
+function cached(key: string): AnalysisResult | null {
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL) return { status: 200, body: hit.r, cached: true };
-  const same = inflight.get(key);
-  if (same) {
-    try {
-      return { status: 200, body: await same };
-    } catch (e) {
-      return failure(e);
-    }
+  if (!hit) return null;
+  if (Date.now() - hit.at >= hit.ttl) {
+    cache.delete(key);
+    return null;
   }
-  if (!(await slot(4000))) return { status: 503, body: { error: "busy", messagePl: "Serwer liczy inne analizy. Spróbuj za chwilę." } };
-  const job = analyze(req);
-  inflight.set(key, job);
+  return hit.r;
+}
+
+function store(key: string, r: AnalysisResult) {
+  const e = { at: Date.now(), ttl: degraded(r) ? CACHE_TTL_DEGRADED : CACHE_TTL, r };
+  cache.set(key, e);
+  if (r.parcel?.id) cache.set(keyOf({ ...r.request, lonLat: undefined, parcelId: r.parcel.id }), e); // alias: map click / text id → resolved id
+  while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+}
+
+/**
+ * Cached result → returned at once (does not count against the rate limit). Otherwise rate limit (per client),
+ * in-flight dedupe, a concurrency slot (queue ≤ 15 s), and the analysis. `signal` = client request: when every
+ * client waiting for the same job disconnects, the job is aborted.
+ */
+export async function runAnalysis(req: AnalysisRequest, ctx: { ip?: string; signal?: AbortSignal } = {}): Promise<RunOut> {
+  const key = keyOf(req);
+  const hit = cached(key);
+  if (hit) return { status: 200, body: hit, cached: true };
+  if (ctx.ip && rateLimited("an:" + ctx.ip, PER_IP_PER_MIN))
+    return { status: 429, body: { error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, headers: { "Retry-After": "60" } };
+  let job = inflight.get(key);
+  if (!job) {
+    if (!(await slot(QUEUE_WAIT_MS))) return { status: 503, body: { error: "busy", messagePl: "Serwer liczy inne analizy. Spróbuj za kilka sekund." }, headers: { "Retry-After": "5" } };
+    const again = cached(key) ?? null; // finished while we waited
+    if (again) {
+      release();
+      return { status: 200, body: again, cached: true };
+    }
+    const ctrl = new AbortController();
+    const p = analyze(req, { signal: ctrl.signal });
+    job = { p, ctrl, clients: 0 };
+    inflight.set(key, job);
+    p.then((r) => {
+      if (!ctrl.signal.aborted) store(key, r); // an aborted run (all clients left) is not a real answer
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        inflight.delete(key);
+        release();
+      });
+  }
+  const j = job;
+  j.clients++;
+  const leave = () => {
+    j.clients--;
+    if (j.clients <= 0) j.ctrl.abort();
+  };
+  ctx.signal?.addEventListener("abort", leave, { once: true });
   try {
-    const r = await job;
-    cache.set(key, { at: Date.now(), r });
-    if (r.parcel?.id && req.lonLat) cache.set(keyOf({ ...req, lonLat: undefined, parcelId: r.parcel.id }), { at: Date.now(), r });
-    while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
-    return { status: 200, body: r };
+    return { status: 200, body: await j.p };
   } catch (e) {
     return failure(e);
   } finally {
-    inflight.delete(key);
-    release();
+    ctx.signal?.removeEventListener("abort", leave);
+    if (!ctx.signal?.aborted) j.clients--;
   }
 }
 
 function failure(e: unknown): RunOut {
   if (e instanceof AnalysisFailure) {
-    const status = e.code === "parcel_not_found" ? 404 : e.code === "parcel_too_large" || e.code === "NOT_AGRICULTURAL" ? 422 : e.code === "AMBIGUOUS" ? 409 : 502;
+    const status = e.code === "parcel_not_found" ? 404 : e.code === "parcel_too_large" || e.code === "NOT_AGRICULTURAL" || e.code === "NEEDS_OBREB" ? 422 : e.code === "AMBIGUOUS" ? 409 : 502;
     const body: AnalysisErrorOut = { error: e.code, messagePl: e.messagePl, step: e.step, ...(e.candidates ? { candidates: e.candidates } : {}) };
     return { status, body };
   }

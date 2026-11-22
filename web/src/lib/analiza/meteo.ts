@@ -6,13 +6,17 @@ import { addDays, daysBetween, fetchT, r0, r1, shiftYears, source, todayPL } fro
 export const LICENSE_OM = "Open-Meteo.com, CC BY 4.0";
 export const LICENSE_IMGW = "Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (dane przetworzone)";
 type Daily = Record<string, (number | null)[] | string[] | undefined> & { time?: string[] };
-export type Day = { p: number | null; e: number | null; t: number | null; tm: number | null; sun: number | null; ei: number | null; fc: boolean };
+/** ei = ETP SMSR (Doroszewski et al. 2012 eq. 2) per day; f = RH13 %, v = wind 10 m m/s */
+export type Day = { p: number | null; e: number | null; t: number | null; tm: number | null; sun: number | null; ei: number | null; fc: boolean; f?: number | null; v?: number | null };
 
+/** pm = P − ET0 FAO-56; iung = P − ETP SMSR (eq. 2), the method SMSR thresholds are calibrated on */
 export type KbwSum = { pm: number; iung: number | null; p: number; days: number; total: number; forecastDays: number };
 
 export type MeteoOut = {
   meteo: Omit<Assessment["meteo"], "droughtYears" | "seasons" | "warnings" | "kbw60Mm" | "kbw60Percentile">;
-  /** KBW sums over [start, end] (inclusive) with FAO-56 ET0 (pm) and IUNG monthly ETP (iung) */
+  /** mean ET0 FAO over the same 30 days in the previous years (for the "duże parowanie" cause) */
+  et0_30NormMm: number | null;
+  /** KBW sums over [start, end] (inclusive) with FAO-56 ET0 (pm) and ETP SMSR (iung) */
   kbw: (start: string, end: string) => KbwSum | null;
   day: (d: string) => Day | undefined;
   /** last day with data ≤ date */
@@ -20,6 +24,8 @@ export type MeteoOut = {
   /** first day (≤ date) filled from the forecast API (archive lag) */
   lagFrom: string | null;
   hasForecast: boolean;
+  /** NASA POWER history available (10-year background) */
+  archiveOk: boolean;
   firstDay: string;
   lastDay: string;
 };
@@ -32,17 +38,25 @@ const num = (a: unknown, i: number) => {
 const monthOf = (d: string) => Number(d.slice(5, 7));
 const dim = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
-/** astronomical day length (h) on the 15th of the month */
-function dayLength15(lat: number, y: number, m: number): number {
-  const doy = Math.round((Date.UTC(y, m - 1, 15) - Date.UTC(y, 0, 0)) / 86400_000);
-  const decl = (23.44 * Math.PI) / 180 * Math.sin((2 * Math.PI * (284 + doy)) / 365);
-  const phi = (lat * Math.PI) / 180;
-  const x = Math.max(-1, Math.min(1, -Math.tan(phi) * Math.tan(decl)));
-  return (2 * Math.acos(x) * 180) / Math.PI / 15;
+/** astronomical day length (h), FAO-56 eq. 24/34 (same as power.ts) */
+function dayLength(lat: number, d: string): number {
+  const doy = Math.round((Date.parse(d + "T00:00:00Z") - Date.UTC(Number(d.slice(0, 4)), 0, 0)) / 86400_000);
+  const decl = 0.409 * Math.sin((2 * Math.PI * doy) / 365 - 1.39);
+  const x = Math.max(-1, Math.min(1, -Math.tan((lat * Math.PI) / 180) * Math.tan(decl)));
+  return (24 / Math.PI) * Math.acos(x);
 }
 
-/** IUNG monthly ETP (Doroszewski & Górski 1995): −89.6 + 0.0621 t² + 0.00448 h^1.66 + 9.1 f */
-export const etpIungMonth = (t: number, hSun: number, f: number) => Math.max(0, -89.6 + 0.0621 * t * t + 0.00448 * Math.pow(Math.max(0, hSun), 1.66) + 9.1 * f);
+/**
+ * ETP used by SMSR: Doroszewski et al. 2012, eq. 2 (simplified Penman), monthly constants (mm/month).
+ * d = mean astronomical day length (h), h = monthly sunshine sum (h), t = mean air temperature (°C),
+ * f = relative humidity at 13:00 (%), v = wind speed at 10 m (m/s). Checked in docs/review2/02 (~141 mm in July 2018).
+ */
+export const etpSmsrMonth = (d: number, h: number, t: number, f: number, v: number) =>
+  Math.max(
+    0,
+    161 + 19.57 * d - 152.7 * Math.log(d) + 0.0004034 * h * h + 0.00186 * Math.max(0, t + 5) ** 3 + 0.004192 * (100 - f) ** 2 + 0.0003681 * Math.max(0, v) * Math.max(0, 100 - f) ** 2.5,
+  );
+export const ETP_SMSR_PL = "ETP SMSR (Doroszewski i in. 2012)";
 
 export async function getMeteo(lonLat: LonLat, date: string, crop: Crop, signal?: AbortSignal): Promise<{ data: MeteoOut; source: SourceInfo }> {
   const t0 = Date.now();
@@ -55,14 +69,18 @@ export async function getMeteo(lonLat: LonLat, date: string, crop: Crop, signal?
   // history: NASA POWER from Jan 1 (cache-friendly start); recent days + forecast: Open-Meteo forecast API (not the archive: 429 on free tier)
   const powerStart = `${Number(start.slice(0, 4))}-01-01`;
   const recent = daysBetween(date, today) <= 85;
+  // no future leakage: for past dates nothing after the analysis date is used; only "today" gets the forecast
+  const horizon = date >= today ? addDays(date, 10) : date;
   const [arch, fc] = await Promise.allSettled([
     powerSeries(lon, lat, powerStart, signal),
     recent ? omForecast(lon, lat, signal) : Promise.reject(new Error("skip")),
   ]);
   const S = new Map<string, Day>();
-  if (arch.status === "fulfilled") for (const [d, v] of arch.value) if (d <= addDays(date, 8)) S.set(d, { ...v, ei: null, fc: false });
-  const put = (d: Daily, isFc: boolean) => {
+  if (arch.status === "fulfilled") for (const [d, v] of arch.value) if (d <= horizon) S.set(d, { ...v, ei: null, fc: false });
+  const put = (d: Daily) => {
     (d.time ?? []).forEach((day, i) => {
+      if (day > horizon) return;
+      const rhMin = num(d.relative_humidity_2m_min, i);
       const v: Day = {
         p: num(d.precipitation_sum, i),
         e: num(d.et0_fao_evapotranspiration, i),
@@ -70,34 +88,39 @@ export async function getMeteo(lonLat: LonLat, date: string, crop: Crop, signal?
         tm: num(d.temperature_2m_mean, i),
         sun: num(d.sunshine_duration, i),
         ei: null,
-        fc: isFc,
+        // forecast API values for days up to today are model analyses; "fc" marks days not covered by the archive
+        fc: true,
+        f: rhMin === null ? null : Math.min(100, rhMin + 5),
+        v: num(d.wind_speed_10m_mean, i),
       };
       const cur = S.get(day);
       if (!cur || cur.p === null || cur.e === null) if (v.p !== null && v.e !== null) S.set(day, v);
       if (!S.has(day)) S.set(day, v);
     });
   };
-  if (fc.status === "fulfilled") put(fc.value as Daily, true);
-  if (arch.status !== "fulfilled" && fc.status !== "fulfilled") throw new Error("open-meteo down");
+  if (fc.status === "fulfilled") put(fc.value as Daily);
+  if (arch.status !== "fulfilled" && fc.status !== "fulfilled") throw new Error("meteo down");
 
-  // IUNG ETP: monthly formula, pro-rated per day
-  const months = new Map<string, { t: number; sun: number; n: number }>();
+  // ETP SMSR: eq. 2 with monthly-equivalent inputs per decade (1–10, 11–20, 21–end), spread evenly over the decade's days
+  const decKey = (d: string) => `${d.slice(0, 7)}-${Number(d.slice(8, 10)) <= 10 ? 1 : Number(d.slice(8, 10)) <= 20 ? 2 : 3}`;
+  const decs = new Map<string, { d: number; sun: number; t: number; f: number; v: number; n: number }>();
   for (const [d, v] of S) {
-    if (v.tm === null || v.sun === null) continue;
-    const k = d.slice(0, 7);
-    const o = months.get(k) ?? { t: 0, sun: 0, n: 0 };
-    o.t += v.tm;
+    if (v.tm === null || v.sun === null || v.f === null || v.f === undefined || v.v === null || v.v === undefined) continue;
+    const k = decKey(d);
+    const o = decs.get(k) ?? { d: 0, sun: 0, t: 0, f: 0, v: 0, n: 0 };
+    o.d += dayLength(lat, d);
     o.sun += v.sun / 3600;
+    o.t += v.tm;
+    o.f += v.f;
+    o.v += v.v;
     o.n++;
-    months.set(k, o);
+    decs.set(k, o);
   }
   for (const [d, v] of S) {
-    const o = months.get(d.slice(0, 7));
+    const o = decs.get(decKey(d));
     if (!o || o.n < 5) continue;
-    const y = Number(d.slice(0, 4));
-    const m = monthOf(d);
-    const n = dim(y, m);
-    v.ei = etpIungMonth(o.t / o.n, (o.sun * n) / o.n, dayLength15(lat, y, m)) / n;
+    const n = dim(Number(d.slice(0, 4)), monthOf(d));
+    v.ei = etpSmsrMonth(o.d / o.n, (o.sun / o.n) * n, o.t / o.n, o.f / o.n, o.v / o.n) / n;
   }
 
   const days = [...S.keys()].sort();
@@ -144,9 +167,13 @@ export async function getMeteo(lonLat: LonLat, date: string, crop: Crop, signal?
     return n >= 24 ? (s * 30) / n : null;
   };
   const p30Past: number[] = [];
+  const e30Past: number[] = [];
   for (let y = 1; y <= 10; y++) {
     const k = kbw(shiftYears(w30s, -y), shiftYears(end, -y));
-    if (k && k.days >= 28) p30Past.push(k.p);
+    if (k && k.days >= 28) {
+      p30Past.push(k.p);
+      e30Past.push(k.p - k.pm);
+    }
   }
   const tmax: number[] = [];
   for (let d = w30s; d <= end; d = addDays(d, 1)) {
@@ -183,13 +210,16 @@ export async function getMeteo(lonLat: LonLat, date: string, crop: Crop, signal?
   const archiveOk = arch.status === "fulfilled";
   const p30 = sum30((v) => v.p);
   const detail =
-    `${archiveOk ? `NASA POWER (MERRA-2, ~50 km) ${firstDay}..${end}, ET0 FAO-56 Penman-Monteith liczone z T, RH, wiatru i promieniowania` : `tylko Open-Meteo (model prognostyczny) ${firstDay}..${end}, bez 10-letniego tła`}` +
-    (fc.status === "fulfilled" ? `; ostatnie dni i prognoza: Open-Meteo forecast API (ET0 FAO)` : "") +
+    `${archiveOk ? `NASA POWER (MERRA-2, ~0,5°, ok. 50 km) ${firstDay}..${end}` : `tylko Open-Meteo (model prognostyczny) ${firstDay}..${end}, bez 10-letniego tła NASA POWER`}` +
+    `; ETP SMSR (Doroszewski i in. 2012, wzór 2) do progów suszy, ET0 FAO-56 do bilansu wody w glebie` +
+    (fc.status === "fulfilled" && (lagFrom || lastDay > date) ? `; ostatnie dni${lastDay > date ? " i prognoza" : ""}: Open-Meteo (~10 km)` : "") +
     (lagFrom ? `; od ${lagFrom} z Open-Meteo (opóźnienie archiwum)` : "") +
-    (lastDay > date ? `; dane po dacie analizy do ${lastDay}` : "") +
-    `; komórka 0,1° ${lat.toFixed(1)}N ${lon.toFixed(1)}E (warunki rejonu)`;
+    (lastDay > date ? `; prognoza do ${lastDay}` : "; bez danych po dacie analizy") +
+    `; punkt ${lat.toFixed(2)}N ${lon.toFixed(2)}E (warunki rejonu, nie pomiar na polu)`;
   return {
     data: {
+      et0_30NormMm: e30Past.length >= 5 ? r0(e30Past.reduce((a, b) => a + b, 0) / e30Past.length) : null,
+      archiveOk,
       meteo: {
         precip30Mm: p30 === null ? null : r0(p30),
         precip30NormMm: p30Past.length >= 5 ? r0(p30Past.reduce((a, b) => a + b, 0) / p30Past.length) : null,
@@ -209,7 +239,7 @@ export async function getMeteo(lonLat: LonLat, date: string, crop: Crop, signal?
     },
     source: source("OpenMeteo", "Opady, parowanie, temperatura (NASA POWER + Open-Meteo)", `${LICENSE_POWER}; ${LICENSE_OM}`, t0, archiveOk ? "ok" : "partial", detail, {
       url: "https://power.larc.nasa.gov",
-      note: end !== date ? `Ostatni dzień z danymi: ${end}.` : undefined,
+      note: [end !== date ? `Ostatni dzień z danymi: ${end}.` : "", "Dane meteorologiczne: NASA POWER Project (LaRC) oraz Open-Meteo.com (CC BY 4.0)."].filter(Boolean).join(" "),
     }),
   };
 }

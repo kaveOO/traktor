@@ -65,16 +65,30 @@ export type Assessment = {
   historicalLevel: Level | null;
   summaryPl: string;
   meteo: {
-    kbw60Mm: number | null; // climatic water balance P - ET0, 60 days to date
-    kbw60Percentile: number | null; // 0-100 vs same window in the previous years
+    kbw60Mm: number | null; // climatic water balance P - ETP over 60 days: last completed SMSR window in season (ETP SMSR), else 60 days to date (ET0 FAO); see etpMethodPl
+    kbw60Percentile: number | null; // 0-100 vs same window in the previous years, same ETP method
     precip30Mm: number | null;
     precip30NormMm: number | null; // mean of the same window over 10 years
     et0_30Mm: number | null;
     etc30Mm: number | null; // crop ET = Kc * ET0
     tmax30MeanC: number | null;
     dryDaysMax: number | null; // longest run of days < 1 mm in last 60 days
-    droughtYears: number | null; // of the last 10 seasons, years with KBW below the IUNG threshold in the crop's critical period
-    seasons: { year: number; kbwCriticalMm: number; drought: boolean }[];
+    droughtYears: number | null; // of the last 10 completed seasons, years with KBW below the SMSR threshold in any window
+    /**
+     * kbwCriticalMm = KBW of the season's worst SMSR window (highest KBW/threshold ratio, ETP SMSR).
+     * Optional: thresholdMm = SMSR threshold of that window (draw this line, it matches `drought`);
+     * windowPl = that window ("11.V–10.VII"); inProgress = current season, windows up to the analysis date only
+     * (not counted in droughtYears).
+     */
+    seasons: { year: number; kbwCriticalMm: number; drought: boolean; thresholdMm?: number | null; windowPl?: string; inProgress?: boolean }[];
+    /** SMSR threshold (mm) of the window that drove the current verdict, for this crop group and soil category; null = none */
+    smsrThresholdMm?: number | null;
+    /** SMSR window that drove the current verdict, e.g. "11.V–10.VII" */
+    smsrWindowPl?: string | null;
+    /** KBW (mm) of that window with the verdict's ETP method */
+    smsrKbwMm?: number | null;
+    /** evapotranspiration method behind kbw60Mm / percentile / verdict, e.g. "ETP SMSR (Doroszewski i in. 2012)" */
+    etpMethodPl?: string;
     /** monthly climatology for the chart: mean deficit P - ETc per month over 10 years */
     monthly: { month: number; pMm: number; etcMm: number }[];
     warnings: { event: string; level: number; validTo: string }[];

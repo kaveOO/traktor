@@ -94,17 +94,22 @@ export async function getWatercourses(parcel: Parcel, signal?: AbortSignal): Pro
   const [lon, lat] = parcel.centroid;
   const query = `[out:json][timeout:5];way(around:1000,${lat.toFixed(5)},${lon.toFixed(5)})[waterway~"^(ditch|drain|stream|river|canal)$"];out tags geom 200;`;
   try {
-    const ctrl = new AbortController();
-    const sig = signal ? AbortSignal.any([signal, ctrl.signal]) : ctrl.signal;
-    const j = (await Promise.any(
-      OVERPASS.map(async (u) => {
-        const r = await fetchT(u, { timeoutMs: 4800, signal: sig, init: { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } } });
+    // one try per mirror, ≤ 4 s each, second mirror only if the first fails
+    let j: { elements: OsmWay[] } | null = null;
+    for (const u of OVERPASS) {
+      if (signal?.aborted) break;
+      try {
+        const r = await fetchT(u, { timeoutMs: 4000, signal, init: { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } } });
         const out = (await r.json()) as { elements?: OsmWay[] };
-        if (!Array.isArray(out.elements)) throw new Error("bad overpass");
-        return out;
-      }),
-    )) as { elements: OsmWay[] };
-    ctrl.abort();
+        if (Array.isArray(out.elements)) {
+          j = { elements: out.elements };
+          break;
+        }
+      } catch {
+        /* next mirror */
+      }
+    }
+    if (!j) throw new Error("overpass down");
     const polys = project(polygonsOf(parcel.geometry));
     const list = j.elements
       .filter((w) => w.geometry && w.geometry.length >= 2)
@@ -133,7 +138,7 @@ export async function getWatercourses(parcel: Parcel, signal?: AbortSignal): Pro
   } catch {
     return {
       data: { ditchDistM: null, watercourses: [] },
-      source: source("BDOT10k", label, lic, t0, "missing", "Brak danych o ciekach (usługa niedostępna)", { url: "https://www.openstreetmap.org/" }),
+      source: source("BDOT10k", label, lic, t0, "missing", "brak danych (Overpass niedostępny)", { url: "https://www.openstreetmap.org/" }),
     };
   }
 }
