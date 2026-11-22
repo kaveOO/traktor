@@ -86,7 +86,8 @@ export function KbwSeasonsChart({
   idPrefix = "kbw",
   className = "max-w-[110mm]",
 }: {
-  seasons: { year: number; kbwCriticalMm: number; drought: boolean }[];
+  /** inProgress = current season up to the analysis date: outlined bar, "trwa" in the description */
+  seasons: { year: number; kbwCriticalMm: number; drought: boolean; inProgress?: boolean; windowPl?: string }[];
   /** one threshold line for all seasons (only when it agrees with the drought flags) */
   thresholdMm: number | null;
   /** per-season thresholds (same order as `seasons`), drawn as a tick on each bar */
@@ -122,7 +123,10 @@ export function KbwSeasonsChart({
   const ticks: number[] = [];
   for (let v = hi; v >= lo; v -= 50) ticks.push(v);
   const desc = seasons
-    .map((s, i) => `${s.year}: ${n(s.kbwCriticalMm)} mm${ticksPer?.[i] != null ? `, próg ${n(ticksPer[i])} mm` : ""}${s.drought ? " (susza)" : ""}`)
+    .map(
+      (s, i) =>
+        `${s.year}${s.inProgress ? " (sezon w toku)" : ""}: ${n(s.kbwCriticalMm)} mm${s.windowPl ? ` w oknie ${s.windowPl}` : ""}${ticksPer?.[i] != null ? `, próg ${n(ticksPer[i])} mm` : ""}${s.drought ? " (susza)" : ""}`,
+    )
     .join("; ");
   const thrDesc =
     thresholdMm !== null ? `${thrName}: ${n(thresholdMm)} mm.` : ticksPer ? `${thrName} różny w każdym sezonie (kreska na słupku).` : "Linii progu nie rysujemy.";
@@ -167,9 +171,10 @@ export function KbwSeasonsChart({
               width={w}
               height={h}
               fill={s.drought ? `url(#${hid})` : "#3B7FA3"}
-              fillOpacity={s.drought ? 1 : 0.8}
-              stroke={s.drought ? "#B5573B" : "none"}
-              strokeWidth="1"
+              fillOpacity={s.drought ? 1 : s.inProgress ? 0.3 : 0.8}
+              stroke={s.drought ? "#B5573B" : s.inProgress ? "#2E6585" : "none"}
+              strokeWidth={s.inProgress ? 1.2 : 1}
+              strokeDasharray={s.inProgress ? "2.5 1.5" : undefined}
             />
             {s.drought && (
               <text x={x + w / 2} y={top - 3} fontSize={fs} textAnchor="middle" fill={TERRA_INK} fontWeight="700">
@@ -181,6 +186,7 @@ export function KbwSeasonsChart({
             )}
             <text x={x + w / 2} y={H - 4} fontSize={fs} textAnchor="middle" fill={INK} className="num">
               {String(s.year).slice(2)}
+              {s.inProgress ? "*" : ""}
             </text>
           </g>
         );
@@ -213,10 +219,13 @@ export function KbwLegend({
   className = "",
   threshold = "line",
   kind = "iung",
+  inProgress = false,
 }: {
   className?: string;
   threshold?: "line" | "ticks" | "none";
   kind?: "smsr" | "iung" | null;
+  /** show the "sezon w toku" key (outlined bar, year with *) */
+  inProgress?: boolean;
 }) {
   const name = kind === "smsr" ? "próg SMSR" : "próg IUNG";
   return (
@@ -232,6 +241,11 @@ export function KbwLegend({
         />{" "}
         S = susza
       </li>
+      {inProgress && (
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-3 border border-dashed border-water-ink bg-water/30" aria-hidden /> * sezon w toku (do daty analizy)
+        </li>
+      )}
       {threshold !== "none" && (
         <li className="inline-flex items-center gap-1.5">
           <span className="inline-block w-4 border-t-[1.5px] border-dashed border-forest" aria-hidden /> {name}
