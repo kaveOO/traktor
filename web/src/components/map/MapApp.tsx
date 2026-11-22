@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { browser } from "react-dom";
 import type { Conditions, CrestHeight, Order, RefusalCode, ScenarioName } from "@/lib/traktor";
-import { CRESTS, SCENARIOS, candidates, decideOrder, getScenario, getSite, mapFeatures, sites } from "@/lib/traktor";
+import { CRESTS, GMINA, SCENARIOS, candidates, decideOrder, getScenario, getSite, mapFeatures, sites } from "@/lib/traktor";
+import { SkipLink } from "@/components/brand/ui";
 import { MapCanvas, type Basemap, type Focus } from "./MapCanvas";
-import { Legend, MapSource, ParcelSearch, RefusalCounter } from "./Overlays";
+import { Legend, MapCredit, MapSource, ParcelSearch, RefusalCounter } from "./Overlays";
 import { CandidatePanel, GminaPanel, SitePanel } from "./SitePanel";
 import { CHOICES, ScenarioDock, TopBar, type ScenarioChoice } from "./Chrome";
 import { centroid } from "./geo";
@@ -122,11 +123,15 @@ export default function MapApp() {
     [orders, kowr],
   );
 
+  // mobile bottom sheet: collapsed (25%) or expanded (60%); the map controls ride above it via --sheet-h
+  const [sheetOpen, setSheetOpen] = useState(!!init.site);
+
   const selectSite = useCallback((id: string) => {
     const s = getSite(id);
     if (!s) return;
     setSiteId(id);
     setCandId(null);
+    setSheetOpen(true);
     setCrest(s.maxAcceptedCrestCm ?? 40);
     setFocus((f) => ({ xy: s.xy, w: 360, key: (f?.key ?? 0) + 1 }));
   }, []);
@@ -134,6 +139,12 @@ export default function MapApp() {
   const selectCandidate = useCallback((id: string) => {
     setCandId(id);
     setSiteId(null);
+    setSheetOpen(true);
+  }, []);
+
+  const onFilter = useCallback((c: RefusalCode | null) => {
+    setFilter(c);
+    if (c) setShowRefused(true);
   }, []);
 
   const focusParcel = useCallback((pid: string) => {
@@ -143,42 +154,59 @@ export default function MapApp() {
     setFocus((f) => ({ xy: centroid(p.points), w: 220, key: (f?.key ?? 0) + 1 }));
   }, []);
 
-  // keyboard: 1-4 scenarios, ←/→ crest, Esc closes
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const n = Number(e.key);
-      if (n >= 1 && n <= 4) {
-        setScenario(CHOICES[n - 1]);
-        return;
-      }
-      if (e.key === "Escape") {
+  // keyboard: 1-4 scenarios, ←/→ crest, Esc closes. Bound to the app root, so it only acts while focus is
+  // inside the map app; never in form fields; 1-4 and ←/→ can be switched off (WCAG 2.1.4).
+  const [shortcuts, setShortcuts] = useState(true);
+  const onKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.defaultPrevented) return;
+    const t = e.target as HTMLElement;
+    // form fields keep their keys (radio groups and the map stop their own arrow keys)
+    if (t.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "Escape") {
+      if (siteId || candId) {
         setSiteId(null);
         setCandId(null);
-        return;
       }
-      if (siteId && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
-        e.preventDefault();
-        setCrest((c) => {
-          const i = CRESTS.indexOf(c) + (e.key === "ArrowRight" ? 1 : -1);
-          return CRESTS[Math.max(0, Math.min(CRESTS.length - 1, i))];
-        });
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [siteId]);
+      return;
+    }
+    if (!shortcuts) return;
+    const n = Number(e.key);
+    if (e.key.length === 1 && n >= 1 && n <= 4) {
+      setScenario(CHOICES[n - 1]);
+      return;
+    }
+    if (siteId && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault();
+      setCrest((c) => {
+        const i = CRESTS.indexOf(c) + (e.key === "ArrowRight" ? 1 : -1);
+        return CRESTS[Math.max(0, Math.min(CRESTS.length - 1, i))];
+      });
+    }
+  };
+
+  // mobile bottom sheet: collapsed (25%) or expanded (60%); the map controls ride above it via --sheet-h
+  const [legendOpen, setLegendOpen] = useState(false);
 
   const order = site ? orders[site.id] : null;
+  const announce = site ? `Otwarto miejsce ${site.id}, ${site.name}` : cand ? `Otwarto punkt odrzucony ${cand.id}` : "Widok gminy";
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-cream text-forest">
+    <div className="flex h-dvh flex-col overflow-hidden bg-cream text-forest focus:outline-none" tabIndex={-1} onKeyDown={onKey}>
+      <SkipLink href="#panel">Przejdź do panelu</SkipLink>
+      <h1 className="sr-only">Mapa rowów: {GMINA.name}</h1>
+      <p className="sr-only" aria-live="polite">
+        {announce}
+      </p>
       <TopBar conditions={conditions} liveNote={liveNote} loading={scenario === "live" && live.loading} />
-      <div className="relative flex min-h-0 flex-1">
+      <div className={`relative flex min-h-0 flex-1 ${sheetOpen ? "max-[900px]:[--sheet-h:60%]" : "max-[900px]:[--sheet-h:25%]"}`}>
         <main className="relative min-w-0 flex-1" aria-label="Mapa">
           <MapCanvas
+            credit={
+              <div className="hidden max-[900px]:block">
+                <MapCredit basemap={basemap} />
+              </div>
+            }
             orders={orders}
             selected={site}
             crest={crest}
@@ -194,16 +222,9 @@ export default function MapApp() {
             onSelectCandidate={selectCandidate}
           />
           <div className="pointer-events-none absolute top-3 left-4 z-10 [&>*]:pointer-events-auto max-[900px]:hidden">
-            <RefusalCounter
-              compact={!!site}
-              filter={filter}
-              onFilter={(c) => {
-                setFilter(c);
-                if (c) setShowRefused(true);
-              }}
-            />
+            <RefusalCounter compact={!!site} filter={filter} onFilter={onFilter} onPoint={selectCandidate} />
           </div>
-          <div className="pointer-events-none absolute top-3 right-4 z-10 [&>*]:pointer-events-auto max-[900px]:left-4">
+          <div className="pointer-events-none absolute top-3 right-4 z-10 [&>*]:pointer-events-auto max-[900px]:left-4 max-[640px]:top-2 max-[640px]:right-2 max-[640px]:left-2">
             <ParcelSearch onParcel={focusParcel} onSite={selectSite} />
           </div>
           <div className="pointer-events-none absolute bottom-2 left-4 z-10 flex flex-col items-start gap-2 [&>*]:pointer-events-auto max-[900px]:hidden">
@@ -212,10 +233,21 @@ export default function MapApp() {
           </div>
         </main>
         <aside
-          className="relative z-20 w-[400px] shrink-0 overflow-y-auto border-l border-forest/15 bg-cream-deep max-[900px]:absolute max-[900px]:inset-x-0 max-[900px]:bottom-0 max-[900px]:max-h-[55%] max-[900px]:w-auto max-[900px]:rounded-t-[8px] max-[900px]:border-t max-[900px]:border-l-0 max-[900px]:shadow-[0_-8px_24px_rgba(31,58,34,.18)]"
+          id="panel"
+          tabIndex={-1}
+          className="relative z-20 w-[400px] shrink-0 overflow-y-auto border-l border-forest/15 bg-cream-deep focus:outline-none max-[900px]:absolute max-[900px]:inset-x-0 max-[900px]:bottom-0 max-[900px]:h-[var(--sheet-h)] max-[900px]:w-auto max-[900px]:rounded-t-[8px] max-[900px]:border-t max-[900px]:border-l-0 max-[900px]:shadow-[0_-8px_24px_rgba(31,58,34,.18)] max-[900px]:transition-[height] max-[900px]:duration-300"
           aria-label="Panel miejsca"
         >
-          <div className="mx-auto mt-2 hidden h-1 w-10 rounded-full bg-forest/25 max-[900px]:block" aria-hidden />
+          <button
+            type="button"
+            className="sticky top-0 z-30 hidden h-7 w-full items-center justify-center bg-cream-deep max-[900px]:flex"
+            aria-expanded={sheetOpen}
+            aria-controls="panel"
+            aria-label={sheetOpen ? "Zwiń panel" : "Rozwiń panel"}
+            onClick={() => setSheetOpen((o) => !o)}
+          >
+            <span className="h-1 w-10 rounded-full bg-forest/50" aria-hidden />
+          </button>
           {site && order ? (
             <SitePanel
               key={site.id}
@@ -232,6 +264,25 @@ export default function MapApp() {
           ) : (
             <GminaPanel orders={orderList} conditions={conditions} kowrOnly={kowr} onSite={selectSite} />
           )}
+          {/* below 900px the legend, sources and refusal reasons live here instead of over the map */}
+          <div className="hidden px-5 pb-6 max-[900px]:block">
+            <button
+              type="button"
+              aria-expanded={legendOpen}
+              aria-controls="legend-sources"
+              onClick={() => setLegendOpen((o) => !o)}
+              className="inline-flex min-h-9 w-full items-center justify-between rounded-[2px] border-[1.5px] border-forest/60 px-3 text-[13px] font-medium"
+            >
+              Legenda i źródła <span aria-hidden>{legendOpen ? "▴" : "▾"}</span>
+            </button>
+            {legendOpen && (
+              <div id="legend-sources" className="mt-2 flex flex-col gap-2 [&>*]:shadow-none">
+                <RefusalCounter filter={filter} onFilter={onFilter} onPoint={selectCandidate} />
+                <Legend showFlood={flood} />
+                <MapSource basemap={basemap} />
+              </div>
+            )}
+          </div>
         </aside>
       </div>
       <ScenarioDock
@@ -247,6 +298,8 @@ export default function MapApp() {
         googleEnabled={googleEnabled}
         refused={showRefused}
         onRefused={() => setShowRefused((r) => !r)}
+        shortcuts={shortcuts}
+        onShortcuts={() => setShortcuts((s) => !s)}
       />
     </div>
   );

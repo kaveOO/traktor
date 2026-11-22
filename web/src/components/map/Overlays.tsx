@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { RefusalCode, Site } from "@/lib/traktor";
-import { DEMO_NOTE, REFUSAL_LABEL, REFUSAL_RULE, SOURCES_MAP, mapFeatures, plural, sites, summary } from "@/lib/traktor";
+import type { Order, OrderAction, RefusalCode, Site } from "@/lib/traktor";
+import { DEMO_NOTE, REFUSAL_LABEL, REFUSAL_RULE, SOURCES_MAP, candidates, mapFeatures, plural, sites, summary } from "@/lib/traktor";
 import { SourceLine } from "@/components/brand/ui";
-import { C, shortParcel } from "./geo";
+import { C, ORDER_COLOR, ORDER_DASH, ORDER_LETTER, shortParcel } from "./geo";
 
 const CODES = Object.keys(REFUSAL_LABEL) as RefusalCode[];
 const LAND_LEGEND: [string, string, number][] = [
@@ -191,16 +191,19 @@ export function ParcelSearch({
           if (e.key === "Enter" && hits[0]) pick(hits[0].id);
         }}
         placeholder="np. 306/2 lub 040307_2.0023.306/2"
-        className="num mt-1 w-full rounded-[2px] border-[1.5px] border-forest/40 bg-cream px-3 py-2 text-[14px] outline-none focus:border-forest"
+        className="num mt-1 w-full rounded-[2px] border-[1.5px] border-forest/60 bg-cream px-3 py-2 text-[14px] focus:border-forest max-[640px]:mt-0 max-[640px]:py-1.5"
       />
+      <p role="status" className="sr-only">
+        {qq.length >= 2 && !picked ? (hits.length ? `${hits.length} ${plural(hits.length, "wynik", "wyniki", "wyników")}` : "Brak takiej działki") : ""}
+      </p>
       {qq.length >= 2 && !picked && (
         <ul className="mt-2 space-y-0.5">
-          {hits.length === 0 && <li className="text-[12px] opacity-70">Brak takiej działki przy rowach na mapie. Wpisz numer, np. 306/2.</li>}
+          {hits.length === 0 && <li className="text-[12px] text-forest-muted">Brak takiej działki przy rowach na mapie. Wpisz numer, np. 306/2.</li>}
           {hits.map((p) => (
             <li key={p.id}>
-              <button type="button" onClick={() => pick(p.id)} className="num w-full rounded-[2px] px-2 py-1 text-left text-[13px] hover:bg-cream-deep">
+              <button type="button" onClick={() => pick(p.id)} className="num min-h-6 w-full rounded-[2px] px-2 py-1 text-left text-[13px] hover:bg-cream-deep">
                 {p.id}
-                <span className="ml-2 text-[11px] opacity-60">{p.owner === "own" ? "przy zastawce" : "sąsiednia"}</span>
+                <span className="ml-2 text-[11px] text-forest-muted">{p.owner === "own" ? "przy zastawce" : "sąsiednia"}</span>
               </button>
             </li>
           ))}
@@ -211,12 +214,12 @@ export function ParcelSearch({
           <p className="num font-semibold">Działka {shortParcel(picked)}</p>
           {sitesFor(picked).length ? (
             sitesFor(picked).map((s) => (
-              <button key={s.id} type="button" onClick={() => onSite(s.id)} className="mt-1 block w-full text-left underline">
+              <button key={s.id} type="button" onClick={() => onSite(s.id)} className="mt-1 block min-h-6 w-full text-left underline">
                 <span className="num">{s.id}</span> · {s.name}
               </button>
             ))
           ) : (
-            <p className="opacity-75">Na tej działce nie ma miejsca na zastawkę.</p>
+            <p className="text-forest-muted">Na tej działce nie ma miejsca na zastawkę.</p>
           )}
         </div>
       )}
@@ -235,11 +238,11 @@ export function RankingList({ onSite, limit = 8, kowrOnly = false }: { onSite: (
         const c = s.crests.find((k) => k.heightCm === s.maxAcceptedCrestCm);
         return (
           <li key={s.id}>
-            <button type="button" onClick={() => onSite(s.id)} className="flex w-full items-center gap-3 px-1 py-2 text-left hover:bg-cream">
-              <span className="num w-6 text-[12px] opacity-60">{s.rank}.</span>
+            <button type="button" onClick={() => onSite(s.id)} className="flex min-h-6 w-full items-center gap-3 px-1 py-2 text-left hover:bg-cream">
+              <span className="num w-6 text-[12px] text-forest-muted">{s.rank}.</span>
               <span className="num w-14 text-[13px] font-semibold">{s.id}</span>
               <span className="flex-1 truncate text-[13px]">{s.name}</span>
-              <span className="num text-[12px] opacity-75">
+              <span className="num text-[12px] text-forest-muted">
                 {c ? `${c.storageM3[0].toLocaleString("pl-PL")}–${c.storageM3[1].toLocaleString("pl-PL")} m³` : "—"}
               </span>
             </button>
@@ -250,18 +253,93 @@ export function RankingList({ onSite, limit = 8, kowrOnly = false }: { onSite: (
   );
 }
 
+const ORDER_PL: Record<OrderAction, string> = { TRZYMAJ: "TRZYMAJ", OTWORZ: "OTWÓRZ", NIE_RUSZAJ: "NIE RUSZAJ" };
+export const orderPl = (a: OrderAction) => ORDER_PL[a];
+
+/** Text equivalent of the map: every site with its order (keyboard and screen-reader path). */
+export function AllSitesList({
+  orders,
+  onSite,
+  kowrOnly = false,
+}: {
+  orders: Order[];
+  onSite: (id: string) => void;
+  kowrOnly?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const byId = new Map(orders.map((o) => [o.siteId, o]));
+  const list = [...sites].filter((s) => !kowrOnly || s.kowr).sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="all-sites"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex min-h-9 w-full items-center justify-between rounded-[2px] border-[1.5px] border-forest/60 px-3 text-[13px] font-medium hover:bg-cream"
+      >
+        Lista wszystkich miejsc ({list.length})
+        <span aria-hidden>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <table id="all-sites" className="mt-2 w-full border-collapse text-left text-[12.5px]">
+          <caption className="sr-only">Wszystkie miejsca bezpieczne: polecenie na dziś i maksymalna wysokość zastawki</caption>
+          <thead>
+            <tr className="border-b border-forest/30">
+              <th scope="col" className="eb py-1 pr-2 text-forest-muted">Miejsce</th>
+              <th scope="col" className="eb py-1 pr-2 text-forest-muted">Polecenie</th>
+              <th scope="col" className="eb py-1 text-right text-forest-muted">Maks.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((s) => {
+              const o = byId.get(s.id);
+              return (
+                <tr key={s.id} className="border-b border-forest/10">
+                  <th scope="row" className="py-0.5 pr-2 font-normal">
+                    <button type="button" onClick={() => onSite(s.id)} className="num inline-flex min-h-6 items-center text-left font-semibold underline">
+                      {s.id}
+                    </button>
+                    <span className="block truncate text-[11.5px] text-forest-muted">{s.name}</span>
+                  </th>
+                  <td className="py-0.5 pr-2">{o ? orderPl(o.action) : "—"}</td>
+                  <td className="num py-0.5 text-right">{s.maxAcceptedCrestCm ? `${s.maxAcceptedCrestCm} cm` : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+/** Marker sample shared by the legend: ring + order letter (not colour alone, WCAG 1.4.1). */
+function RingSample({ action }: { action: OrderAction }) {
+  const ring = ORDER_COLOR[action];
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
+      <circle cx="9" cy="9" r="7.6" fill="none" stroke={ring} strokeWidth="2" strokeDasharray={ORDER_DASH[action]} />
+      <circle cx="9" cy="9" r="5.4" fill={C.agri} stroke={C.cream} strokeWidth="1" />
+      <text x="9" y="11.6" textAnchor="middle" fill={C.cream} style={{ fontSize: 7, fontWeight: 800 }}>
+        {ORDER_LETTER[action]}
+      </text>
+    </svg>
+  );
+}
+
 export function Legend({ showFlood }: { showFlood: boolean }) {
   const row = "flex items-center gap-2";
   return (
     <div data-ui className="rounded-[4px] bg-cream/95 px-3 py-2.5 text-[11.5px] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
-      <p className="eb mb-1 opacity-70">Legenda</p>
+      <p className="eb mb-1 text-forest-muted">Legenda</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         <span className={row}>
-          <span className="inline-block size-3 rounded-full border-2" style={{ background: C.agri, borderColor: C.cream, outline: `2px solid ${C.forest}` }} />
+          <span className="inline-block size-3 rounded-full border-2" style={{ background: C.agri, borderColor: C.cream, outline: `2px solid ${C.forest}` }} aria-hidden />
           Miejsce bezpieczne
         </span>
         <span className={row}>
-          <span className="inline-block size-2 rounded-full" style={{ background: C.terra, opacity: 0.7 }} />
+          <span className="inline-block size-2 rounded-full" style={{ background: C.terra, boxShadow: `0 0 0 1px ${C.cream}` }} aria-hidden />
           Punkt odrzucony
         </span>
         <span className={row}>
@@ -283,17 +361,25 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
           </span>
         )}
         <span className={row}>
-          <span className="inline-block size-2.5 rounded-full border-2" style={{ borderColor: C.forest }} />
-          Pierścień: TRZYMAJ
+          <RingSample action="TRZYMAJ" />
+          T: TRZYMAJ (pierścień ciągły)
         </span>
         <span className={row}>
-          <span className="inline-block size-2.5 rounded-full border-2" style={{ borderColor: C.water }} />
-          Pierścień: OTWÓRZ
+          <RingSample action="OTWORZ" />
+          O: OTWÓRZ (pierścień przerywany)
+        </span>
+        <span className={row}>
+          <RingSample action="NIE_RUSZAJ" />
+          N: NIE RUSZAJ (kropkowany)
+        </span>
+        <span className={row}>
+          <span className="inline-block h-2.5 w-4 rounded-[1px] border-2 border-dashed" style={{ borderColor: C.terra, background: "rgba(181,87,59,.18)" }} aria-hidden />
+          Działka sąsiada: ryzyko
         </span>
       </div>
-      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10px]">
+      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10.5px]">
         {LAND_LEGEND.map(([label, color, op]) => (
-          <span key={label} className="flex items-center gap-1 opacity-80">
+          <span key={label} className="flex items-center gap-1">
             <span className="inline-block h-2 w-3 rounded-[1px]" style={{ background: color, opacity: op }} />
             {label}
           </span>
@@ -321,11 +407,11 @@ function BasemapCredit({ basemap }: { basemap: MapBasemap }) {
     case "s2-cloudless":
       return (
         <>
-          Sentinel-2 cloudless –{" "}
+          <span lang="en">Sentinel-2 cloudless</span> –{" "}
           <a href="https://s2maps.eu" target="_blank" rel="noreferrer" className={a}>
             https://s2maps.eu
           </a>{" "}
-          by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), CC BY 4.0
+          <span lang="en">by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016)</span>, CC BY 4.0
         </>
       );
     case "osm":
@@ -349,10 +435,35 @@ export function MapSource({ basemap = "gugik-orto" }: { basemap?: MapBasemap }) 
   return (
     <div data-ui className="max-w-[520px] rounded-[2px] bg-cream/90 px-2.5 py-1.5 text-forest">
       <SourceLine>{SOURCES_MAP}</SourceLine>
-      <p className="text-[11px] opacity-75">{DEMO_NOTE}</p>
-      <p className="text-[11px] opacity-75">
+      <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
+      <p className="text-[11px] text-forest-muted">
         <BasemapCredit basemap={basemap} />
       </p>
     </div>
+  );
+}
+
+const SHORT_CREDIT: Record<MapBasemap, [string, string | null]> = {
+  "gugik-orto": ["© GUGiK", "https://www.geoportal.gov.pl"],
+  "s2-cloudless": ["Sentinel-2 cloudless © EOX, CC BY 4.0", "https://s2maps.eu"],
+  osm: ["© autorzy OpenStreetMap", "https://www.openstreetmap.org/copyright"],
+  "google-roadmap": [`© ${new Date().getFullYear()} Google`, null],
+  "google-satellite": [`© ${new Date().getFullYear()} Google`, null],
+  schema: ["BDOT10k © GUGiK", null],
+};
+
+/** One-line attribution, always visible in the map corner (tile licences require it at every width). */
+export function MapCredit({ basemap }: { basemap: MapBasemap }) {
+  const [text, href] = SHORT_CREDIT[basemap];
+  return (
+    <p data-ui className="rounded-[2px] bg-cream/90 px-1.5 py-0.5 text-[10.5px] leading-tight text-forest">
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" className="underline">
+          {text}
+        </a>
+      ) : (
+        text
+      )}
+    </p>
   );
 }

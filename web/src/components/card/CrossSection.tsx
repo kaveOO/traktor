@@ -49,7 +49,7 @@ export function CrossSection({ site, crestCm }: { site: Site; crestCm: CrestHeig
       viewBox={`0 0 ${W} ${H}`}
       className="block h-auto w-full"
       role="img"
-      aria-label={`Przekrój rowu przy zastawce ${crestCm} cm`}
+      aria-label={`Przekrój rowu przy zastawce ${crestCm} cm: ${spills ? "woda wychodzi na działkę sąsiada" : "woda zostaje w rowie"}`}
       style={{ printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
     >
       {water.length > 2 && (
@@ -69,13 +69,14 @@ export function CrossSection({ site, crestCm }: { site: Site; crestCm: CrestHeig
         strokeDasharray="4 2"
       />
       <line x1={sx(wl)} y1={sy(h)} x2={sx(wr)} y2={sy(h)} stroke={spills ? "#B5573B" : "#3B7FA3"} strokeWidth={1.6} />
-      <text x={sx(0)} y={sy(h) - 4} fontSize={10} textAnchor="middle" fill="#1F3A22" fontWeight={700} fontFamily="var(--font-inter)">
+      {/* label sizes in viewBox units: the chart renders at ~0.9 px/unit on the card, so 11.5 ≈ 10 px */}
+      <text x={sx(0)} y={sy(h) - 4} fontSize={11.5} textAnchor="middle" fill="#1F3A22" fontWeight={700} fontFamily="var(--font-inter)">
         Zastawka {crestCm} cm
       </text>
-      <text x={4} y={H - 4} fontSize={9} fill="#1F3A22" opacity={0.7} fontFamily="var(--font-inter)">
+      <text x={4} y={H - 4} fontSize={11.5} fill="#4A5E4C" fontFamily="var(--font-inter)">
         działka przy zastawce
       </text>
-      <text x={W - 4} y={H - 4} fontSize={9} textAnchor="end" fill={spills ? "#B5573B" : "#1F3A22"} opacity={spills ? 1 : 0.7} fontFamily="var(--font-inter)">
+      <text x={W - 4} y={H - 4} fontSize={11.5} textAnchor="end" fill={spills ? "#984630" : "#4A5E4C"} fontWeight={spills ? 700 : 400} fontFamily="var(--font-inter)">
         {spills ? "woda wychodzi na działkę sąsiada" : "działka sąsiada"}
       </text>
     </svg>

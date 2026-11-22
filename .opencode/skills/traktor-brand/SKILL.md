@@ -27,9 +27,14 @@ All in `web/src/components/brand/`:
 | `sky` | #A9BFCF | atmosphere (counts as a ground) |
 | `water` | #3B7FA3 | water, data, **OTWÓRZ** |
 | `terra` | #B5573B | **rejected site / warnings only, never decoration** |
+| `water-ink` | #2E6585 | **text-safe** water: small text, chips/fills carrying small cream text (5.38 on cream, 5.10 on cream-deep) |
+| `terra-ink` | #984630 | **text-safe** terra: refusal text, refusal boxes, "Odrzucone" chip (5.49 / 5.20) |
+| `agri-ink` | #3F6630 | **text-safe** agri: "Przyjęte" chip, small green text (5.66 / 5.37) |
+| `forest-muted` | #4A5E4C | secondary text on cream grounds, instead of `opacity-50/60/70` (5.96 / 5.65, 7.01 on white) |
+| `cream-muted` | #C4C5B4 | secondary text on forest grounds (7.11 on forest) |
 Ratio: cream 50 · forest 25 · greens+soil 15 · water+terracotta 10.
 Elevation tints low→high: `elev-1` #2F5F73, `elev-2` #8FA86A, `elev-3` #C9BF86, `elev-4` #B98D5F, `elev-5` #EFE6D3.
-Cream text on agri/terra/water only at ≥24 px or ≥19 px bold.
+**Contrast rule (WCAG 2.2 AA):** brand `water` / `terra` / `agri` fail 4.5:1 for small text (3.76 / 4.07 / 4.27 on cream). For text below 24 px (below 19 px bold), or a fill that carries such text, use the `-ink` token. Keep the brand colour for fills, large text, lines and dots. Never fade informative text with `opacity-*`; use `forest-muted` / `cream-muted` (decorative text only may be faded). Status is never colour alone: add a letter, icon, dash pattern or a word.
 
 ## Type
 - `.hd`: Archivo ExtraBold, 78% width, UPPERCASE, leading 0.93. Display 96, H1 64.
