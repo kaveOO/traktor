@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Archivo, Inter } from "next/font/google";
 import "./globals.css";
 
+/*
+ * SPEC §04. Archivo: variable font with the `wdth` axis (62–125%) so headlines can use font-stretch 78% /
+ * subheads 85%. next/font only allows `axes` when weight is "variable", so this is one variable file per
+ * subset (covers ExtraBold 800 + Bold 700). Inter: variable wght (Regular 400, Medium 500, SemiBold 600).
+ */
 const archivo = Archivo({
   variable: "--font-archivo",
   subsets: ["latin", "latin-ext"],

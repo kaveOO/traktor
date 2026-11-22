@@ -3,6 +3,8 @@ import type { ComponentProps, ReactNode } from "react";
 import { StepRail } from "./data";
 
 export type { ChipStatus, Step, StepState } from "./data";
+export { FieldPattern, type FieldTone } from "./FieldPattern";
+export { Logo, LogoMark, LogoSymbol, type LogoColor, type LogoLockup } from "./Logo";
 export { Callout, FooterLine, LevelMeter, LevelTag, RecCard, SectionEyebrow, SourceChip, SourceChipList, StepRail } from "./data";
 
 /* Shared brand primitives (13 UI elements). Keep these dumb and reusable. */
@@ -32,8 +34,10 @@ export function Button({
   className?: string;
   children: ReactNode;
 } & Omit<ComponentProps<"button">, "className" | "children">) {
+  // SPEC §09 artwork: Inter Medium 16, padding 14/24, 2px radius, 48px min height.
+  // Focus (WCAG 2.2 2.4.11/2.4.13): 2px solid outline, 2px offset, in the contrasting ground colour (≥ 3:1).
   const base =
-    "inline-flex min-h-12 items-center justify-center gap-2 rounded-[2px] px-6 text-[15px] font-medium transition-[filter,background-color] duration-200 hover:brightness-[.94] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50";
+    "inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[2px] px-6 py-3.5 text-[16px] leading-[1.25] font-medium transition-[filter,background-color,color] duration-200 hover:brightness-[.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid disabled:cursor-not-allowed disabled:opacity-50";
   const styles =
     variant === "primary"
       ? tone === "onForest"
@@ -65,7 +69,7 @@ export function Eyebrow({ children, className = "" }: { children: ReactNode; cla
 /** Card: cream at 94% over imagery, 4px radius, soft forest shadow, 24px padding. */
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-[4px] bg-cream/95 p-6 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] ${className}`}>
+    <div className={`rounded-[4px] bg-cream/94 p-6 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] ${className}`}>
       {children}
     </div>
   );
@@ -86,11 +90,39 @@ export function StatusChip({ status, className = "" }: { status: "accepted" | "r
   );
 }
 
-/** Thin progress line: the only allowed loading indicator. */
-export function ProgressLine({ className = "", label = "Ładowanie…" }: { className?: string; label?: string }) {
+/**
+ * Thin progress line: the ONLY loading indicator in TRAKTOR (SPEC §10, never a spinner).
+ * Indeterminate by default; pass `value` (0..1) for a determinate line (it moves with the water easing).
+ * `tone="onForest"` draws it in cream.
+ */
+export function ProgressLine({
+  className = "",
+  label = "Ładowanie…",
+  value,
+  tone = "onCream",
+}: {
+  className?: string;
+  label?: string;
+  value?: number;
+  tone?: Tone;
+}) {
+  const bar = tone === "onForest" ? "bg-cream" : "bg-forest";
+  const track = tone === "onForest" ? "bg-cream/20" : "bg-forest/15";
+  const v = value === undefined ? undefined : Math.max(0, Math.min(1, value));
   return (
-    <div className={`h-px w-full overflow-hidden bg-forest/15 ${className}`} role="progressbar" aria-label={label}>
-      <div className="progress-line h-full origin-left bg-forest" />
+    <div
+      className={`h-0.5 w-full overflow-hidden ${track} ${className}`}
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={v === undefined ? undefined : 0}
+      aria-valuemax={v === undefined ? undefined : 100}
+      aria-valuenow={v === undefined ? undefined : Math.round(v * 100)}
+    >
+      {v === undefined ? (
+        <div className={`progress-line h-full origin-left ${bar}`} />
+      ) : (
+        <div className={`water-level h-full origin-left ${bar}`} style={{ transform: `scaleX(${v})` }} />
+      )}
     </div>
   );
 }
@@ -118,8 +150,19 @@ export const RAIL_STEPS = [
   "Monitoring",
 ] as const;
 
-export function ProgressRail({ current = 3, tone = "onCream" }: { current?: number; tone?: Tone }) {
-  return <StepRail steps={RAIL_STEPS} current={current} tone={tone} label="Etapy pracy TRAKTOR" />;
+/** The brand rail at artwork size (34px steps, SPEC §09). `size="sm"` gives the compact 24px rail. */
+export function ProgressRail({
+  current = 3,
+  tone = "onCream",
+  size = "md",
+  className,
+}: {
+  current?: number;
+  tone?: Tone;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  return <StepRail steps={RAIL_STEPS} current={current} tone={tone} size={size} className={className} label="Etapy pracy TRAKTOR" />;
 }
 
 /**

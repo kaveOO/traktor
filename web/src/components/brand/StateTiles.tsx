@@ -9,19 +9,26 @@ import { radioKeyDown } from "./radio";
  * Active TRZYMAJ: forest fill, cream text. Active OTWÓRZ: water-blue fill, cream text.
  * Inactive: 2px outline in the state colour. 4px radius. 400ms colour change, nothing else moves.
  * TRZYMAJ and OTWÓRZ are never translated.
+ * A11y: exactly-one-of-two is a radiogroup (role="radio" + aria-checked, roving tabindex, arrow keys).
+ * That is the correct ARIA for mutually exclusive choices; aria-pressed toggles would announce two
+ * independent on/off buttons. `variant="toggle"` is available if a caller needs aria-pressed buttons.
  */
 export function StateTiles({
   active,
   onChange,
   size = "md",
   showEnglish = false,
+  variant = "radio",
 }: {
   active: OrderAction;
   onChange?: (a: "TRZYMAJ" | "OTWORZ") => void;
   size?: "sm" | "md" | "lg";
   showEnglish?: boolean;
+  /** "radio" (default) = radiogroup; "toggle" = two buttons with aria-pressed */
+  variant?: "radio" | "toggle";
 }) {
-  const pad = size === "lg" ? "p-9" : size === "md" ? "p-5" : "p-3";
+  // SPEC §07: 36px padding (lg, and md from 768px up); sm is the compact in-panel variant
+  const pad = size === "lg" ? "p-9" : size === "md" ? "p-5 md:p-9" : "p-3";
   const title = size === "lg" ? "text-6xl" : size === "md" ? "text-4xl" : "text-2xl";
   const tiles = [
     {
@@ -72,6 +79,29 @@ export function StateTiles({
             <div key={t.key} className={`rounded-[4px] border-2 transition-colors duration-[400ms] ${pad} ${isOn ? t.on : `${t.off} bg-transparent`}`}>
               {body(t, isOn)}
             </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (variant === "toggle") {
+    return (
+      <div className="grid grid-cols-2 gap-3" role="group" aria-label="Tryb zastawki">
+        {tiles.map((t) => {
+          const isOn = active === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              aria-pressed={isOn}
+              onClick={() => onChange(t.key)}
+              className={`cursor-pointer rounded-[4px] border-2 text-left transition-colors duration-[400ms] ${pad} ${
+                isOn ? t.on : `${t.off} bg-transparent`
+              }`}
+            >
+              {body(t, isOn)}
+            </button>
           );
         })}
       </div>

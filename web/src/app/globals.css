@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
-/* TRAKTOR brand tokens. Source: TRAKTOR Brand Guidelines 1.0 (page 07 Colour, 08 Typography, 10 Data & GIS). */
+/* TRAKTOR brand tokens. Source of truth: docs/brand/SPEC.md (Guidelines 1.0) §03 Colour, §04 Type, §10 Motion.
+   Ratio: cream 50 · forest 25 · greens and soil 15 · water and terracotta 10. */
 @theme inline {
-  --color-forest: #1f3a22;
-  --color-cream: #f3ecdd;
-  --color-cream-deep: #efe6d3;
-  --color-agri: #4f7a3a;
-  --color-soil: #6b4a2e;
-  --color-sky: #a9bfcf;
-  --color-water: #3b7fa3;
+  --color-forest: #1f3a22; /* primary text, dark grounds */
+  --color-cream: #f3ecdd; /* primary light ground */
+  --color-cream-deep: #efe6d3; /* panels */
+  --color-agri: #4f7a3a; /* accent, safe site */
+  --color-soil: #6b4a2e; /* secondary accent */
+  --color-sky: #a9bfcf; /* atmosphere, counts as a ground */
+  --color-water: #3b7fa3; /* water, data, OTWÓRZ */
+  /* Terracotta: rejected sites and warnings ONLY. Never decorative, never a brand accent. */
   --color-terra: #b5573b;
 
   /* Text-safe "ink" variants (WCAG 1.4.3). Use for text below 24px (19px bold) and for
@@ -33,8 +35,13 @@
   --font-display: var(--font-archivo), system-ui, sans-serif;
 
   --radius-board: 4px;
+  --radius-button: 2px;
   --shadow-card: 0 8px 24px rgba(31, 58, 34, 0.18);
   --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-water: cubic-bezier(0.45, 0, 0.55, 1); /* ease-in-out, no overshoot */
+  --duration-state: 400ms;
+  --duration-rise: 600ms;
+  --duration-water: 1600ms;
 }
 
 :root {
@@ -49,11 +56,13 @@ html {
 
 body {
   font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   background: var(--background);
   color: var(--foreground);
 }
 
-/* Type roles from the brand guide */
+/* Type roles from the brand guide (same values as the artwork's .hd/.sh/.eb/.num classes) */
 .hd {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
@@ -79,7 +88,62 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Motion: text fades and rises 16px, 600ms. Never letter by letter. */
+/* Type scale, SPEC §04. Sizes are the spec values; display/h1/h2 scale down on narrow screens only
+   (max = spec). Data always tabular (Tailwind's `tabular-nums`, or `.num`). */
+@utility type-display {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-stretch: 78%;
+  text-transform: uppercase;
+  font-size: clamp(52px, 8.5vw, 96px);
+  line-height: 0.92;
+  letter-spacing: -0.008em;
+}
+@utility type-h1 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-stretch: 78%;
+  text-transform: uppercase;
+  font-size: clamp(40px, 6vw, 64px);
+  line-height: 0.94;
+  letter-spacing: -0.008em;
+}
+@utility type-h2 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-stretch: 85%;
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1.1;
+}
+@utility type-h3 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-stretch: 85%;
+  font-size: 26px;
+  line-height: 1.15;
+}
+@utility type-body {
+  font-family: var(--font-inter), sans-serif;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.5;
+}
+@utility type-caption {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+@utility type-data {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Motion, SPEC §10: slow, flat, camera-like. Never spinners, flashing, springs/bounce or glows. */
+/* Text fades and rises 16px, 600ms. Never letter by letter. */
 @keyframes rise {
   from {
     opacity: 0;
@@ -90,8 +154,49 @@ body {
     transform: none;
   }
 }
-.rise {
-  animation: rise 600ms var(--ease-brand) both;
+.rise,
+.rise-in {
+  animation: rise var(--duration-rise) var(--ease-brand) both;
+}
+
+/* Water rises smoothly: continuous level change, 1.2–2 s, ease-in-out, no overshoot.
+   Put on the element whose height / transform / y carries the level. */
+.water-level {
+  transition-property: height, transform, top, bottom, y, d;
+  transition-duration: var(--duration-water);
+  transition-timing-function: var(--ease-water);
+}
+
+/* State change (TRZYMAJ / OTWÓRZ tiles, chips): colour only, 400ms */
+.state-colour {
+  transition-property: color, background-color, border-color, fill, stroke;
+  transition-duration: var(--duration-state);
+  transition-timing-function: ease-in-out;
+}
+
+/* Field pattern slow drift (FieldPattern `drift`): pan, scale ≤ 1.15 */
+@keyframes field-drift {
+  from {
+    transform: scale(1.06) translate3d(-2%, -1%, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(2%, 1%, 0);
+  }
+}
+.field-drift {
+  transform: scale(1.06);
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.field-drift-time {
+  animation: field-drift 12s ease-in-out infinite alternate;
+}
+@supports (animation-timeline: view()) {
+  .field-drift-scroll {
+    animation: field-drift linear both;
+    animation-timing-function: ease-in-out;
+    animation-timeline: view();
+  }
 }
 
 /* Loading = one thin progress line */
@@ -148,6 +253,17 @@ body {
   .progress-line {
     animation: none !important;
     transform: scaleX(0.4);
+  }
+  .field-drift {
+    animation: none !important;
+    transform: scale(1.06);
+  }
+  .rise,
+  .rise-in {
+    animation: none !important;
+  }
+  html {
+    scroll-behavior: auto !important;
   }
 }
 
