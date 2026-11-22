@@ -4,6 +4,7 @@ import type { AnalysisError, AnalysisRequest, AnalysisResult, CropId, LonLat } f
 import { looksLikeParcelId, normalizeParcelId, type ParcelCandidate } from "./uldk";
 import { shiftYears, todayPL } from "./util";
 import { analyze, AnalysisFailure } from "./analyze";
+import { isWorkers } from "../runtime";
 
 /* ---------- validation ---------- */
 export type Valid = { ok: true; req: AnalysisRequest } | { ok: false; err: AnalysisError };
@@ -63,7 +64,10 @@ export function rateLimited(ip: string, perMin = 30): boolean {
   return list.length > perMin;
 }
 
-export const clientIp = (req: Request) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+/** On Workers trust only CF-Connecting-IP (set by Cloudflare; client copies are overwritten). Limits are per isolate there. */
+export const clientIp = (req: Request) =>
+  (isWorkers() && req.headers.get("cf-connecting-ip")) ||
+  (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
 
 async function slot(waitMs: number): Promise<boolean> {
   if (running < MAX_CONCURRENT) {
