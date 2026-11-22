@@ -120,8 +120,8 @@ function Steps() {
 /* ---------- 04 How it decides ---------- */
 function Chain() {
   const chain: { t: string; d: string; src: string }[] = [
-    { t: "Ocena", d: "Bilans wody 60 dni i sezon na tle 10 lat. Stan roślin z satelity.", src: "Open-Meteo ERA5 · Sentinel-2" },
-    { t: "Przyczyny", d: "Brak opadu, słaba retencja gleby, szybki odpływ, wrażliwa faza uprawy.", src: "ERA5 · IUNG · SoilGrids · NMT" },
+    { t: "Ocena", d: "Bilans wody 60 dni i sezon na tle 10 lat. Stan roślin z satelity.", src: "NASA POWER · Open-Meteo · Sentinel-2" },
+    { t: "Przyczyny", d: "Brak opadu, słaba retencja gleby, szybki odpływ, wrażliwa faza uprawy.", src: "NASA POWER · IUNG · SoilGrids · NMT" },
     { t: "Retencja", d: "Zastawka na rowie, oczko w obniżeniu, pas buforowy.", src: "BDOT10k · NMT 1 m" },
     { t: "Agrotechnika", d: "Międzyplon, mulcz, uprawa uproszczona, materia organiczna.", src: "gleba · uprawa" },
     { t: "Nawadnianie", d: "ETc − opad − zapas w glebie. Nie teraz, rozważ albo tak, z dawką w mm.", src: "Kc FAO-56 · ET₀" },
@@ -150,10 +150,10 @@ function Chain() {
 /* ---------- 05 Data ---------- */
 function Data() {
   const cats: { icon: IconName; t: string; src: string[]; use: string }[] = [
-    { icon: "drought", t: "Meteorologiczne", src: ["Open-Meteo ERA5, 10 lat", "IMGW-PIB"], use: "opad, ET₀, temperatura, ostrzeżenia" },
+    { icon: "drought", t: "Meteorologiczne", src: ["NASA POWER, 10 lat", "Open-Meteo, IMGW-PIB"], use: "opad, ET₀, temperatura, ostrzeżenia" },
     { icon: "lidar", t: "Satelitarne", src: ["Sentinel-2 L2A"], use: "NDVI i NDMI działki na tle lat poprzednich" },
     { icon: "tractor", t: "Glebowe", src: ["IUNG", "SoilGrids"], use: "kategoria gleby, piasek, glina, zapas wody" },
-    { icon: "water", t: "Hydrologiczne", src: ["cieki i rowy BDOT10k", "ISOK"], use: "odległość do rowu, strefy zalewowe" },
+    { icon: "water", t: "Hydrologiczne", src: ["cieki i rowy (OSM, BDOT10k)", "NMT: obniżenia terenu"], use: "odległość do rowu, miejsca na zastawkę lub oczko" },
     { icon: "pin", t: "Przestrzenne", src: ["ULDK", "NMT 1 m", "BDOT10k"], use: "granice działki, spadek, obniżenia" },
   ];
   return (
@@ -319,7 +319,7 @@ function Honest() {
 function Scale() {
   const rows: [string, string][] = [
     ["Zasięg", "Każda działka w ULDK"],
-    ["Dane", "Publiczne, bez licencji"],
+    ["Dane", "Publiczne, bez opłat"],
     ["Czas analizy", "Cel: ≤ 30 s"],
     ["Pamięć podręczna", "Działka · uprawa · data"],
     ["Pierwszy użytkownik", `KOWR, ${KOWR_HA_BRIEF}`],
@@ -434,7 +434,7 @@ export const SLIDES: SlideDef[] = [
     title: "Pięć kategorii danych. Wszystkie darmowe.",
     ground: "cream",
     Body: Data,
-    notes: "Pięć kategorii z zadania. Meteo: Open-Meteo ERA5, 10 lat, i IMGW. Satelita: Sentinel-2. Gleba: IUNG i SoilGrids. Hydrologia: rowy BDOT10k i ISOK. Przestrzenne: ULDK, NMT 1 m, BDOT10k. Wszystko darmowe, bez kont.",
+    notes: "Pięć kategorii z zadania. Meteo: NASA POWER za 10 lat, Open-Meteo i IMGW na ostatnie dni. Satelita: Sentinel-2. Gleba: IUNG i SoilGrids. Hydrologia: cieki i rowy z OSM i BDOT10k, obniżenia z NMT. Przestrzenne: ULDK, NMT 1 m, BDOT10k. Wszystko darmowe, bez kont.",
   },
   {
     id: "demo",
