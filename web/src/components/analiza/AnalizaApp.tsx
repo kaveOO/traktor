@@ -12,9 +12,11 @@ import {
   fetchParcel,
   fmt,
   geocode,
+  isAborted,
   joinPl,
   looksLikeParcelQuery,
   minDateIso,
+  plPlural,
   postAnalysis,
   TIMEOUT,
   todayIso,
@@ -48,19 +50,43 @@ const CLICK_MIN_ZOOM = 13;
 const SHOW_DEV = process.env.NODE_ENV !== "production";
 
 type Phase = "form" | "loading" | "result" | "error";
-type ErrKind = "ambiguous" | "not_agri" | "too_large" | "not_found" | "bad_request" | "busy" | "timeout" | "other";
+type ErrKind = "ambiguous" | "needs_obreb" | "not_agri" | "too_large" | "not_found" | "bad_request" | "busy" | "timeout" | "other";
 
-/** Engine codes are mostly lowercase (bad_date, parcel_not_found, rate_limited), two are uppercase (AMBIGUOUS, NOT_AGRICULTURAL). */
+/** Engine 400 validation codes (server.ts validateRequest, /api/dzialka). Client codes such as BAD_RESPONSE are not field errors. */
+const FIELD_CODE: Record<string, "parcel" | "crop" | "date"> = {
+  bad_parcel: "parcel",
+  bad_point: "parcel",
+  bad_crop: "crop",
+  bad_date: "date",
+};
+
+/**
+ * Engine codes are mostly lowercase (bad_date, parcel_not_found, rate_limited, busy, uldk_error, internal),
+ * three are uppercase (AMBIGUOUS, NEEDS_OBREB, NOT_AGRICULTURAL). Compare the exact engine strings.
+ */
 function kindOf(e: ApiError): ErrKind {
-  const c = e.code.toLowerCase();
-  if (c === "ambiguous") return "ambiguous";
-  if (c === "not_agricultural") return "not_agri";
+  const c = e.code;
+  if (c === "AMBIGUOUS") return "ambiguous";
+  if (c === "NEEDS_OBREB") return "needs_obreb";
+  if (c === "NOT_AGRICULTURAL") return "not_agri";
   if (c === "parcel_too_large") return "too_large";
-  if (c === "parcel_not_found" || c === "not_found") return "not_found";
-  if (c.startsWith("bad_") || c === "bad_request") return "bad_request";
+  if (c === "parcel_not_found") return "not_found";
+  if (c in FIELD_CODE || c === "bad_json") return "bad_request";
   if (c === "rate_limited" || c === "busy" || e.status === 429 || e.status === 503) return "busy";
-  if (e.code === TIMEOUT) return "timeout";
+  if (c === TIMEOUT) return "timeout";
   return "other";
+}
+
+/** URL keeps parcelId (+ demo); crop and date are written only by an analysis run, so a reload re-runs only a real run. */
+function syncUrl(q: { parcelId: string; crop?: string; date?: string }) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("parcelId", q.parcelId);
+  for (const k of ["crop", "date"] as const) {
+    const v = q[k];
+    if (v) url.searchParams.set(k, v);
+    else url.searchParams.delete(k);
+  }
+  window.history.replaceState(null, "", url);
 }
 
 const candidateLabel = (c: ParcelCandidate) =>
@@ -118,30 +144,70 @@ export default function AnalizaApp() {
   );
 
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
+  /** id of the current analysis run; a response from an older run is dropped */
   const runId = useRef(0);
-  /** a candidate picked after an AMBIGUOUS analysis continues straight into the analysis */
-  const pickContinues = useRef(false);
+  const runCtl = useRef<AbortController | null>(null);
+  /** the newest parcel lookup / place search wins; older ones are aborted */
+  const lookupCtl = useRef<AbortController | null>(null);
+  /** a candidate picked after an AMBIGUOUS analysis (or a shared link) continues straight into the analysis */
+  const pickContinues = useRef(!!(initial.crop && initial.date && initial.dateOk));
 
   const tooLarge = !!parcel?.tooLarge;
   const tooLargeMsg = (p: Parcel) => `Działka ma ${fmt(p.areaHa, 0, "ha")}. To za dużo na jedną analizę. Wybierz mniejszą działkę.`;
 
-  /** Selecting a parcel is announced once, by the search status line (#q-msg), not by the live region. */
-  const selectParcel = useCallback((p: ParcelHit, fixture = false) => {
-    setParcel(p);
-    setParcelFixture(fixture);
-    setCandidates([]);
-    setFormErr((e) => ({ ...e, parcel: p.tooLarge ? tooLargeMsg(p) : undefined }));
-    setResult(null);
-    setError(null);
-    setPhase("form");
-    setActiveRec(null);
+  /** phone: fold the sheet and scroll the search card to the candidate list (desktop: no-op scroll) */
+  const revealCandidates = () => {
+    setSheetOpen(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById("cand-h")?.scrollIntoView({ block: "nearest" })));
+  };
+
+  const newLookup = () => {
+    lookupCtl.current?.abort();
+    const c = new AbortController();
+    lookupCtl.current = c;
+    return c.signal;
+  };
+  /** Drop the running analysis: its response must never land on a different parcel / fixture. */
+  const cancelRun = useCallback(() => {
+    runId.current++;
+    runCtl.current?.abort();
+    runCtl.current = null;
   }, []);
+
+  // abort everything on unmount
+  useEffect(
+    () => () => {
+      lookupCtl.current?.abort();
+      runCtl.current?.abort();
+    },
+    [],
+  );
+
+  /** Selecting a parcel is announced once, by the search status line (#q-msg), not by the live region. */
+  const selectParcel = useCallback(
+    (p: ParcelHit, fixture = false, keepUrl = false) => {
+      cancelRun();
+      setParcel(p);
+      setParcelFixture(fixture);
+      setCandidates([]);
+      setFormErr((e) => ({ ...e, parcel: p.tooLarge ? tooLargeMsg(p) : undefined }));
+      setResult(null);
+      setIsFixture(false);
+      setError(null);
+      setRetryIn(0);
+      setLive("");
+      setPhase("form");
+      setActiveRec(null);
+      if (!keepUrl) syncUrl({ parcelId: p.id });
+    },
+    [cancelRun],
+  );
 
   /** Search status text for a failed parcel lookup, per error code. */
   const parcelErrorText = (e: ApiError) => {
     switch (kindOf(e)) {
       case "busy":
-        return joinPl(e.messagePl, e.retryAfterS ? `Spróbuj za ${e.retryAfterS} s` : null);
+        return joinPl(e.messagePl, e.retryAfterS && !/odczekaj|spróbuj/i.test(e.messagePl) ? `Spróbuj za ${e.retryAfterS} s` : null);
       case "timeout":
         return joinPl("Serwer działek nie odpowiedział w 20 s", "Spróbuj ponownie");
       default:
@@ -149,15 +215,22 @@ export default function AnalizaApp() {
     }
   };
 
-  const loadParcelById = useCallback(
-    async (id: string): Promise<ParcelHit | null> => {
+  /**
+   * Parcel by id/text or by map point. The newest lookup wins (older ones are aborted, their answers dropped).
+   * Returns the parcel, null on a real failure, or "aborted" when a newer lookup replaced this one.
+   */
+  const lookupParcel = useCallback(
+    async (q: { id: string } | { lonLat: LonLat }, keepUrl = false): Promise<ParcelHit | null | "aborted"> => {
+      const signal = newLookup();
       setBusySearch(true);
       setPlaces([]);
-      setSearchMsg({ text: "Szukam działki…" });
-      const r = await fetchParcel({ id }, allowFixture);
+      setSearchMsg({ text: "id" in q ? "Szukam działki…" : "Szukam działki w tym miejscu…" });
+      const r = await fetchParcel(q, "id" in q && allowFixture, signal);
+      if (isAborted(r) || signal.aborted) return "aborted";
       setBusySearch(false);
       if (r.ok) {
-        selectParcel(r.data, !!r.fixture);
+        selectParcel(r.data, !!r.fixture, keepUrl);
+        setQuery(r.data.id);
         setSearchMsg(
           r.data.tooLarge
             ? { text: tooLargeMsg(r.data), error: true }
@@ -170,35 +243,47 @@ export default function AnalizaApp() {
         return r.data;
       }
       if (kindOf(r.error) === "ambiguous" && r.error.candidates?.length) {
+        const n = r.error.candidates.length;
         setCandidates(r.error.candidates);
-        setSearchMsg({ text: `Pasuje ${r.error.candidates.length} działek. Wybierz właściwą z listy poniżej.`, error: true });
+        revealCandidates();
+        setSearchMsg({ text: `${plPlural(n, "Pasuje", "Pasują", "Pasuje")} ${n} ${plPlural(n, "działka", "działki", "działek")}. Wybierz właściwą z listy.`, error: true });
         return null;
       }
       setCandidates([]);
       setSearchMsg({ text: parcelErrorText(r.error), error: true });
       return null;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectParcel, allowFixture],
   );
 
   const runAnalysis = useCallback(async (p: Parcel, c: CropId, d: string) => {
+    // one run at a time: a new run replaces (and aborts) the old one
+    runCtl.current?.abort();
+    const ctl = new AbortController();
+    runCtl.current = ctl;
     const id = ++runId.current;
     setPhase("loading");
     setError(null);
     setRetryIn(0);
     setResult(null);
+    setIsFixture(false);
     setActiveRec(null);
     setElapsed(0);
     setSheetOpen(true);
+    setFormErr({});
     setLive("Analiza rozpoczęta. Pobieramy dane z pięciu źródeł.");
-    const url = new URL(window.location.href);
-    url.searchParams.set("parcelId", p.id);
-    url.searchParams.set("crop", c);
-    url.searchParams.set("date", d);
-    window.history.replaceState(null, "", url);
-    const r = await postAnalysis({ parcelId: p.id, crop: c, date: d });
-    if (id !== runId.current) return;
+    syncUrl({ parcelId: p.id, crop: c, date: d });
+    const r = await postAnalysis(
+      { parcelId: p.id, crop: c, date: d },
+      {
+        signal: ctl.signal,
+        onRetryWait: (s) => {
+          if (id === runId.current) setLive(`Serwer jest zajęty. Ponawiamy za ${s} s.`);
+        },
+      },
+    );
+    if (id !== runId.current || isAborted(r)) return;
+    runCtl.current = null;
     setLive("");
     if (r.ok) {
       setResult(r.data);
@@ -210,8 +295,7 @@ export default function AnalizaApp() {
     const k = kindOf(e);
     if (k === "bad_request") {
       // field-level message, no error box
-      const c0 = e.code.toLowerCase();
-      const field = c0 === "bad_date" ? "date" : c0 === "bad_crop" ? "crop" : "parcel";
+      const field = FIELD_CODE[e.code] ?? "parcel";
       setFormErr((x) => ({ ...x, [field]: joinPl(e.messagePl) }));
       setPhase("form");
       requestAnimationFrame(() => document.getElementById(field === "date" ? "f-date" : field === "crop" ? "f-crop" : "f-parcel")?.focus());
@@ -221,6 +305,7 @@ export default function AnalizaApp() {
       setCandidates(e.candidates);
       pickContinues.current = true;
     }
+    if (k === "needs_obreb") pickContinues.current = false;
     if (k === "busy") setRetryIn(e.retryAfterS ?? 10);
     setError(e);
     setPhase("error");
@@ -256,9 +341,10 @@ export default function AnalizaApp() {
     if (!initial.parcelId) return;
     let cancelled = false;
     (async () => {
-      const p = await loadParcelById(initial.parcelId);
-      if (cancelled || !p || p.tooLarge) return;
+      const p = await lookupParcel({ id: initial.parcelId }, true);
+      if (cancelled || !p || p === "aborted" || p.tooLarge) return;
       if (initial.crop && initial.date && initial.dateOk) {
+        pickContinues.current = false;
         if (initial.demo) {
           setResult(fixtureResult({ crop: initial.crop, date: initial.date }));
           setIsFixture(true);
@@ -269,7 +355,7 @@ export default function AnalizaApp() {
     return () => {
       cancelled = true;
     };
-  }, [initial, loadParcelById, runAnalysis]);
+  }, [initial, lookupParcel, runAnalysis]);
 
   const goPlace = (pl: Place) => setFlyTarget({ lonLat: pl.lonLat, bbox: pl.bbox, zoom: 14, key: Date.now() });
 
@@ -285,35 +371,38 @@ export default function AnalizaApp() {
     }
     // anything with a digit goes to the engine first: full id, id without _N, AR_ sheet, "Zakrzewo 306/2"
     if (looksLikeParcelQuery(q)) {
-      await loadParcelById(q);
+      await lookupParcel({ id: q });
       return;
     }
+    const signal = newLookup();
     setBusySearch(true);
     setSearchMsg({ text: "Szukam miejscowości…" });
-    const r = await geocode(q);
+    const r = await geocode(q, signal);
+    if (isAborted(r) || signal.aborted) return;
     setBusySearch(false);
     if (!r.ok) {
-      setSearchMsg({ text: joinPl(`Wyszukiwanie miejscowości nie działa: ${r.error.messagePl}`, "Wpisz numer działki"), error: true });
+      setSearchMsg({ text: "Wyszukiwarka miejscowości nie odpowiada. Wpisz numer działki albo spróbuj za chwilę.", error: true });
       return;
     }
     if (!r.data.length) {
-      setSearchMsg({ text: `Nie znaleziono „${q}”. Spróbuj innej nazwy albo podaj obręb i numer działki.`, error: true });
+      setSearchMsg({ text: `Nie znaleziono „${q}”. Wpisz inną nazwę albo obręb i numer działki.`, error: true });
       return;
     }
+    const n = r.data.length;
     setPlaces(r.data);
     goPlace(r.data[0]);
-    setSearchMsg({
-      text: `Znaleziono ${r.data.length} ${r.data.length === 1 ? "miejsce" : "miejsc"}. Przybliż mapę i kliknij swoją działkę.`,
-    });
+    setSearchMsg({ text: `Znaleziono ${n} ${plPlural(n, "miejsce", "miejsca", "miejsc")}. Przybliż mapę i kliknij swoją działkę.` });
   };
 
   const pickCandidate = async (c: ParcelCandidate) => {
     const cont = pickContinues.current;
-    pickContinues.current = false;
     setCandidates([]);
     setQuery(c.id);
-    const p = await loadParcelById(c.id);
+    const p = await lookupParcel({ id: c.id });
+    if (p === "aborted") return; // a newer pick / search took over; it decides whether to continue
+    pickContinues.current = false;
     if (p && cont && !p.tooLarge && crop && validDate(date, minDate, today)) runAnalysis(p, crop, date);
+    else if (p) requestAnimationFrame(() => document.getElementById(crop ? "analyze" : "f-crop")?.focus());
   };
 
   const onMapClick = useCallback(
@@ -322,26 +411,19 @@ export default function AnalizaApp() {
         setSearchMsg({ text: "Przybliż mapę, aby wskazać działkę." });
         return;
       }
-      setSearchMsg({ text: "Szukam działki w tym miejscu…" });
-      const r = await fetchParcel({ lonLat });
-      if (r.ok) {
-        selectParcel(r.data);
-        setQuery(r.data.id);
-        setSearchMsg(
-          r.data.tooLarge
-            ? { text: tooLargeMsg(r.data), error: true }
-            : { text: `Wybrano działkę ${r.data.id}${r.data.commune ? `, gm. ${r.data.commune}` : ""}, ${fmt(r.data.areaHa, 2, "ha")}.` },
-        );
-      } else setSearchMsg({ text: parcelErrorText(r.error), error: true });
+      pickContinues.current = false;
+      setCandidates([]);
+      await lookupParcel({ lonLat });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectParcel],
+    [lookupParcel],
   );
 
   const onAnalyze = (e: FormEvent) => {
     e.preventDefault();
+    if (phase === "loading") return; // double submit (Enter in a field, double click)
     const err: typeof formErr = {};
-    if (!parcel) err.parcel = "Najpierw wybierz działkę: wpisz numer w wyszukiwarce albo kliknij mapę.";
+    if (busySearch) err.parcel = "Trwa wyszukiwanie działki. Poczekaj chwilę.";
+    else if (!parcel) err.parcel = "Najpierw wybierz działkę: wpisz numer w wyszukiwarce albo kliknij mapę.";
     else if (tooLarge) err.parcel = tooLargeMsg(parcel);
     if (!crop) err.crop = "Wybierz uprawę.";
     if (!date || !validDate(date, minDate, today)) err.date = `Podaj datę od ${minDate} do ${today}.`;
@@ -355,18 +437,40 @@ export default function AnalizaApp() {
   };
 
   const loadFixture = () => {
+    cancelRun();
+    setLive("");
     setResult(fixtureResult({ crop: (crop || "pszenica_ozima") as CropId, date }));
     setIsFixture(true);
     setError(null);
+    setRetryIn(0);
     setPhase("result");
   };
 
+  /** Back to the search field (on a phone the sheet folds down so the search card is visible). */
   const chooseAnother = () => {
     setPhase("form");
     setError(null);
+    setRetryIn(0);
+    setSheetOpen(false);
     const q = document.getElementById("q") as HTMLInputElement | null;
     q?.focus();
     q?.select();
+  };
+
+  const showCandidates = () => {
+    setSheetOpen(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById("cand-first")?.focus()));
+  };
+
+  const retry = () => {
+    if (!parcel || !crop || retryIn > 0 || phase === "loading") return;
+    if (!validDate(date, minDate, today)) {
+      setFormErr((x) => ({ ...x, date: `Podaj datę od ${minDate} do ${today}.` }));
+      setPhase("form");
+      requestAnimationFrame(() => document.getElementById("f-date")?.focus());
+      return;
+    }
+    runAnalysis(parcel, crop, date);
   };
 
   // map markers from recommendations with a location
@@ -395,7 +499,7 @@ export default function AnalizaApp() {
 
   const mapLabel = shownParcel
     ? `Mapa. Wybrana działka ${shownParcel.id}${shownParcel.commune ? `, gmina ${shownParcel.commune}` : ""}, ${fmt(shownParcel.areaHa, 2)} ha.${
-        markers.length ? ` ${markers.length} znaczników rekomendacji.` : ""
+        markers.length ? ` ${markers.length} ${plPlural(markers.length, "znacznik", "znaczniki", "znaczników")} rekomendacji.` : ""
       } Strzałki przesuwają mapę, plus i minus zmieniają przybliżenie.`
     : "Mapa Polski. Nie wybrano działki. Strzałki przesuwają mapę, plus i minus zmieniają przybliżenie.";
 
@@ -413,11 +517,15 @@ export default function AnalizaApp() {
     }));
   })();
   const resultPhase = phase === "result" && !!result;
+  /** crop or date changed after the result: the result below is for the previous inputs */
+  const resultStale = resultPhase && !isFixture && (result!.crop.id !== crop || result!.request.date !== date);
+  const loading = phase === "loading";
   const ek = error ? kindOf(error) : null;
   const canRetry = ek === "busy" || ek === "timeout" || ek === "other";
 
   const errTitle: Record<ErrKind, string> = {
     ambiguous: "Kilka działek pasuje",
+    needs_obreb: "Podaj obręb",
     not_agri: "To nie jest działka rolna",
     too_large: "Działka za duża",
     not_found: "Nie znaleziono działki",
@@ -435,7 +543,7 @@ export default function AnalizaApp() {
       case "busy":
         return joinPl(e.messagePl);
       case "timeout":
-        return joinPl("Serwer nie odpowiedział w 45 s", "Spróbuj ponownie");
+        return joinPl(e.messagePl, "Spróbuj ponownie");
       case "other":
         return joinPl(e.messagePl, /spróbuj/i.test(e.messagePl) ? null : "Spróbuj ponownie");
       default:
@@ -473,7 +581,12 @@ export default function AnalizaApp() {
 
       {/* top-left: logo strip + search card */}
       <header className="pointer-events-none absolute top-3 left-3 z-20 w-[min(420px,calc(100vw-24px))] min-[900px]:w-[min(440px,calc(100vw-500px))]">
-        <div className="pointer-events-auto max-h-[calc(100vh-24px)] overflow-y-auto rounded-[4px] bg-cream/95 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
+        {/* phone: ends above the bottom sheet (60vh open / 25vh folded), so the AMBIGUOUS list is never hidden under it */}
+        <div
+          className={`pointer-events-auto overflow-y-auto overscroll-contain rounded-[4px] bg-cream/95 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] ${
+            sheetOpen ? "max-h-[calc(100dvh-60vh-24px)]" : "max-h-[calc(100dvh-25vh-24px)]"
+          } min-[900px]:max-h-[calc(100dvh-24px)]`}
+        >
           <div className="flex items-center justify-between gap-3 bg-forest px-4 text-cream">
             <Link href="/" aria-label="TRAKTOR, strona główna" className="inline-flex min-h-12 shrink-0 items-center">
               <Logo height={18} color="cream" />
@@ -504,7 +617,8 @@ export default function AnalizaApp() {
                   spellCheck={false}
                   className="num min-h-12 min-w-0 flex-1 rounded-[2px] border-[1.5px] border-forest bg-cream px-3 text-[16px] placeholder:text-forest-muted"
                 />
-                <Button type="submit" disabled={busySearch} className="!px-4">
+                {/* not `disabled`: a newer search replaces the running one, and focus stays on the button */}
+                <Button type="submit" className="!px-4">
                   <Icon name="pin" size={18} />
                   Szukaj
                 </Button>
@@ -545,7 +659,7 @@ export default function AnalizaApp() {
             {candidates.length > 0 && (
               <div className="mt-2">
                 <p id="cand-h" className="eb text-forest-muted">
-                  Pasujące działki ({candidates.length})
+                  Pasujące działki (<span className="num">{candidates.length}</span>)
                 </p>
                 <ul aria-labelledby="cand-h" className="mt-1 max-h-56 divide-y divide-forest/10 overflow-y-auto border-y border-forest/15">
                   {candidates.map((c, i) => (
@@ -570,8 +684,8 @@ export default function AnalizaApp() {
 
             {places.length > 1 && (
               <ul className="mt-1 max-h-40 divide-y divide-forest/10 overflow-y-auto border-y border-forest/15" aria-label="Wyniki wyszukiwania">
-                {places.map((p) => (
-                  <li key={p.label}>
+                {places.map((p, i) => (
+                  <li key={`${i}-${p.label}`}>
                     <button
                       type="button"
                       onClick={() => goPlace(p)}
@@ -606,7 +720,7 @@ export default function AnalizaApp() {
       {/* right panel (desktop) / collapsible bottom sheet (mobile: ~60% / ~25% of the screen) */}
       <main
         id="panel"
-        className={`absolute inset-x-0 bottom-0 z-30 flex flex-col overflow-hidden rounded-t-[8px] bg-cream/95 text-forest shadow-[0_-8px_24px_rgba(31,58,34,.18)] transition-[height] duration-300 ease-in-out ${sheetOpen ? "h-[60vh]" : "h-[25vh]"} min-[900px]:inset-y-3 min-[900px]:right-3 min-[900px]:left-auto min-[900px]:h-auto min-[900px]:w-[420px] min-[900px]:rounded-[4px] min-[900px]:shadow-[0_8px_24px_rgba(31,58,34,.18)]`}
+        className={`absolute inset-x-0 bottom-0 z-30 flex flex-col overflow-hidden rounded-t-[4px] bg-cream text-forest min-[900px]:bg-cream/95 shadow-[0_-8px_24px_rgba(31,58,34,.18)] transition-[height] duration-300 ease-in-out ${sheetOpen ? "h-[60vh]" : "h-[25vh]"} min-[900px]:inset-y-3 min-[900px]:right-3 min-[900px]:left-auto min-[900px]:h-auto min-[900px]:w-[420px] min-[900px]:rounded-[4px] min-[900px]:shadow-[0_8px_24px_rgba(31,58,34,.18)]`}
         aria-labelledby="panel-h"
       >
         <button
@@ -747,9 +861,18 @@ export default function AnalizaApp() {
               )}
             </fieldset>
 
-            <Button type="submit" disabled={phase === "loading" || tooLarge} className="w-full">
+            {resultStale && (
+              <p className="text-[14px] font-medium">Zmieniono uprawę lub datę. Wynik niżej jest dla poprzednich danych. Kliknij „Analizuj działkę”.</p>
+            )}
+            {/* aria-disabled, not disabled: focus must not drop to <body> when the run starts; onAnalyze ignores repeats */}
+            <Button
+              type="submit"
+              id="analyze"
+              aria-disabled={loading || tooLarge || undefined}
+              className={`w-full ${loading || tooLarge ? "cursor-not-allowed opacity-50" : ""}`}
+            >
               <Icon name="water" size={20} />
-              Analizuj działkę
+              {loading ? "Liczymy…" : "Analizuj działkę"}
             </Button>
           </form>
 
@@ -757,14 +880,16 @@ export default function AnalizaApp() {
             {live}
           </div>
 
-          {phase === "loading" && (
+          {loading && (
             <section aria-labelledby="load-h" className="mt-8">
               <p className="eb text-forest-muted">W toku</p>
               <h2 id="load-h" className="sh mt-1 text-[26px]">
                 Liczymy
               </h2>
               <ProgressLine className="mt-3" label="Analiza w toku" />
-              <p className="num mt-2 text-[14px] text-forest-muted">Minęło {elapsed} s. Zwykle 10–30 s. Pięć źródeł naraz:</p>
+              <p className="mt-2 text-[14px] text-forest-muted">
+                Minęło <span className="num">{elapsed}</span> s. Zwykle <span className="num">10–30</span> s. Pięć źródeł naraz:
+              </p>
               <ul className="mt-3 grid grid-cols-1 gap-1.5 text-[15px]">
                 {LOAD_STEPS.map((s) => (
                   <li key={s.label} className="flex items-center gap-2.5">
@@ -786,16 +911,16 @@ export default function AnalizaApp() {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ek === "ambiguous" && candidates.length > 0 && (
-                  <Button type="button" variant="secondary" onClick={() => document.getElementById("cand-first")?.focus()}>
+                  <Button type="button" onClick={showCandidates}>
                     Pokaż listę działek
                   </Button>
                 )}
                 {canRetry && (
                   <Button
                     type="button"
-                    variant="secondary"
-                    disabled={retryIn > 0}
-                    onClick={() => parcel && crop && runAnalysis(parcel, crop as CropId, date)}
+                    aria-disabled={retryIn > 0 || undefined}
+                    className={retryIn > 0 ? "cursor-not-allowed opacity-50" : ""}
+                    onClick={retry}
                   >
                     {retryIn > 0 ? (
                       <>
@@ -806,9 +931,9 @@ export default function AnalizaApp() {
                     )}
                   </Button>
                 )}
-                {(ek === "not_agri" || ek === "too_large" || ek === "not_found") && (
-                  <Button type="button" variant="secondary" onClick={chooseAnother}>
-                    Wybierz inną działkę
+                {(ek === "not_agri" || ek === "too_large" || ek === "not_found" || ek === "needs_obreb") && (
+                  <Button type="button" variant={ek === "needs_obreb" ? "primary" : "secondary"} onClick={chooseAnother}>
+                    {ek === "needs_obreb" ? "Popraw numer działki" : "Wybierz inną działkę"}
                   </Button>
                 )}
               </div>
