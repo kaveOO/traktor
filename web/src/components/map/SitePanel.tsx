@@ -8,7 +8,7 @@ import { OrderBadge, StateTiles } from "@/components/brand/StateTiles";
 import { radioKeyDown } from "@/components/brand/radio";
 import { CrossSection, LongProfile } from "./Sections";
 import { AllSitesList, RankingList } from "./Overlays";
-import { shortParcel } from "./geo";
+import { DATA_DATE, shortParcel } from "./geo";
 
 function Tag({ children }: { children: string }) {
   return <span className="eb rounded-[2px] border border-forest/40 px-1 py-px text-[10px] text-forest-muted">{children}</span>;
@@ -209,7 +209,7 @@ export function SitePanel({
       <div className="space-y-4 px-5 pt-4 pb-6" inert={why || undefined}>
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="eb num">MIEJSCE {site.id}</p>
+            <p className="eb num text-agri-ink">MIEJSCE {site.id} · BEZPIECZNE</p>
             <h2 className="sh mt-1 text-[24px]">{site.name}</h2>
             <p className="num mt-0.5 text-[12px] text-forest-muted">
               Ranking: {site.rank} z {summary.sitesAccepted} · spadek {site.slopePct.toLocaleString("pl-PL")}% · gleba kat. {site.soilCategory} (przykład)
@@ -332,7 +332,10 @@ export function SitePanel({
         </div>
 
         <div className="text-forest">
-          <SourceLine tone="onCream">NMT 1 m (GUGiK); BDOT10k; ULDK; {conditions.sources.join(", ")}</SourceLine>
+          <SourceLine tone="onCream">
+            BDOT10k; NMT 1 m (GUGiK); ULDK; {conditions.sources.join(", ")}
+            {DATA_DATE && <span className="num"> · stan danych {DATA_DATE}</span>}
+          </SourceLine>
           <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
         </div>
       </div>
@@ -344,7 +347,7 @@ export function CandidatePanel({ cand, onClose }: { cand: Candidate; onClose: ()
   return (
     <div className="space-y-3 px-5 pt-4 pb-6">
       <div className="flex items-start justify-between">
-        <h2 className="eb num">PUNKT {cand.id}</h2>
+        <h2 className="eb num text-terra-ink">MIEJSCE {cand.id} · ODRZUCONE</h2>
         <button type="button" onClick={onClose} className="inline-flex min-h-6 items-center text-[12px] text-forest-muted underline">
           Zamknij
         </button>
@@ -410,7 +413,10 @@ export function GminaPanel({
       </div>
       <AllSitesList orders={orders} onSite={onSite} kowrOnly={kowrOnly} />
       <div>
-        <SourceLine tone="onCream">BDOT10k; NMT 1 m (GUGiK); ULDK; obliczenia TRAKTOR</SourceLine>
+        <SourceLine tone="onCream">
+          BDOT10k; NMT 1 m (GUGiK); ULDK; obliczenia TRAKTOR
+          {DATA_DATE && <span className="num"> · stan danych {DATA_DATE}</span>}
+        </SourceLine>
         <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
       </div>
     </div>

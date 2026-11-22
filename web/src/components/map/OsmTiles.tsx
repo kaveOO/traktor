@@ -57,7 +57,7 @@ const LEVELS: Record<number, Level> = Object.fromEntries(
 // ground metres per tile pixel at zoom 0 at the AOI latitude
 const M_PER_PX_Z0 = 156543.03392 * Math.cos((DATA_META.corners[0][0] * Math.PI) / 180);
 
-export type TileSource = "gugik-orto" | "s2-cloudless" | "osm" | "google-roadmap" | "google-satellite";
+export type TileSource = "gugik-orto" | "s2-cloudless" | "osm";
 
 /**
  * GUGiK ORTOFOTOMAPA, WMTS StandardResolution, TileMatrixSet "EPSG:3857" (GoogleMapsCompatible
@@ -71,12 +71,10 @@ const TILE_URL: Record<TileSource, (z: number, x: number, y: number) => string> 
   // EOX Sentinel-2 cloudless 2016 (CC BY 4.0; later years are CC BY-NC-SA 4.0)
   "s2-cloudless": (z, x, y) => `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/${z}/${y}/${x}.jpg`,
   osm: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
-  "google-roadmap": (z, x, y) => `/api/tiles/google/roadmap/${z}/${x}/${y}`,
-  "google-satellite": (z, x, y) => `/api/tiles/google/satellite/${z}/${x}/${y}`,
 };
 
 /** Imagery sources: dark tint, cream-haloed ditches. */
-export const IMAGERY: ReadonlySet<TileSource> = new Set(["gugik-orto", "s2-cloudless", "google-satellite"]);
+export const IMAGERY: ReadonlySet<TileSource> = new Set(["gugik-orto", "s2-cloudless"]);
 
 // a failed tile stays hidden instead of showing a broken-image box
 const hideOnError = (e: SyntheticEvent<SVGImageElement>) => {

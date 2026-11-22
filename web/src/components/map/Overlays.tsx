@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import type { Order, OrderAction, RefusalCode, Site } from "@/lib/traktor";
 import { DEMO_NOTE, REFUSAL_LABEL, REFUSAL_RULE, SOURCES_MAP, candidates, mapFeatures, plural, sites, summary } from "@/lib/traktor";
 import { SourceLine } from "@/components/brand/ui";
-import { C, ORDER_COLOR, ORDER_DASH, ORDER_LETTER, shortParcel } from "./geo";
+import { C, DATA_DATE, ORDER_COLOR, ORDER_DASH, ORDER_LETTER, shortParcel } from "./geo";
 
 const CODES = Object.keys(REFUSAL_LABEL) as RefusalCode[];
+// same colour + opacity as LAND_STYLE in MapCanvas
 const LAND_LEGEND: [string, string, number][] = [
-  ["pola", "#C9BF86", 0.55],
-  ["las", "#4F7A3A", 0.45],
-  ["zabudowa", "#B98D5F", 0.35],
+  ["pola", "#C9BF86", 0.42],
+  ["sady", "#8FA86A", 0.45],
+  ["las", "#4F7A3A", 0.42],
+  ["zabudowa", "#B98D5F", 0.28],
   ["woda", "#3B7FA3", 0.8],
 ];
 const SHADE = [1, 0.82, 0.66, 0.52, 0.4, 0.3];
@@ -328,30 +330,49 @@ function RingSample({ action }: { action: OrderAction }) {
   );
 }
 
-export function Legend({ showFlood }: { showFlood: boolean }) {
+/** Legend swatches drawn exactly as SPEC §06 (page 09 artwork): pins with a 3 px cream ring, ditch 3 px round,
+ * retention zone water 28% with a dashed 1.5 px water edge. Decorative: the text next to each one is the label. */
+function Pin({ color }: { color: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden className="shrink-0">
+      <circle cx="12" cy="12" r="8" fill={color} stroke={C.cream} strokeWidth="3" />
+    </svg>
+  );
+}
+function DitchSample({ dashed = false }: { dashed?: boolean }) {
+  return (
+    <svg width="20" height="10" viewBox="0 0 20 10" aria-hidden className="shrink-0">
+      <path d="M2 5 H18" stroke={C.water} strokeWidth="3" strokeLinecap="round" strokeDasharray={dashed ? "3 4" : undefined} strokeOpacity={dashed ? 0.6 : 1} />
+    </svg>
+  );
+}
+
+export function Legend({ showFlood, basemap = "gugik-orto" }: { showFlood: boolean; basemap?: MapBasemap }) {
   const row = "flex items-center gap-2";
   return (
     <div data-ui className="rounded-[4px] bg-cream/95 px-3 py-2.5 text-[11.5px] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
       <p className="eb mb-1 text-forest-muted">Legenda</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         <span className={row}>
-          <span className="inline-block size-3 rounded-full border-2" style={{ background: C.agri, borderColor: C.cream, outline: `2px solid ${C.forest}` }} aria-hidden />
+          <Pin color={C.agri} />
           Miejsce bezpieczne
         </span>
         <span className={row}>
-          <span className="inline-block size-2 rounded-full" style={{ background: C.terra, boxShadow: `0 0 0 1px ${C.cream}` }} aria-hidden />
-          Punkt odrzucony
+          <Pin color={C.terra} />
+          Miejsce odrzucone
         </span>
         <span className={row}>
-          <span className="inline-block h-0.5 w-4" style={{ background: C.water }} />
-          Rów (NMT)
+          <DitchSample />
+          Rów (BDOT10k)
         </span>
         <span className={row}>
-          <span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: C.water, opacity: 0.6 }} />
+          <DitchSample dashed />
           Rów niewidoczny w NMT
         </span>
         <span className={row}>
-          <span className="inline-block h-2.5 w-4 rounded-[1px]" style={{ background: C.water, opacity: 0.28 }} />
+          <svg width="20" height="12" viewBox="0 0 20 12" aria-hidden className="shrink-0">
+            <rect x="1" y="1" width="18" height="10" rx="2" fill={C.water} fillOpacity="0.28" stroke={C.water} strokeWidth="1.5" strokeDasharray="4 3" />
+          </svg>
           Strefa retencji
         </span>
         {showFlood && (
@@ -377,19 +398,25 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
           Działka sąsiada: ryzyko
         </span>
       </div>
-      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10.5px]">
-        {LAND_LEGEND.map(([label, color, op]) => (
-          <span key={label} className="flex items-center gap-1">
-            <span className="inline-block h-2 w-3 rounded-[1px]" style={{ background: color, opacity: op }} />
-            {label}
-          </span>
-        ))}
-      </div>
+      {/* land cover is drawn only on the "Schemat" basemap */}
+      {basemap === "schema" && (
+        <>
+          <p className="eb mt-2 mb-0.5 text-[10px] text-forest-muted">Pokrycie terenu (BDOT10k)</p>
+          <div className="grid grid-cols-3 gap-1 text-[10.5px]">
+            {LAND_LEGEND.map(([label, color, op]) => (
+              <span key={label} className="flex items-center gap-1">
+                <span className="inline-block h-2 w-3 rounded-[1px]" style={{ background: color, opacity: op }} aria-hidden />
+                {label}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-type MapBasemap = "gugik-orto" | "s2-cloudless" | "osm" | "google-roadmap" | "google-satellite" | "schema";
+type MapBasemap = "gugik-orto" | "s2-cloudless" | "osm" | "schema";
 
 /** Attribution for the active basemap (required by each tile provider's terms). */
 function BasemapCredit({ basemap }: { basemap: MapBasemap }) {
@@ -420,12 +447,10 @@ function BasemapCredit({ basemap }: { basemap: MapBasemap }) {
           Podkład: ©{" "}
           <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className={a}>
             autorzy OpenStreetMap
-          </a>
+          </a>{" "}
+          (ODbL)
         </>
       );
-    case "google-roadmap":
-    case "google-satellite":
-      return <>Dane mapy ©{new Date().getFullYear()} Google</>;
     case "schema":
       return <>Podkład: BDOT10k (GUGiK)</>;
   }
@@ -434,7 +459,10 @@ function BasemapCredit({ basemap }: { basemap: MapBasemap }) {
 export function MapSource({ basemap = "gugik-orto" }: { basemap?: MapBasemap }) {
   return (
     <div data-ui className="max-w-[520px] rounded-[4px] bg-cream/95 px-2.5 py-1.5 text-forest">
-      <SourceLine tone="onCream">{SOURCES_MAP}</SourceLine>
+      <SourceLine tone="onCream">
+        {SOURCES_MAP}
+        {DATA_DATE && <span className="num"> · stan danych {DATA_DATE}</span>}
+      </SourceLine>
       <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
       <p className="text-[11px] text-forest-muted">
         <BasemapCredit basemap={basemap} />
@@ -444,19 +472,21 @@ export function MapSource({ basemap = "gugik-orto" }: { basemap?: MapBasemap }) 
 }
 
 const SHORT_CREDIT: Record<MapBasemap, [string, string | null]> = {
-  "gugik-orto": ["© GUGiK", "https://www.geoportal.gov.pl"],
-  "s2-cloudless": ["Sentinel-2 cloudless © EOX, CC BY 4.0", "https://s2maps.eu"],
-  osm: ["© autorzy OpenStreetMap", "https://www.openstreetmap.org/copyright"],
-  "google-roadmap": [`© ${new Date().getFullYear()} Google`, null],
-  "google-satellite": [`© ${new Date().getFullYear()} Google`, null],
+  "gugik-orto": ["Ortofoto © GUGiK", "https://www.geoportal.gov.pl"],
+  "s2-cloudless": ["Sentinel-2 cloudless 2016 © EOX, CC BY 4.0", "https://s2maps.eu"],
+  osm: ["© autorzy OpenStreetMap (ODbL)", "https://www.openstreetmap.org/copyright"],
   schema: ["BDOT10k © GUGiK", null],
 };
 
-/** One-line attribution, always visible in the map corner (tile licences require it at every width). */
+/** Short source line + attribution, always visible in the map corner on phones (SPEC §06: a source line on every map;
+ * tile licences require the credit at every width). */
 export function MapCredit({ basemap }: { basemap: MapBasemap }) {
   const [text, href] = SHORT_CREDIT[basemap];
   return (
-    <p data-ui className="rounded-[4px] bg-cream/95 px-1.5 py-0.5 text-[10.5px] leading-tight text-forest">
+    <p data-ui className="max-w-[260px] rounded-[4px] bg-cream/95 px-1.5 py-0.5 text-right text-[10.5px] leading-tight text-forest">
+      Źródło: BDOT10k, NMT 1 m (GUGiK)
+      {DATA_DATE && <span className="num">, {DATA_DATE}</span>}
+      {" · "}
       {href ? (
         <a href={href} target="_blank" rel="noreferrer" className="underline">
           {text}

@@ -36,23 +36,8 @@ export default function MapApp() {
   const [scenario, setScenario] = useState<ScenarioChoice>(init.scenario);
   const [kowr, setKowr] = useState(init.kowr);
   const [flood, setFlood] = useState(false);
-  // default: live GUGiK orthophoto (free, no key, most detail)
+  // default: live GUGiK orthophoto (free, no key, most detail). No Google tiles: no key, no proxy.
   const [basemap, setBasemap] = useState<Basemap>("gugik-orto");
-  const [googleEnabled, setGoogleEnabled] = useState(false);
-  // Google basemaps appear only when the server has GOOGLE_MAPS_API_KEY and a session works
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/tiles/google/status")
-      .then((r) => r.json())
-      .then((j: { enabled?: boolean }) => {
-        if (!alive || !j.enabled) return;
-        setGoogleEnabled(true);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
   const [showRefused, setShowRefused] = useState(true);
   const [filter, setFilter] = useState<RefusalCode | null>(null);
   const [candId, setCandId] = useState<string | null>(null);
@@ -185,11 +170,11 @@ export default function MapApp() {
     }
   };
 
-  // mobile bottom sheet: collapsed (25%) or expanded (60%); the map controls ride above it via --sheet-h
+  // phones: legend + sources live in the sheet behind a disclosure
   const [legendOpen, setLegendOpen] = useState(false);
 
   const order = site ? orders[site.id] : null;
-  const announce = site ? `Otwarto miejsce ${site.id}, ${site.name}` : cand ? `Otwarto punkt odrzucony ${cand.id}` : "Widok gminy";
+  const announce = site ? `Otwarto miejsce ${site.id}, ${site.name}` : cand ? `Otwarto miejsce odrzucone ${cand.id}` : "Widok gminy";
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-cream text-forest focus:outline-none" tabIndex={-1} onKeyDown={onKey}>
@@ -228,7 +213,7 @@ export default function MapApp() {
             <ParcelSearch onParcel={focusParcel} onSite={selectSite} />
           </div>
           <div className="pointer-events-none absolute bottom-2 left-4 z-10 flex flex-col items-start gap-2 [&>*]:pointer-events-auto max-[900px]:hidden">
-            <Legend showFlood={flood} />
+            <Legend showFlood={flood} basemap={basemap} />
             <MapSource basemap={basemap} />
           </div>
         </main>
@@ -278,7 +263,7 @@ export default function MapApp() {
             {legendOpen && (
               <div id="legend-sources" className="mt-2 flex flex-col gap-2 [&>*]:shadow-none">
                 <RefusalCounter filter={filter} onFilter={onFilter} onPoint={selectCandidate} />
-                <Legend showFlood={flood} />
+                <Legend showFlood={flood} basemap={basemap} />
                 <MapSource basemap={basemap} />
               </div>
             )}
@@ -295,7 +280,6 @@ export default function MapApp() {
         onFlood={() => setFlood((f) => !f)}
         basemap={basemap}
         onBasemap={setBasemap}
-        googleEnabled={googleEnabled}
         refused={showRefused}
         onRefused={() => setShowRefused((r) => !r)}
         shortcuts={shortcuts}

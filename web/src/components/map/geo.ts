@@ -1,5 +1,14 @@
 import type { Ditch, OrderAction, Parcel, Site, XY } from "@/lib/traktor";
-import { elevationAt, mapFeatures } from "@/lib/traktor";
+import { DATA_META, elevationAt, mapFeatures } from "@/lib/traktor";
+
+/** Build date of the example data set (scripts/geo), e.g. "22.11.2026". Shown next to every source line. */
+export const DATA_DATE = (() => {
+  const d = new Date(DATA_META.builtAt);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  // UTC date part: same string on server and client, no hydration mismatch
+  return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
+})();
 
 export const pts = (p: XY[]) => p.map(([x, y]) => `${x},${y}`).join(" ");
 
