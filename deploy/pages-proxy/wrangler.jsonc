@@ -1,0 +1,10 @@
+// Free-plan front door: the "traktor" Worker (https://traktor.<subdomain>.workers.dev) only forwards
+// requests to the app on the team machine (Cloudflare Tunnel). See _worker.js.
+// Deploy: cd deploy/pages-proxy; npx wrangler deploy
+{
+  "name": "traktor",
+  "main": "_worker.js",
+  "compatibility_date": "2026-11-15",
+  "workers_dev": true,
+  "observability": { "enabled": true }
+}
