@@ -22,7 +22,7 @@ Mandatory order (Zał. 1): ocena sytuacji wodnej → przyczyny → rekomendacje 
 - Open-Meteo archive (ERA5) `https://archive-api.open-meteo.com/v1/archive` daily precipitation_sum, et0_fao_evapotranspiration, temperature_2m_max; CC BY 4.0. Archive lags ~5 days: for dates in the last 5 days use the forecast API with `past_days`.
 - IMGW warnings only when the date is today.
 - Sentinel-2 L2A from Earth Search STAC `https://earth-search.aws.element84.com/v1` (no account), COGs read with `geotiff` (window read), SCL cloud mask.
-- IUNG WCS `https://sgeo.iung.pl/geoserver/ows?service=WCS&version=2.0.1&request=GetCoverage&coverageId=Susza__katgl_landuse2024&subset=y(..)&subset=x(..)&format=image/tiff` (EPSG:2180, axis labels y x). SoilGrids REST `https://rest.isric.org/soilgrids/v2.0/properties/query` (CC BY 4.0).
+- IUNG WCS `https://sgeo.iung.pl/geoserver/ows?service=WCS&version=2.0.1&request=GetCoverage&coverageId=Susza__katgl_landuse2024&subset=y(..)&subset=x(..)&format=image/tiff` (EPSG:2180; VERIFIED 2026-11-22: axis `x` = NORTHING, `y` = EASTING — i.e. subset=x(Nmin,Nmax)&subset=y(Emin,Emax); land-use codes ≥ 11 = non-agricultural). Open-Meteo archive free tier ≈ 38 ten-year analyses/day → NASA POWER is primary for the 10-year climatology. SoilGrids REST `https://rest.isric.org/soilgrids/v2.0/properties/query` (CC BY 4.0).
 - NMT `https://services.gugik.gov.pl/nmt/?request=GetHByPointList&list=N E,N E&json` — EPSG:2180 with NORTHING FIRST; returns "N E h,..."; match by echoed coords; 0 = no data.
 - BDOT10k ditches: remote parquet filtered by powiat TERYT with DuckDB (see scripts/geo/extract.mjs); optional and must time out gracefully.
 - EPSG:2180 ⇄ WGS84: use `proj4`-free math in `web/src/lib/analiza/geo.ts` (engine lane writes it).

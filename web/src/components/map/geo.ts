@@ -27,7 +27,8 @@ export const C = {
   sky: "#A9BFCF",
   water: "#3B7FA3",
   terra: "#B5573B",
-  grey: "#8C8A7E",
+  terraInk: "#984630", // small text only
+  grey: "#76746A", // ≥3:1 on cream (UI ring, WCAG 1.4.11)
 };
 
 export const ORDER_COLOR: Record<OrderAction, string> = {
@@ -35,6 +36,11 @@ export const ORDER_COLOR: Record<OrderAction, string> = {
   OTWORZ: C.water,
   NIE_RUSZAJ: C.grey,
 };
+
+/** Shape cues so the order never relies on ring colour alone (WCAG 1.4.1). */
+export const ORDER_LETTER: Record<OrderAction, string> = { TRZYMAJ: "T", OTWORZ: "O", NIE_RUSZAJ: "N" };
+/** strokeDasharray in px of the legend sample; the map scales it by 1/scale. */
+export const ORDER_DASH: Record<OrderAction, string | undefined> = { TRZYMAJ: undefined, OTWORZ: "3 2", NIE_RUSZAJ: "1 2" };
 
 /** Polyline along the ditch from the weir towards higher ground, `len` map units long. */
 export function retentionPath(ditch: Ditch, xy: XY, len: number): XY[] {

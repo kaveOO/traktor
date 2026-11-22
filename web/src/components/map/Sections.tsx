@@ -3,6 +3,9 @@
 import type { Crest, Site } from "@/lib/traktor";
 import { C } from "./geo";
 
+/** forest-muted: secondary label colour that passes 4.5:1 (instead of forest at 70% opacity) */
+const MUTED = "#4A5E4C";
+
 /** Cross-section at the weir: field - bank - bed - bank - field, board and water at the selected crest. */
 export function CrossSection({ site, crest }: { site: Site; crest: Crest }) {
   const W = 360;
@@ -27,7 +30,7 @@ export function CrossSection({ site, crest }: { site: Site; crest: Crest }) {
   const xbR = X(0.8 + level * 1.1);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label={`Przekrój rowu przy zastawce ${crest.heightCm} cm`}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label={`Przekrój rowu przy zastawce ${crest.heightCm} cm: ${refused ? "woda wychodzi na działkę sąsiada" : "woda zostaje w rowie, poniżej brzegu"}`}>
       <rect width={W} height={H} fill={C.cream} />
       {/* water, rising smoothly */}
       <rect
@@ -80,10 +83,10 @@ export function CrossSection({ site, crest }: { site: Site; crest: Crest }) {
         style={{ transform: `translateY(${yLevel}px)`, transition: "transform 1.2s ease-in-out" }}
       />
       {/* labels */}
-      <text x={6} y={H - 8} fontSize={10} fill={C.forest} opacity={0.75}>
+      <text x={6} y={H - 8} fontSize={10} fill={MUTED}>
         działka przy zastawce
       </text>
-      <text x={W - 6} y={H - 8} fontSize={10} textAnchor="end" fill={refused ? C.terra : C.forest} fontWeight={refused ? 700 : 400} opacity={refused ? 1 : 0.75}>
+      <text x={W - 6} y={H - 8} fontSize={10} textAnchor="end" fill={refused ? C.terraInk : MUTED} fontWeight={refused ? 700 : 400}>
         {refused ? "woda na działce sąsiada" : "działka sąsiada"}
       </text>
       <text x={xbR + 4} y={-6} fontSize={11} fill={C.soil} fontWeight={700} className="num" style={{ transform: `translateY(${yLevel}px)`, transition: "transform 1.2s ease-in-out" }}>
@@ -121,16 +124,16 @@ export function LongProfile({ site, crest }: { site: Site; crest: Crest }) {
   const line = (z: number[]) => chainage.map((c, i) => `${i ? "L" : "M"}${X(c)} ${Y(z[i])}`).join(" ");
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label="Profil podłużny rowu z cofką">
+    <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label={`Profil podłużny rowu: przy ${crest.heightCm} cm cofka sięga ${crest.backwaterM.toLocaleString("pl-PL")} m w górę rowu`}>
       <rect width={W} height={H} fill={C.cream} />
       <path d={wedge.join(" ")} fill={C.water} fillOpacity={0.6} style={{ transition: "d 1.2s ease-in-out" }} />
       <path d={line(bank)} fill="none" stroke={C.agri} strokeWidth={1.5} strokeDasharray="4 3" />
       <path d={line(bed)} fill="none" stroke={C.soil} strokeWidth={2} />
       <line x1={1} x2={1} y1={Y(0) + 2} y2={Y(level) - 4} stroke={C.soil} strokeWidth={3} />
-      <text x={4} y={H - 3} fontSize={9.5} fill={C.forest} opacity={0.7}>
+      <text x={4} y={H - 3} fontSize={10} fill={MUTED}>
         zastawka
       </text>
-      <text x={W - 2} y={H - 3} fontSize={9.5} textAnchor="end" fill={C.forest} opacity={0.7} className="num">
+      <text x={W - 2} y={H - 3} fontSize={10} textAnchor="end" fill={MUTED} className="num">
         {cMax} m w górę rowu
       </text>
     </svg>

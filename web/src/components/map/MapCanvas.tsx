@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CrestHeight, Order, RefusalCode, Site, XY } from "@/lib/traktor";
-import { candidates, ditches, mapFeatures, sites } from "@/lib/traktor";
-import { C, ORDER_COLOR, centroid, neighbourParcel, ownParcel, path, pts, retentionPath } from "./geo";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import type { CrestHeight, Order, OrderAction, RefusalCode, Site, XY } from "@/lib/traktor";
+import { REFUSAL_LABEL, candidates, ditches, mapFeatures, sites } from "@/lib/traktor";
+import { C, ORDER_COLOR, ORDER_DASH, ORDER_LETTER, centroid, neighbourParcel, ownParcel, path, pts, retentionPath } from "./geo";
+
+const ORDER_PL: Record<OrderAction, string> = { TRZYMAJ: "TRZYMAJ", OTWORZ: "OTWÓRZ", NIE_RUSZAJ: "NIE RUSZAJ" };
 import { IMAGERY, OsmTiles, type TileSource } from "./OsmTiles";
 
 export type Basemap = TileSource | "schema";
@@ -69,8 +71,11 @@ export function MapCanvas({
   onSelectSite,
   onSelectCandidate,
   basemap = "gugik-orto",
+  credit,
 }: {
   basemap?: Basemap;
+  /** compact attribution rendered in the bottom-right control stack */
+  credit?: ReactNode;
   orders: Record<string, Order>;
   selected: Site | null;
   crest: CrestHeight;
@@ -163,6 +168,35 @@ export function MapCanvas({
 
   const drag = useRef<{ x: number; y: number; vb: VB; moved: boolean; id: number } | null>(null);
   const suppressClick = useRef(false);
+  // active pointers, for two-finger pinch zoom (+ pan) on touch screens
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; vb: VB; at: XY } | null>(null);
+  const twoPoints = () => {
+    const [a, b] = [...pointers.current.values()];
+    return { dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+  };
+
+  // keyboard: arrows pan by 10%, +/- zoom (only while the map or a marker has focus)
+  const onMapKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("[data-ui]")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const v = vbRef.current;
+    const pan: Record<string, [number, number]> = {
+      ArrowLeft: [-0.1, 0],
+      ArrowRight: [0.1, 0],
+      ArrowUp: [0, -0.1],
+      ArrowDown: [0, 0.1],
+    };
+    if (e.key in pan) {
+      const [dx, dy] = pan[e.key];
+      if (anim.current) cancelAnimationFrame(anim.current);
+      setVb(clampVB({ ...v, x: v.x + dx * v.w, y: v.y + dy * v.h }));
+    } else if (e.key === "+" || e.key === "=") zoomBy(1 / 1.4);
+    else if (e.key === "-" || e.key === "_") zoomBy(1.4);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   const selCrest = selected?.crests.find((k) => k.heightCm === crest);
   const refusedHere = selCrest?.status === "refused";
@@ -186,17 +220,54 @@ export function MapCanvas({
   return (
     <div
       ref={wrap}
-      className="absolute inset-0 touch-none select-none overflow-hidden bg-cream"
+      role="application"
+      aria-roledescription="mapa"
+      aria-label="Mapa gminy: rowy, miejsca bezpieczne i odrzucone"
+      aria-describedby="map-kbd-hint"
+      tabIndex={0}
+      onKeyDown={onMapKey}
+      className="absolute inset-0 touch-none select-none overflow-hidden bg-cream focus-visible:outline-[3px] focus-visible:outline-offset-[-3px]"
       style={{ cursor: drag.current?.moved ? "grabbing" : "grab" }}
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest("[data-ui]")) return;
         if (anim.current) cancelAnimationFrame(anim.current);
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.current.size === 2) {
+          // second finger: switch from pan to pinch
+          const { dist, mid } = twoPoints();
+          pinch.current = { dist, vb: vbRef.current, at: toUser(mid.x, mid.y) };
+          drag.current = null;
+          suppressClick.current = true;
+          wrap.current?.setPointerCapture(e.pointerId);
+          return;
+        }
+        if (pointers.current.size > 2) return;
         suppressClick.current = false;
         drag.current = { x: e.clientX, y: e.clientY, vb: vbRef.current, moved: false, id: e.pointerId };
       }}
       onPointerMove={(e) => {
+        if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const p = pinch.current;
+        if (p && pointers.current.size >= 2) {
+          const { dist, mid } = twoPoints();
+          const r = wrap.current!.getBoundingClientRect();
+          const f = p.dist / dist;
+          const w = Math.min(1400, Math.max(80, p.vb.w * f));
+          const h = (w * 640) / 1000;
+          const s = Math.max(r.width / w, r.height / h);
+          // keep the map point that started under the fingers' midpoint under it
+          setVb(
+            clampVB({
+              w,
+              h,
+              x: p.at[0] - w / 2 - (mid.x - r.left - r.width / 2) / s,
+              y: p.at[1] - h / 2 - (mid.y - r.top - r.height / 2) / s,
+            }),
+          );
+          return;
+        }
         const d = drag.current;
-        if (!d) return;
+        if (!d || d.id !== e.pointerId) return;
         const dx = e.clientX - d.x;
         const dy = e.clientY - d.y;
         if (!d.moved && Math.hypot(dx, dy) < 4) return;
@@ -208,11 +279,25 @@ export function MapCanvas({
         const s = Math.max(r.width / d.vb.w, r.height / d.vb.h);
         setVb(clampVB({ ...d.vb, x: d.vb.x - dx / s, y: d.vb.y - dy / s }));
       }}
-      onPointerUp={() => {
-        suppressClick.current = !!drag.current?.moved;
+      onPointerUp={(e) => {
+        pointers.current.delete(e.pointerId);
+        if (pinch.current) {
+          if (pointers.current.size < 2) pinch.current = null;
+          // one finger left after a pinch: continue panning from here without a jump
+          const rest = [...pointers.current.entries()][0];
+          drag.current = rest ? { x: rest[1].x, y: rest[1].y, vb: vbRef.current, moved: true, id: rest[0] } : null;
+          return;
+        }
+        if (drag.current?.id === e.pointerId) {
+          suppressClick.current = suppressClick.current || drag.current.moved;
+          drag.current = null;
+        }
+      }}
+      onPointerCancel={(e) => {
+        pointers.current.delete(e.pointerId);
+        if (pointers.current.size < 2) pinch.current = null;
         drag.current = null;
       }}
-      onPointerCancel={() => (drag.current = null)}
       onClickCapture={(e) => {
         if (suppressClick.current) {
           e.stopPropagation();
@@ -224,9 +309,9 @@ export function MapCanvas({
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
         preserveAspectRatio="xMidYMid slice"
         className="block h-full w-full"
-        role="img"
-        aria-label="Mapa gminy: rowy, miejsca bezpieczne i odrzucone"
       >
+        {/* everything up to the site markers is visual only; the keyboard/AT path is the markers + the lists in the panel */}
+        <g aria-hidden="true">
         <defs>
           <pattern id="isok" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="8" height="8" fill={C.water} fillOpacity="0.2" />
@@ -287,10 +372,25 @@ export function MapCanvas({
             fill={refusedHere ? C.terra : C.cream}
             fillOpacity={refusedHere ? 0.18 : 0.12}
             stroke={refusedHere ? C.terra : C.cream}
-            strokeWidth={2}
+            strokeWidth={refusedHere ? 2.5 : 2}
+            strokeDasharray={refusedHere ? "6 4" : undefined}
             vectorEffect="non-scaling-stroke"
             style={{ transition: "fill 400ms, stroke 400ms" }}
           />
+        )}
+        {neigh && refusedHere && (
+          <text
+            x={centroid(neigh.points)[0]}
+            y={centroid(neigh.points)[1]}
+            textAnchor="middle"
+            fill={C.terraInk}
+            stroke={C.cream}
+            strokeWidth={fs(3)}
+            paintOrder="stroke"
+            style={{ fontSize: fs(11.5), fontWeight: 700 }}
+          >
+            Sąsiad: woda wyjdzie
+          </text>
         )}
 
         {/* roads */}
@@ -369,41 +469,89 @@ export function MapCanvas({
             const dim = refusalFilter && !hl;
             const isSel = candId === c.id;
             return (
-              <circle
-                key={c.id}
-                cx={c.xy[0]}
-                cy={c.xy[1]}
-                r={(isSel ? 5 : hl ? 3.2 : 1.5) * u}
-                fill={C.terra}
-                fillOpacity={isSel ? 1 : dim ? 0.12 : hl ? 0.95 : 0.32}
-                stroke={isSel ? C.cream : undefined}
-                strokeWidth={isSel ? 1.5 : undefined}
-                vectorEffect="non-scaling-stroke"
-                className="cursor-pointer"
-                onClick={() => onSelectCandidate(c.id)}
-              >
-                <title>{c.id}</title>
-              </circle>
+              <g key={c.id} className="cursor-pointer" onClick={() => onSelectCandidate(c.id)}>
+                <circle
+                  cx={c.xy[0]}
+                  cy={c.xy[1]}
+                  r={(isSel ? 5 : hl ? 3.2 : 1.8) * u}
+                  fill={C.terra}
+                  fillOpacity={isSel ? 1 : dim ? 0.12 : hl ? 0.95 : 0.7}
+                  stroke={C.cream}
+                  strokeOpacity={dim ? 0 : 0.9}
+                  strokeWidth={isSel ? 1.5 : 0.6}
+                  vectorEffect="non-scaling-stroke"
+                />
+                {/* 24px touch target when the reason is filtered or the point is open (WCAG 2.5.8) */}
+                {(hl || isSel) && <circle cx={c.xy[0]} cy={c.xy[1]} r={12 * u} fill="transparent" />}
+                {isSel && (
+                  <g style={{ fontSize: fs(11) }}>
+                    <rect x={c.xy[0] + 8 * u} y={c.xy[1] - 9 * u} width={50 * u} height={18 * u} rx={2 * u} fill={C.terraInk} />
+                    <text x={c.xy[0] + 33 * u} y={c.xy[1] + 4 * u} textAnchor="middle" fill={C.cream} className="num" style={{ fontWeight: 700 }}>
+                      {c.id}
+                    </text>
+                  </g>
+                )}
+              </g>
             );
           })}
+        </g>
 
-        {/* accepted sites */}
+        {/* accepted sites: real buttons, Tab order, Enter/Space opens */}
+        <g role="group" aria-label="Miejsca bezpieczne na zastawkę">
         {sites.map((s) => {
           const o = orders[s.id];
           const isSel = selected?.id === s.id;
           const hidden = kowrOnly && !s.kowr;
           const r = (isSel ? 9 : 5.5) * u;
+          const dash = o ? ORDER_DASH[o.action]?.split(" ").map((n) => Number(n) * u * 1.4).join(" ") : undefined;
+          const label =
+            `Miejsce ${s.id}, ${s.name}` +
+            (o ? `, polecenie ${ORDER_PL[o.action]}` : "") +
+            (s.maxAcceptedCrestCm ? `, maks. ${s.maxAcceptedCrestCm} cm` : "") +
+            (isSel ? ", otwarte" : "");
           return (
             <g
               key={s.id}
               opacity={hidden ? 0.18 : 1}
-              className="cursor-pointer"
+              className="site-marker cursor-pointer"
               onClick={() => onSelectSite(s.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectSite(s.id);
+                }
+              }}
               role="button"
-              aria-label={`Miejsce ${s.id}`}
+              tabIndex={hidden ? -1 : 0}
+              aria-hidden={hidden || undefined}
+              aria-label={label}
             >
-              <circle cx={s.xy[0]} cy={s.xy[1]} r={r + 2.6 * u} fill="none" stroke={o ? ORDER_COLOR[o.action] : C.forest} strokeWidth={2.4 * u} style={{ transition: "stroke 400ms" }} />
+              <circle className="focus-ring" cx={s.xy[0]} cy={s.xy[1]} r={r + 7 * u} fill="none" stroke={C.cream} strokeWidth={5 * u} />
+              <circle className="focus-ring" cx={s.xy[0]} cy={s.xy[1]} r={r + 7 * u} fill="none" stroke={C.forest} strokeWidth={2.4 * u} />
+              <circle
+                cx={s.xy[0]}
+                cy={s.xy[1]}
+                r={r + 2.6 * u}
+                fill="none"
+                stroke={o ? ORDER_COLOR[o.action] : C.forest}
+                strokeWidth={2.4 * u}
+                strokeDasharray={dash}
+                style={{ transition: "stroke 400ms" }}
+              />
               <circle cx={s.xy[0]} cy={s.xy[1]} r={r} fill={C.agri} stroke={C.cream} strokeWidth={1.6 * u} />
+              {o && (
+                <text
+                  x={s.xy[0]}
+                  y={s.xy[1] + (isSel ? 3.6 : 2.5) * u}
+                  textAnchor="middle"
+                  fill={C.cream}
+                  aria-hidden
+                  style={{ fontSize: fs(isSel ? 10 : 7), fontWeight: 800, pointerEvents: "none" }}
+                >
+                  {ORDER_LETTER[o.action]}
+                </text>
+              )}
               <circle cx={s.xy[0]} cy={s.xy[1]} r={r + 10 * u} fill="transparent" />
               {isSel && (
                 <g style={{ fontSize: fs(12) }}>
@@ -416,31 +564,46 @@ export function MapCanvas({
             </g>
           );
         })}
+        </g>
       </svg>
+      <p id="map-kbd-hint" className="sr-only">
+        Strzałki przesuwają mapę, plus i minus przybliżają. Tab przechodzi po miejscach, Enter otwiera miejsce. Pełna lista
+        miejsc i odrzuconych punktów jest w panelu.
+      </p>
 
-      {/* zoom controls, north arrow, scale bar */}
-      <div data-ui className="no-print absolute right-4 bottom-12 flex flex-col overflow-hidden rounded-[4px] bg-cream/95 shadow-[0_8px_24px_rgba(31,58,34,.18)] ">
-        <button type="button" aria-label="Przybliż" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1 / 1.4)}>
-          +
-        </button>
-        <span className="h-px bg-forest/15" />
-        <button type="button" aria-label="Oddal" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1.4)}>
-          −
-        </button>
-        <span className="h-px bg-forest/15" />
-        <button type="button" aria-label="Cała gmina" title="Cała gmina" className="eb grid h-10 w-10 place-items-center text-[9px] text-forest hover:bg-cream-deep" onClick={() => animateTo(FULL, 700)}>
-          CAŁA
-        </button>
-      </div>
-      <div data-ui className="pointer-events-none absolute right-[25px] bottom-[11.5rem] flex flex-col items-center text-forest">
-        <svg width="22" height="30" viewBox="0 0 22 30" aria-hidden>
-          <path d="M11 2 L18 24 L11 19 L4 24 Z" fill={C.forest} />
-        </svg>
-        <span className="eb -mt-0.5">N</span>
-      </div>
-      <div data-ui className="pointer-events-none absolute right-4 bottom-2 rounded-[2px] bg-cream/90 px-2 py-1 text-right text-forest ">
-        <div className="ml-auto h-1.5 border-x-2 border-b-2 border-forest" style={{ width: barPx }} />
-        <div className="num mt-0.5 text-[11px]">{barM >= 1000 ? `${barM / 1000} km` : `${barM} m`}</div>
+      {/* north arrow, zoom controls, scale bar, credit: one stack that stays above the mobile bottom sheet (--sheet-h) */}
+      <div
+        data-ui
+        className="pointer-events-none absolute right-4 flex flex-col items-end gap-2 transition-[bottom] duration-300 max-[640px]:right-2"
+        style={{ bottom: "calc(var(--sheet-h, 0px) + 8px)" }}
+      >
+        <div className="mr-[9px] flex flex-col items-center text-forest" aria-hidden>
+          <svg width="22" height="30" viewBox="0 0 22 30">
+            <path d="M11 2 L18 24 L11 19 L4 24 Z" fill={C.forest} stroke={C.cream} strokeWidth="1" />
+          </svg>
+          <span className="eb -mt-0.5">N</span>
+        </div>
+        <div className="no-print pointer-events-auto flex flex-col overflow-hidden rounded-[4px] bg-cream/95 shadow-[0_8px_24px_rgba(31,58,34,.18)]">
+          <button type="button" aria-label="Przybliż" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1 / 1.4)}>
+            +
+          </button>
+          <span className="h-px bg-forest/15" aria-hidden />
+          <button type="button" aria-label="Oddal" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1.4)}>
+            −
+          </button>
+          <span className="h-px bg-forest/15" aria-hidden />
+          <button type="button" aria-label="Cała gmina" title="Cała gmina" className="eb grid h-10 w-10 place-items-center text-[10px] text-forest hover:bg-cream-deep" onClick={() => animateTo(FULL, 700)}>
+            CAŁA
+          </button>
+        </div>
+        <div className="rounded-[2px] bg-cream/90 px-2 py-1 text-right text-forest">
+          <div className="ml-auto h-1.5 border-x-2 border-b-2 border-forest" style={{ width: barPx }} aria-hidden />
+          <div className="num mt-0.5 text-[11px]">
+            <span className="sr-only">Skala: </span>
+            {barM >= 1000 ? `${barM / 1000} km` : `${barM} m`}
+          </div>
+        </div>
+        {credit && <div className="pointer-events-auto">{credit}</div>}
       </div>
     </div>
   );

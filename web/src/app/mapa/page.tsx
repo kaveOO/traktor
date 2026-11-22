@@ -10,7 +10,14 @@ export const metadata: Metadata = {
 
 export default function MapaPage() {
   return (
-    <Suspense fallback={<ProgressLine />}>
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <ProgressLine label="Ładowanie mapy…" />
+          <p className="mt-3 text-[14px] text-forest-muted">Ładowanie mapy… (wymaga JavaScript)</p>
+        </div>
+      }
+    >
       <MapApp />
     </Suspense>
   );

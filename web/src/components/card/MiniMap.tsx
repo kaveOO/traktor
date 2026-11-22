@@ -124,11 +124,12 @@ export function MiniMap({ site, crestCm }: { site: Site; crestCm: CrestHeight })
         </text>
         {/* scale bar: 50 units ~ 500 m */}
         <g transform={`translate(${x0 + 8} ${y0 + H - 10})`}>
-          <rect x={-3} y={-8} width={58} height={13} fill="#F3ECDD" opacity={0.85} rx={1} />
+          <rect x={-3} y={-10} width={58} height={15} fill="#F3ECDD" opacity={0.9} rx={1} />
           <line x1={0} y1={0} x2={50} y2={0} stroke="#1F3A22" strokeWidth={1.2} />
           <line x1={0} y1={-2.5} x2={0} y2={2.5} stroke="#1F3A22" strokeWidth={1} />
           <line x1={50} y1={-2.5} x2={50} y2={2.5} stroke="#1F3A22" strokeWidth={1} />
-          <text x={25} y={-2.5} fontSize={5.5} textAnchor="middle" fill="#1F3A22" fontFamily="var(--font-inter)">
+          {/* ~1.5 px per unit on the card: 6.8 ≈ 10 px */}
+          <text x={25} y={-3} fontSize={6.8} textAnchor="middle" fill="#1F3A22" fontFamily="var(--font-inter)">
             ~500 m
           </text>
         </g>

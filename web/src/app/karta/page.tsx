@@ -10,7 +10,14 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <Suspense fallback={<ProgressLine />}>
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <ProgressLine label="Ładowanie karty…" />
+          <p className="mt-3 text-[14px] text-forest-muted">Ładowanie karty miejsca… (wymaga JavaScript)</p>
+        </div>
+      }
+    >
       <SiteCard />
     </Suspense>
   );

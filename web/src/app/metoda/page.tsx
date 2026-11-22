@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Eyebrow, SourceLine } from "@/components/brand/ui";
+import { Eyebrow, SkipLink, SourceLine } from "@/components/brand/ui";
 import { OrderBadge } from "@/components/brand/StateTiles";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { SiteNav } from "@/components/landing/SiteNav";
@@ -75,7 +75,7 @@ const NOT_CLAIMED = [
 function H2({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) {
   return (
     <>
-      <Eyebrow className="opacity-70">{eyebrow}</Eyebrow>
+      <Eyebrow className="text-forest-muted">{eyebrow}</Eyebrow>
       <h2 className="sh mt-3 text-[30px] md:text-[40px]">{children}</h2>
     </>
   );
@@ -84,17 +84,18 @@ function H2({ eyebrow, children }: { eyebrow: string; children: React.ReactNode 
 export default function MetodaPage() {
   return (
     <>
+      <SkipLink href="#main">Przejdź do treści</SkipLink>
       <SiteNav solid />
-      <main className="flex-1 bg-cream text-forest">
+      <main id="main" tabIndex={-1} className="flex-1 bg-cream text-forest focus:outline-none">
         <div className="bg-forest text-cream">
           <div className="mx-auto max-w-4xl px-5 pt-14 pb-16 md:px-8 md:pt-20">
-            <Eyebrow className="opacity-80">Metoda i dane</Eyebrow>
+            <Eyebrow className="text-cream-muted">Metoda i dane</Eyebrow>
             <h1 className="hd rise mt-4 text-[48px] md:text-[64px]">Jak TRAKTOR liczy.</h1>
             <p className="mt-5 max-w-2xl text-[18px] leading-[1.5]">
               Dane publiczne GUGiK dla obszaru na zachód od Bydgoszczy. Stałe reguły. Zakresy zamiast pojedynczych liczb.
               Gdy czegoś nie wiemy, mówimy nie.
             </p>
-            <p className="num mt-3 text-[16px] opacity-85">
+            <p className="num mt-3 text-[16px] text-cream-muted">
               {summary.pointsAnalysed.toLocaleString("pl-PL")} punktów na rowach → {summary.sitesAccepted}{" "}
               {plural(summary.sitesAccepted, "miejsce bezpieczne", "miejsca bezpieczne", "miejsc bezpiecznych")}.
             </p>
@@ -106,6 +107,7 @@ export default function MetodaPage() {
             <H2 eyebrow="01 — Źródła">Dane publiczne</H2>
             <div className="mt-8 overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-left text-[15px]">
+                <caption className="sr-only">Źródła danych: co dają, rozdzielczość i status wczytania</caption>
                 <thead>
                   <tr className="border-b-2 border-forest">
                     {["Źródło", "Co daje", "Rozdzielczość", "Status"].map((h) => (
@@ -123,7 +125,7 @@ export default function MetodaPage() {
                       </th>
                       <td className="py-3 pr-4">{w}</td>
                       <td className="num py-3 pr-4">{r}</td>
-                      <td className="py-3 text-[13px] opacity-80">{st}</td>
+                      <td className="py-3 text-[13px] text-forest-muted">{st}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -137,7 +139,7 @@ export default function MetodaPage() {
             <ol className="mt-8 grid gap-px overflow-hidden rounded-[4px] border border-forest/15 bg-forest/15 sm:grid-cols-2">
               {STEPS.map(([t, d], i) => (
                 <li key={t} className="bg-cream p-5">
-                  <p className="eb num opacity-70">{String(i + 1).padStart(2, "0")}</p>
+                  <p className="eb num text-forest-muted">{String(i + 1).padStart(2, "0")}</p>
                   <p className="sh mt-2 text-[20px]">{t}</p>
                   <p className="mt-2 text-[15px] leading-[1.5]">{d}</p>
                 </li>
@@ -158,9 +160,9 @@ export default function MetodaPage() {
                   className="grid gap-4 rounded-[4px] bg-cream-deep p-5 md:grid-cols-[200px_1fr] md:items-start"
                 >
                   <div className="flex flex-col items-start gap-2">
-                    <span className="eb num opacity-70">Reguła {i + 1}</span>
+                    <span className="eb num text-forest-muted">Reguła {i + 1}</span>
                     <OrderBadge action={r.action} />
-                    {r.consult && <span className="eb opacity-80">+ konsultacja</span>}
+                    {r.consult && <span className="eb text-forest-muted">+ konsultacja</span>}
                   </div>
                   <div>
                     <p className="text-[16px] leading-[1.5]">

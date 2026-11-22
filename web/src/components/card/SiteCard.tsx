@@ -6,7 +6,8 @@ import { browser } from "react-dom";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
 import { OrderBadge } from "@/components/brand/StateTiles";
-import { SourceLine, StatusChip } from "@/components/brand/ui";
+import { SkipLink, SourceLine, StatusChip } from "@/components/brand/ui";
+import { radioKeyDown } from "@/components/brand/radio";
 import {
   bufferDays,
   CRESTS,
@@ -34,9 +35,14 @@ const PRINT_CSS = `
 @page { size: A4 portrait; margin: 12mm; }
 @media print {
   html, body { background: #fff !important; }
-  .karta-sheet { box-shadow: none !important; background: #fff !important; width: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; zoom: 0.94; }
+  .karta-sheet { box-shadow: none !important; background: #fff !important; width: auto !important; max-width: none !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; }
   .karta-sheet * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .karta-avoid { break-inside: avoid; }
+  /* fit one A4 page by tightening spacing, not by shrinking text (print text stays >= 10px) */
+  .karta-sheet .mt-3 { margin-top: 2mm !important; }
+  .karta-sheet .mt-4 { margin-top: 3mm !important; }
+  .karta-sheet .gap-4 { gap: 3mm !important; }
+  .karta-sheet header { padding-bottom: 2mm !important; }
 }
 `;
 
@@ -116,6 +122,7 @@ export default function SiteCard() {
   return (
     <div className="flex flex-col items-center bg-cream-deep pb-10 print:bg-white print:pb-0">
       <style>{PRINT_CSS}</style>
+      <SkipLink href="#main">Przejdź do treści</SkipLink>
 
       {/* toolbar: screen only */}
       <div className="no-print sticky top-0 z-10 w-full border-b border-forest/15 bg-cream">
@@ -168,22 +175,26 @@ export default function SiteCard() {
             {site.crests.map((k) => {
               const on = k.heightCm === crestCm;
               const bad = k.status === "refused";
+              const pick = (h: CrestHeight) => {
+                setCrestCm(h);
+                sync(site.id, h, scenario);
+              };
               return (
                 <button
                   key={k.heightCm}
                   type="button"
                   role="radio"
                   aria-checked={on}
+                  aria-label={`${k.heightCm} cm${bad ? ", odrzucona" : ""}`}
+                  tabIndex={on ? 0 : -1}
                   title={bad ? `Odrzucona: ${k.refusal?.messagePl ?? ""}` : "Przyjęta"}
-                  onClick={() => {
-                    setCrestCm(k.heightCm);
-                    sync(site.id, k.heightCm, scenario);
-                  }}
+                  onClick={() => pick(k.heightCm)}
+                  onKeyDown={(e) => radioKeyDown(e, site.crests.map((q) => q.heightCm), crestCm, pick)}
                   className={`num min-h-10 min-w-11 rounded-[2px] border-[1.5px] px-2 transition-colors duration-[400ms] ${
                     bad
                       ? on
-                        ? "border-terra bg-terra text-cream"
-                        : "border-terra text-terra line-through"
+                        ? "border-terra-ink bg-terra-ink text-cream"
+                        : "border-terra-ink text-terra-ink line-through"
                       : on
                         ? "border-forest bg-forest text-cream"
                         : "border-forest text-forest"
@@ -204,9 +215,10 @@ export default function SiteCard() {
         </div>
       </div>
 
-      {/* A4 sheet */}
-      <article className="karta-sheet mt-6 w-[210mm] min-h-[297mm] bg-cream px-[12mm] py-[11mm] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] print:mt-0">
-        <header className="flex items-center justify-between gap-4 border-b-2 border-forest pb-3">
+      {/* A4 sheet: fixed A4 in print, fluid (max 210mm) on screen so it reflows on phones */}
+      <main id="main" tabIndex={-1} className="flex w-full justify-center focus:outline-none">
+      <article className="karta-sheet mt-6 w-full max-w-[210mm] min-h-[297mm] bg-cream px-[12mm] py-[11mm] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] narrow:mt-0 narrow:min-h-0 narrow:px-4 narrow:py-5 print:mt-0">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-forest pb-3 narrow:gap-2">
           <Logo height={18} />
           <div className="hd text-center text-[17px]">Karta miejsca</div>
           <div className="flex items-center gap-2">
@@ -216,7 +228,7 @@ export default function SiteCard() {
         </header>
 
         <section className="mt-4">
-          <p className={`eb ${refused ? "text-terra" : "text-agri"}`}>
+          <p className={`eb ${refused ? "text-terra-ink" : "text-agri-ink"}`}>
             MIEJSCE {site.id}
           </p>
           <h1 className="sh mt-1 text-[28px]">{site.name}</h1>
@@ -224,22 +236,22 @@ export default function SiteCard() {
             Wysokość zastawki {crestCm} cm · Retencja {fmtRange(crest.storageM3, "m³")} (szacunek) · Spadek {site.slopePct.toLocaleString("pl-PL")}%
           </p>
           {refused && (
-            <p className="mt-1.5 rounded-[4px] border-2 border-terra px-3 py-1 text-[11px] leading-snug text-terra">
+            <p className="mt-1.5 rounded-[4px] border-2 border-dashed border-terra px-3 py-1 text-[11px] leading-snug text-terra-ink">
               <strong>{crestCm} cm: odrzucone.</strong> {crest.refusal?.messagePl}{" "}
               {site.maxAcceptedCrestCm ? `Bezpieczne maksimum: ${site.maxAcceptedCrestCm} cm.` : ""}
             </p>
           )}
         </section>
 
-        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4">
+        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 narrow:grid-cols-1">
           <div>
-            <p className="eb mb-1.5">Okolica miejsca</p>
+            <h2 className="eb mb-1.5">Okolica miejsca</h2>
             <MiniMap site={site} crestCm={crestCm} />
             <MiniMapLegend />
             <SourceLine className="mt-1">{SOURCES_MAP}</SourceLine>
           </div>
           <div>
-            <p className="eb mb-1.5">Przekrój przy zastawce</p>
+            <h2 className="eb mb-1.5">Przekrój przy zastawce</h2>
             <div className="rounded-[4px] border border-forest/20 bg-cream-deep/60 p-2">
               <CrossSection site={site} crestCm={crestCm} />
             </div>
@@ -247,7 +259,7 @@ export default function SiteCard() {
 
             <div className="mt-2 rounded-[4px] border-2 border-forest/25 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="eb">Polecenie na dziś</p>
+                <h2 className="eb">Polecenie na dziś</h2>
                 <OrderBadge action={order.action} className="!px-2 !py-1 !text-[15px]" />
               </div>
               <ul className="mt-1.5 space-y-0.5 text-[10.5px] leading-snug">
@@ -256,7 +268,7 @@ export default function SiteCard() {
                 ))}
               </ul>
               {order.action === "OTWORZ" && order.deadline && (
-                <p className="mt-1.5 text-[12px] font-semibold text-water">
+                <p className="mt-1.5 text-[12px] font-semibold text-water-ink">
                   Termin:{" "}
                   {new Date(order.deadline).toLocaleString("pl-PL", {
                     weekday: "long",
@@ -268,7 +280,7 @@ export default function SiteCard() {
                   {order.capacityFreedM3 ? ` · zwolnisz ${fmtRange(order.capacityFreedM3, "m³")}` : ""}
                 </p>
               )}
-              <p className="mt-1.5 text-[10px] opacity-70">
+              <p className="mt-1.5 text-[10px] text-forest-muted">
                 {cond.labelPl} · reguła {order.ruleId}
                 {refused && orderCrest ? ` · liczone dla ${orderCrest} cm` : ""}
               </p>
@@ -276,16 +288,24 @@ export default function SiteCard() {
           </div>
         </section>
 
-        <section className="karta-avoid mt-3 grid grid-cols-[1.2fr_1fr] gap-4">
-          <div>
-            <p className="eb mb-1">Parametry przy {crestCm} cm (zakresy)</p>
+        <section className="karta-avoid mt-3 grid grid-cols-[1.2fr_1fr] gap-4 narrow:grid-cols-1">
+          <div className="min-w-0">
+            <h2 className="eb mb-1">Parametry przy {crestCm} cm (zakresy)</h2>
             <table className="num w-full border-collapse text-[11px]">
+              <caption className="sr-only">Parametry miejsca {site.id} przy zastawce {crestCm} cm, ze źródłem każdej wartości</caption>
+              <thead className="sr-only">
+                <tr>
+                  <th scope="col">Parametr</th>
+                  <th scope="col">Wartość</th>
+                  <th scope="col">Źródło</th>
+                </tr>
+              </thead>
               <tbody>
                 {metrics.map((m) => (
                   <tr key={m.label} className="border-b border-forest/15">
-                    <td className="py-[3px] pr-2">{m.label}</td>
+                    <th scope="row" className="py-[3px] pr-2 text-left font-normal">{m.label}</th>
                     <td className="py-[3px] pr-2 text-right font-semibold whitespace-nowrap">{m.value}</td>
-                    <td className="py-[3px] text-right text-[9.5px] leading-tight opacity-70">{m.src}</td>
+                    <td className="py-[3px] text-right text-[10px] leading-tight text-forest-muted">{m.src}</td>
                   </tr>
                 ))}
               </tbody>
@@ -293,7 +313,7 @@ export default function SiteCard() {
           </div>
           <div className="space-y-2 text-[10.5px] leading-snug">
             <div>
-              <p className="eb mb-1">Działki</p>
+              <h2 className="eb mb-1">Działki</h2>
               <ul className="space-y-0.5">
                 {site.ownParcels.map((p) => (
                   <li key={p} className="num">
@@ -303,7 +323,7 @@ export default function SiteCard() {
                 {refusedCrests
                   .filter((k, i, all) => k.refusal?.objectRef && all.findIndex((q) => q.refusal?.objectRef === k.refusal?.objectRef) === i)
                   .map((k) => (
-                    <li key={k.heightCm} className="num text-terra">
+                    <li key={k.heightCm} className="num text-terra-ink">
                       <span className="inline-block size-2 border border-dashed border-terra" /> {k.refusal!.objectRef} · sąsiad ·{" "}
                       {REFUSAL_LABEL[k.refusal!.code].toLowerCase()} od {k.heightCm} cm
                     </li>
@@ -311,7 +331,7 @@ export default function SiteCard() {
               </ul>
             </div>
             <div>
-              <p className="eb mb-1">Ścieżka prawna</p>
+              <h2 className="eb mb-1">Ścieżka prawna</h2>
               <ul className="space-y-0.5">
                 <li>· {LEGAL.permit}</li>
                 <li>· {LEGAL.lighter}</li>
@@ -321,9 +341,9 @@ export default function SiteCard() {
           </div>
         </section>
 
-        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 text-[10.5px] leading-snug">
+        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 text-[10.5px] leading-snug narrow:grid-cols-1">
           <div>
-            <p className="eb mb-1">Do sprawdzenia</p>
+            <h2 className="eb mb-1">Do sprawdzenia</h2>
             <ul className="space-y-0.5">
               {MISSING.map((m) => (
                 <li key={m} className="flex items-center gap-1.5">
@@ -333,34 +353,39 @@ export default function SiteCard() {
             </ul>
           </div>
           <div>
-            <p className="eb mb-1">Korzyść dodatkowa</p>
+            <h2 className="eb mb-1">Korzyść dodatkowa</h2>
             <div className="flex items-start gap-2">
               <Icon name="water" size={20} className="mt-0.5 shrink-0 text-water" />
               <p>
                 Drenaż sterowany w badaniach: <strong>{FACTS.outflow}</strong> i <strong>{FACTS.nitrate}</strong> w wodzie
                 z drenów.
-                <span className="block text-[10px] opacity-70">Kęsicka et al. 2022, PLoS ONE. To nie prognoza dla tego miejsca.</span>
+                <span className="block text-[10px] text-forest-muted">
+                  <span lang="en">Kęsicka et al. 2022, PLoS ONE.</span> To nie prognoza dla tego miejsca.
+                </span>
               </p>
             </div>
           </div>
         </section>
 
-        <div className="karta-avoid mt-3 flex items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
+        <div className="karta-avoid mt-3 flex flex-wrap items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
           <Icon name="pin" size={26} />
           <p className="hd text-[26px]">{LEGAL.siteVisit}</p>
-          <p className="ml-auto max-w-[70mm] text-right text-[10px] leading-snug opacity-80">
+          <p className="ml-auto max-w-[70mm] text-right text-[10px] leading-snug text-forest-muted narrow:ml-0 narrow:text-left">
             Karta to wstępna ocena z danych zdalnych. Nie zastępuje projektu ani pozwolenia.
           </p>
         </div>
 
-        <footer className="mt-3 flex items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
+        <footer className="mt-3 flex flex-wrap items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
           <div>
-            <p className="opacity-75">{DEMO_NOTE}</p>
+            <p className="text-forest-muted">{DEMO_NOTE}</p>
             <SourceLine>BDOT10k, NMT 1 m, ULDK (GUGiK); IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
           </div>
-          <p className="sh shrink-0 text-[13px]">{TAGLINE_EN}</p>
+          <p lang="en" className="sh shrink-0 text-[13px]">
+            {TAGLINE_EN}
+          </p>
         </footer>
       </article>
+      </main>
     </div>
   );
 }
