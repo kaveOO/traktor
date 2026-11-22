@@ -105,11 +105,11 @@ export function ScenarioDock({
   onFlood,
   refused,
   onRefused,
-  ortho,
-  onOrtho,
+  basemap,
+  onBasemap,
 }: {
-  ortho: boolean;
-  onOrtho: () => void;
+  basemap: "osm" | "ortho" | "schema";
+  onBasemap: (b: "osm" | "ortho" | "schema") => void;
   scenario: ScenarioChoice;
   onScenario: (s: ScenarioChoice) => void;
   orders: Order[];
@@ -168,9 +168,19 @@ export function ScenarioDock({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
-        <Toggle on={ortho} onClick={onOrtho} hint="GUGiK">
-          Ortofotomapa
-        </Toggle>
+        <span className="eb mr-0.5 opacity-70 max-[900px]:hidden">Mapa</span>
+        {(
+          [
+            ["osm", "OSM"],
+            ["ortho", "Ortofoto"],
+            ["schema", "Schemat"],
+          ] as const
+        ).map(([k, label]) => (
+          <Toggle key={k} on={basemap === k} onClick={() => onBasemap(k)}>
+            {label}
+          </Toggle>
+        ))}
+        <span className="mx-1 h-5 w-px bg-forest/20" aria-hidden />
         <Toggle on={kowr} onClick={onKowr} hint="ilustracyjnie">
           KOWR
         </Toggle>
