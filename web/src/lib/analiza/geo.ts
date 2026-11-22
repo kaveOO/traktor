@@ -116,12 +116,18 @@ export function centroid(polys: Rings[]): LonLat {
   let sa = 0;
   for (const p of project(polys)) {
     const r = p[0];
+    // per part, sign-normalised: parts with opposite ring orientation must not cancel each other
+    let px = 0, py = 0, pa = 0;
     for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
       const f = r[j][0] * r[i][1] - r[i][0] * r[j][1];
-      sx += (r[j][0] + r[i][0]) * f;
-      sy += (r[j][1] + r[i][1]) * f;
-      sa += f;
+      px += (r[j][0] + r[i][0]) * f;
+      py += (r[j][1] + r[i][1]) * f;
+      pa += f;
     }
+    const s = pa < 0 ? -1 : 1;
+    sx += s * px;
+    sy += s * py;
+    sa += s * pa;
   }
   if (Math.abs(sa) < 1e-9) {
     const pts = polys.flatMap((p) => p[0]);

@@ -16,7 +16,8 @@ async function heightsBatch(pts: GridPoint[], signal?: AbortSignal): Promise<Map
   const out = new Map<string, number>();
   for (const item of txt.split(",")) {
     const [n, e, h] = item.trim().split(/\s+/).map(Number);
-    if (Number.isFinite(h) && h > 0) out.set(`${Math.round(e * 10)},${Math.round(n * 10)}`, h);
+    // 0 = no data (sea / outside coverage); real heights below sea level exist on Żuławy (down to about −2 m)
+    if (Number.isFinite(h) && h !== 0 && h > -20) out.set(`${Math.round(e * 10)},${Math.round(n * 10)}`, h);
   }
   return out;
 }
@@ -73,7 +74,7 @@ export async function getTerrain(parcel: Parcel, signal?: AbortSignal): Promise<
         slopePct: r1(slope),
         lowPoint: [Number(lp[0].toFixed(6)), Number(lp[1].toFixed(6))],
       },
-      source: source("NMT", label, lic, t0, got.length >= points.length * 0.7 ? "ok" : "partial", `NMT 1 m, ${got.length}/${points.length} punktów co ~${r0(spacing)} m`, {
+      source: source("NMT", label, lic, t0, got.length >= points.length * 0.9 ? "ok" : "partial", `NMT 1 m, ${got.length}/${points.length} punktów co ~${r0(spacing)} m`, {
         url: "https://services.gugik.gov.pl/nmt/",
       }),
     };

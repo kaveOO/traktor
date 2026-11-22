@@ -8,6 +8,7 @@ import { getTerrain, getWatercourses } from "./terrain";
 import type { AnalysisRequest, AnalysisResult, Assessment, Cause, Irrigation, Level, Parcel, Recommendation, SourceInfo, Uncertainty } from "./types";
 import { AmbiguousParcel, getParcelById, getParcelByXY, type ParcelCandidate } from "./uldk";
 import { addDays, daysBetween, fmtPL, r0, shiftYears, todayPL, UpstreamError } from "./util";
+import { withNetScope } from "./net";
 
 export class AnalysisFailure extends Error {
   code: string;
@@ -69,7 +70,12 @@ type WinEval = { w: SmsrWindow; k: KbwSum; K: number; thr: Thr; ratio: number | 
 
 export type AnalyzeOptions = { budgetMs?: number; signal?: AbortSignal };
 
-export async function analyze(req: AnalysisRequest, opts: AnalyzeOptions | number = {}): Promise<AnalysisResult> {
+/** One analysis = one outbound connection budget (Workers: 6 open connections per request, see net.ts). */
+export function analyze(req: AnalysisRequest, opts: AnalyzeOptions | number = {}): Promise<AnalysisResult> {
+  return withNetScope(() => analyzeIn(req, opts));
+}
+
+async function analyzeIn(req: AnalysisRequest, opts: AnalyzeOptions | number): Promise<AnalysisResult> {
   const o = typeof opts === "number" ? { budgetMs: opts } : opts;
   const budgetMs = o.budgetMs ?? 24000;
   const t0 = Date.now();
