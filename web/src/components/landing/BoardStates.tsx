@@ -119,7 +119,7 @@ function DitchDiagram({ mode }: { mode: Mode }) {
           Dno rowu
         </text>
         <g style={{ transform: `translateY(${level - HOLD_LEVEL}px)`, transition: MOTION }}>
-          <text x="24" y={HOLD_LEVEL - 10} fontWeight="600" fill="#3B7FA3">
+          <text x="24" y={HOLD_LEVEL - 10} fontWeight="600" fill="#2E6585">
             Zatrzymana woda
           </text>
         </g>
@@ -139,11 +139,11 @@ export function BoardStates() {
             ? "Sucho. Deski w górze. Woda zostaje w rowie i wsiąka w pole."
             : "Prognoza burzy. Deski w dół. Rów ma miejsce na deszcz."}
         </p>
-        <p className="mt-2 text-[13px] opacity-70">Kliknij kafelek, aby przełączyć tryb.</p>
+        <p className="mt-2 text-[13px] text-forest-muted">Kliknij kafelek, aby przełączyć tryb.</p>
       </div>
       <figure className="rounded-[4px] bg-cream p-4 shadow-[0_8px_24px_rgba(31,58,34,.18)] md:p-6">
         <DitchDiagram mode={mode} />
-        <figcaption className="eb mt-3 opacity-70">
+        <figcaption className="eb mt-3 text-forest-muted">
           Przekrój podłużny rowu · schemat, nie w skali
         </figcaption>
       </figure>
