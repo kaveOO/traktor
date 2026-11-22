@@ -50,6 +50,8 @@ export type Candidate = {
   xy: XY;
   status: "accepted" | "refused";
   refusalCode?: RefusalCode;
+  /** NMT ground height at the point, m a.s.l. */
+  elev?: number | null;
 };
 
 export type Site = {
@@ -77,7 +79,11 @@ export type Site = {
   profile: { chainage: number[]; bed: number[]; bank: number[] };
   kowr: boolean;
   rank: number | null;
+  /** ULDK parcel on the lower bank (where water spills first) */
+  neighbourParcel?: string | null;
 };
+
+export type LandKind = "field" | "orchard" | "forest" | "builtup" | "water";
 
 export type Parcel = { id: string; owner: "own" | "neighbour" | "kowr"; points: XY[] };
 
@@ -89,9 +95,15 @@ export type MapFeatures = {
   contours: XY[][];
   lake: XY[];
   floodZone: XY[];
-  roads: { id: string; name: string; points: XY[] }[];
+  roads: { id: string; name: string; cls?: string; points: XY[] }[];
   buildings: { id: string; xy: XY; w: number; h: number }[];
   parcels: Parcel[];
+  /** real land cover (BDOT10k PT*), drawn under everything */
+  land?: { kind: LandKind; points: XY[] }[];
+  /** rivers and canals (BDOT10k SWRS/SWKN) */
+  rivers?: { name: string; points: XY[] }[];
+  /** building footprints (BDOT10k BUBD) */
+  footprints?: XY[][];
 };
 
 export type Summary = {

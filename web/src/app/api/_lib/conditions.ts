@@ -1,8 +1,8 @@
 import { GMINA, getScenario, type Conditions, type Warning } from "@/lib/traktor";
 
-const LAT = 52.676;
-const LON = 18.331;
-const TERYT_POWIAT = "0407";
+const LAT = GMINA.center.lat;
+const LON = GMINA.center.lon;
+const TERYT_POWIAT = GMINA.powiatTeryt;
 const TIMEOUT_MS = 5000;
 
 export const SOURCE_IMGW = "Źródłem pochodzenia danych jest IMGW-PIB";

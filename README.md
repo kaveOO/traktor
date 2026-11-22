@@ -28,7 +28,7 @@ npm run build; npm run start   # production
 `1`–`4` scenarios (live, drought, storm, wet spring) · `←/→` crest height · click a green site to open it.
 
 ## Data
-The demo gmina (Kruszwica, kujawsko-pomorskie) is **deterministic mock data** (`web/src/lib/traktor/mock.ts`), shaped like the offline pipeline output (BDOT10k ditches × NMT LiDAR 1 m × ULDK × ISOK × IUNG). Live weather in "Na żywo" mode comes from Open-Meteo and IMGW-PIB, with a recorded fallback.
+The map is **real data** for the area west of Bydgoszcz (Białe Błota / Sicienko): BDOT10k ditches, rivers, roads, buildings and land cover, GUGiK NMT 1 m heights and ULDK parcels, built offline by `scripts/geo` (`npm i` there, then `node extract.mjs` and `node build.mjs`) into `web/src/lib/traktor/real-data.json`. Storage, hectares and days of buffer are screening estimates; soil category is illustrative (IUNG not loaded) and the flood check is an 80 m corridor along rivers and canals (ISOK not loaded). Live weather in "Na żywo" mode comes from Open-Meteo and IMGW-PIB, with a recorded fallback.
 
 ## Repo
 - `web/`: Next.js 16 app. Shared brand components in `web/src/components/brand`, data + rules in `web/src/lib/traktor`.

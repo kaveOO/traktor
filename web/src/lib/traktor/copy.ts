@@ -3,20 +3,23 @@ import type { CrestHeight, RefusalCode } from "./types";
 /** Polish copy. Tone: short, plain, sure. TRZYMAJ / OTWÓRZ never translated. */
 
 export const GMINA = {
-  name: "Gmina Kruszwica",
-  powiat: "inowrocławski",
+  name: "Okolice Bydgoszczy · Białe Błota i Sicienko",
+  short: "Białe Błota / Sicienko",
+  powiat: "bydgoski",
+  powiatTeryt: "0403",
   voivodeship: "kujawsko-pomorskie",
-  center: { lat: 52.676, lon: 18.331 },
+  center: { lat: 53.157, lon: 17.818 },
 };
 
-export const DEMO_NOTE = "Dane demonstracyjne · do zastąpienia wynikiem potoku BDOT10k + NMT";
+export const DEMO_NOTE =
+  "Dane rzeczywiste: BDOT10k, NMT 1 m i ULDK (GUGiK). Retencja i nawodnienie to szacunki przesiewowe.";
 
-export const SOURCES_MAP = "BDOT10k (rowy, drogi, budynki); NMT LiDAR 1 m (GUGiK); ULDK; ISOK; IUNG";
+export const SOURCES_MAP = "BDOT10k (rowy, cieki, drogi, budynki, pokrycie terenu); NMT 1 m (GUGiK); ULDK";
 
 export const REFUSAL_LABEL: Record<RefusalCode, string> = {
   ROAD_OR_CULVERT: "Droga lub przepust",
   BUILDING: "Budynek w pobliżu",
-  FLOOD_ZONE: "Obszar zalewowy ISOK",
+  FLOOD_ZONE: "Blisko rzeki lub kanału",
   CHANNEL_UNRESOLVED: "Rów niewidoczny w NMT",
   OUT_OF_BANK_NEIGHBOUR: "Woda na działce sąsiada",
   SLOPE_TOO_STEEP: "Za duży spadek",

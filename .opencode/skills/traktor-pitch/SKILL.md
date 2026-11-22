@@ -26,7 +26,7 @@ Yield increase from controlled drainage in Poland · cost per weir · "first too
 - "Most places cannot take a board. TRAKTOR says no, and says why."
 
 ## Demo script (~1:45)
-1. Map of Gmina Kruszwica: every ditch; counter 1 240 points → 31 safe (demo data).
+1. Real map west of Bydgoszcz (Białe Błota / Sicienko): every BDOT10k ditch; counter 1 939 points → 112 safe (real BDOT10k + NMT 1 m + ULDK; storage is a screening estimate).
 2. Search a parcel → sites light up.
 3. Open S-007: slide 20→40 cm (m³, backwater, ha, days of buffer); 60 cm → red: neighbour's parcel. Refused.
 4. Order: TRZYMAJ, "Dlaczego?" → KBW −86 mm, no rain, soil cat. I.

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Conditions, Order, ScenarioName } from "@/lib/traktor";
-import { SCENARIO_LABEL, fmtRange } from "@/lib/traktor";
+import { GMINA, SCENARIO_LABEL, fmtRange } from "@/lib/traktor";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
 
@@ -30,7 +30,7 @@ export function TopBar({
       </Link>
       <div className="shrink-0 border-l border-cream/25 pl-4 max-[900px]:hidden">
         <p className="eb opacity-70">Mapa gminy</p>
-        <p className="text-[13px] font-medium">Gmina Kruszwica · pow. inowrocławski</p>
+        <p className="text-[13px] font-medium">{GMINA.name} · pow. {GMINA.powiat}</p>
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] max-[900px]:order-last max-[900px]:basis-full max-[900px]:gap-x-3 max-[900px]:text-[11.5px]" aria-live="polite">
         <span
@@ -105,7 +105,11 @@ export function ScenarioDock({
   onFlood,
   refused,
   onRefused,
+  ortho,
+  onOrtho,
 }: {
+  ortho: boolean;
+  onOrtho: () => void;
   scenario: ScenarioChoice;
   onScenario: (s: ScenarioChoice) => void;
   orders: Order[];
@@ -164,11 +168,14 @@ export function ScenarioDock({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
+        <Toggle on={ortho} onClick={onOrtho} hint="GUGiK">
+          Ortofotomapa
+        </Toggle>
         <Toggle on={kowr} onClick={onKowr} hint="ilustracyjnie">
           KOWR
         </Toggle>
         <Toggle on={flood} onClick={onFlood}>
-          Strefy ISOK
+          Strefa 80 m od cieku
         </Toggle>
         <Toggle on={refused} onClick={onRefused}>
           Odrzucone punkty

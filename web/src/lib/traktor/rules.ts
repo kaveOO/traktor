@@ -73,7 +73,7 @@ export function decideOrder(site: Site, c: Conditions, crestCm?: CrestHeight | n
       reasons: [
         `KBW ${c.kbw60Mm} mm w 60 dni (próg ${THRESHOLDS.droughtKbwMm} mm).`,
         `Prognoza ${c.precip7dMm} mm w 7 dni. Brak ostrzeżeń.`,
-        `Gleba kat. ${site.soilCategory} (IUNG).`,
+        `Gleba kat. ${site.soilCategory} (przykład; IUNG do pobrania).`,
       ],
       inputs,
     };

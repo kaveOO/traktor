@@ -1,6 +1,6 @@
 import { ditches, elevationAt, mapFeatures, type CrestHeight, type Site, type XY } from "@/lib/traktor";
 
-const ELEV: Record<number, string> = { 1: "#2F5F73", 2: "#8FA86A", 3: "#C9BF86", 4: "#B98D5F", 5: "#EFE6D3" };
+const LAND_FILL: Record<string, string> = { field: "#C9BF86", orchard: "#8FA86A", forest: "#4F7A3A", builtup: "#B98D5F", water: "#3B7FA3" };
 const pts = (p: XY[]) => p.map(([x, y]) => `${x},${y}`).join(" ");
 
 /** Walk upstream along the ditch from the site for `lenUnits` map units. */
@@ -67,13 +67,12 @@ export function MiniMap({ site, crestCm }: { site: Site; crestCm: CrestHeight })
       </defs>
       <g clipPath="url(#mm-clip)">
         <rect x={x0} y={y0} width={W} height={H} fill="#EFE6D3" />
-        {mapFeatures.elevationBands.map((b) => (
-          <polygon key={b.level} points={pts(b.points)} fill={ELEV[b.level]} opacity={0.55} />
+        {(mapFeatures.land ?? []).map((l, i) => (
+          <polygon key={i} points={pts(l.points)} fill={LAND_FILL[l.kind]} opacity={l.kind === "water" ? 0.8 : 0.45} />
         ))}
-        {mapFeatures.contours.map((c, i) => (
-          <polyline key={i} points={pts(c)} fill="none" stroke="#F3ECDD" strokeWidth={0.6} opacity={0.9} />
+        {(mapFeatures.rivers ?? []).map((r, i) => (
+          <polyline key={`r${i}`} points={pts(r.points)} fill="none" stroke="#3B7FA3" strokeWidth={2.4} />
         ))}
-        <polygon points={pts(mapFeatures.lake)} fill="#2F5F73" opacity={0.8} />
         {nearParcels.map((p) => {
           const own = p.owner === "own" && site.ownParcels.includes(p.id);
           const refused = refusedNeighbours.has(p.id);
@@ -95,8 +94,8 @@ export function MiniMap({ site, crestCm }: { site: Site; crestCm: CrestHeight })
         {mapFeatures.roads.map((r) => (
           <polyline key={r.id} points={pts(r.points)} fill="none" stroke="#6B4A2E" strokeWidth={2.2} opacity={0.7} />
         ))}
-        {mapFeatures.buildings.map((b) => (
-          <rect key={b.id} x={b.xy[0] - b.w / 2} y={b.xy[1] - b.h / 2} width={b.w} height={b.h} fill="#1F3A22" opacity={0.7} />
+        {(mapFeatures.footprints ?? []).map((f, i) => (
+          <polygon key={`b${i}`} points={pts(f)} fill="#6B4A2E" opacity={0.7} />
         ))}
         {ditches.map((d) => (
           <polyline

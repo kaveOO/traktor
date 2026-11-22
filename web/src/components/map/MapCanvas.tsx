@@ -3,7 +3,37 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CrestHeight, Order, RefusalCode, Site, XY } from "@/lib/traktor";
 import { candidates, ditches, mapFeatures, sites } from "@/lib/traktor";
-import { C, ELEV, ORDER_COLOR, neighbourParcel, ownParcel, path, pts, retentionPath } from "./geo";
+import { C, ORDER_COLOR, centroid, neighbourParcel, ownParcel, path, pts, retentionPath } from "./geo";
+
+/* ---- static real layers, computed once ---- */
+const LAND_STYLE: Record<string, [string, number]> = {
+  field: ["#C9BF86", 0.42],
+  orchard: ["#8FA86A", 0.45],
+  forest: ["#4F7A3A", 0.42],
+  builtup: ["#B98D5F", 0.28],
+  water: ["#3B7FA3", 0.8],
+};
+const LAND_ORDER = ["field", "orchard", "builtup", "forest", "water"];
+const LAND = [...(mapFeatures.land ?? [])].sort((a, b) => LAND_ORDER.indexOf(a.kind) - LAND_ORDER.indexOf(b.kind));
+const RIVERS = mapFeatures.rivers ?? [];
+// one label per named river/canal, at the midpoint of its longest piece
+const RIVER_LABELS = Object.values(
+  RIVERS.filter((r) => r.name).reduce<Record<string, { name: string; xy: XY; n: number }>>((acc, r) => {
+    if ((acc[r.name]?.n ?? 0) < r.points.length) acc[r.name] = { name: r.name, xy: r.points[Math.floor(r.points.length / 2)], n: r.points.length };
+    return acc;
+  }, {}),
+);
+const MAJOR = /ekspresowa|główna|zbiorcza/;
+const roadWidth = (cls?: string) => (!cls ? 1 : /ekspresowa|przyśpieszonego/.test(cls) ? 4.5 : /główna/.test(cls) ? 3.5 : /zbiorcza/.test(cls) ? 2.5 : 1);
+const ROADS = [...mapFeatures.roads].sort((a, b) => roadWidth(a.cls) - roadWidth(b.cls));
+const ROAD_LABELS = Object.values(
+  ROADS.filter((r) => r.name && MAJOR.test(r.cls ?? "")).reduce<Record<string, { name: string; xy: XY; n: number }>>((acc, r) => {
+    const name = r.name.split(" / ").find((s) => /^S?\d+$/.test(s)) ?? r.name;
+    if ((acc[name]?.n ?? 0) < r.points.length) acc[name] = { name, xy: centroid(r.points), n: r.points.length };
+    return acc;
+  }, {}),
+);
+const FOOTPRINTS = (mapFeatures.footprints ?? []).map((f) => `${path(f)}Z`).join(" ");
 
 type VB = { x: number; y: number; w: number; h: number };
 const FULL: VB = { x: 0, y: 0, w: 1000, h: 640 };
@@ -33,7 +63,9 @@ export function MapCanvas({
   focus,
   onSelectSite,
   onSelectCandidate,
+  ortho = false,
 }: {
+  ortho?: boolean;
   orders: Record<string, Order>;
   selected: Site | null;
   crest: CrestHeight;
@@ -198,30 +230,31 @@ export function MapCanvas({
         </defs>
 
         <rect x={-1000} y={-1000} width={3000} height={2640} fill={C.cream} />
-        {/* elevation bands */}
-        {mapFeatures.elevationBands.map((b, i) => (
-          <polygon key={i} points={pts(b.points)} fill={ELEV[b.level]} fillOpacity={b.level === 1 ? 0.42 : 0.55} />
-        ))}
-        {/* contours */}
-        {mapFeatures.contours.map((c, i) => (
-          <path
-            key={i}
-            d={path(c)}
-            fill="none"
-            stroke={C.cream}
-            strokeWidth={i % 2 === 0 ? 1.3 : 0.7}
-            strokeOpacity="0.85"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-        {/* lake */}
-        <polygon points={pts(mapFeatures.lake)} fill={C.water} fillOpacity="0.85" />
-        <text x={905} y={330} fontSize={fs(12)} fill={C.cream} className="eb" textAnchor="middle" style={{ fontSize: fs(11) }}>
-          Jezioro Gopło
-        </text>
-        {showFlood && (
-          <polygon points={pts(mapFeatures.floodZone)} fill="url(#isok)" stroke={C.water} strokeOpacity="0.5" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        {/* GUGiK orthophoto (WMS, EPSG:2180, exact AOI bbox) or real land cover (BDOT10k PT*) */}
+        {ortho ? (
+          <>
+            <image href="/maps/orto-bydgoszcz-west.jpg" x={0} y={0} width={1000} height={640} preserveAspectRatio="none" />
+            <rect x={0} y={0} width={1000} height={640} fill={C.forest} fillOpacity={0.18} />
+          </>
+        ) : (
+          LAND.map((l, i) => (
+            <polygon key={i} points={pts(l.points)} fill={LAND_STYLE[l.kind][0]} fillOpacity={LAND_STYLE[l.kind][1]} />
+          ))
         )}
+        {/* 80 m corridor along rivers and canals (stand-in for ISOK, which is not loaded) */}
+        {showFlood &&
+          RIVERS.map((r, i) => (
+            <path key={`f${i}`} d={path(r.points)} fill="none" stroke="url(#isok)" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" />
+          ))}
+        {/* rivers and canals */}
+        {RIVERS.map((r, i) => (
+          <path key={`r${i}`} d={path(r.points)} fill="none" stroke={C.water} strokeWidth={3.5} strokeOpacity={0.9} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        ))}
+        {RIVER_LABELS.map((r) => (
+          <text key={r.name} x={r.xy[0]} y={r.xy[1] - 4} textAnchor="middle" fill={C.water} style={{ fontSize: fs(10.5), fontWeight: 600, fontStyle: "italic" }}>
+            {r.name}
+          </text>
+        ))}
 
         {/* parcel highlight from search */}
         {hlParcel && (
@@ -245,24 +278,30 @@ export function MapCanvas({
         )}
 
         {/* roads */}
-        {mapFeatures.roads.map((r) => (
-          <g key={r.id}>
-            <path d={path(r.points)} fill="none" stroke={C.forest} strokeOpacity="0.35" strokeWidth={6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            <path d={path(r.points)} fill="none" stroke="#FFFFFF" strokeWidth={4} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            <path d={path(r.points)} fill="none" stroke={C.cream} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
+        {/* roads by class: minor first, major on top */}
+        {ROADS.map((r) => {
+          const w = roadWidth(r.cls);
+          return (
+            <g key={r.id}>
+              {w > 1.5 && <path d={path(r.points)} fill="none" stroke={C.forest} strokeOpacity="0.35" strokeWidth={w + 2} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+              <path d={path(r.points)} fill="none" stroke={w > 1.5 ? "#FFFFFF" : C.forest} strokeOpacity={w > 1.5 ? 1 : 0.25} strokeWidth={w} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            </g>
+          );
+        })}
+        {ROAD_LABELS.map((r) => (
+          <g key={r.name}>
+            <rect x={r.xy[0] - fs(14)} y={r.xy[1] - fs(7)} width={fs(28)} height={fs(13)} rx={fs(2)} fill={C.forest} />
+            <text x={r.xy[0]} y={r.xy[1] + fs(3.5)} textAnchor="middle" fill={C.cream} style={{ fontSize: fs(9.5), fontWeight: 700 }}>
+              {r.name}
+            </text>
           </g>
         ))}
-        <text x={90} y={226} fill={C.forest} style={{ fontSize: fs(11), fontWeight: 600 }} opacity={0.75}>
-          DW 412
-        </text>
-        <text x={452} y={600} fill={C.forest} style={{ fontSize: fs(10) }} opacity={0.65}>
-          droga gminna
-        </text>
 
-        {/* buildings */}
-        {mapFeatures.buildings.map((b) => (
-          <rect key={b.id} x={b.xy[0] - b.w / 2} y={b.xy[1] - b.h / 2} width={b.w} height={b.h} fill={C.soil} fillOpacity="0.8" />
-        ))}
+        {/* building footprints (BDOT10k BUBD) */}
+        {!ortho && <path d={FOOTPRINTS} fill={C.soil} fillOpacity="0.75" />}
+        <text x={985} y={630} textAnchor="end" fill={C.forest} opacity={0.6} style={{ fontSize: fs(11), fontWeight: 600 }}>
+          Bydgoszcz →
+        </text>
 
         {/* retention zone */}
         {retention && (

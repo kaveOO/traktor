@@ -72,6 +72,10 @@ export function ownParcel(site: Site): Parcel | undefined {
 }
 
 export function neighbourParcel(site: Site, objectRef?: string): Parcel | undefined {
+  if (site.neighbourParcel) {
+    const hit = mapFeatures.parcels.find((p) => p.id === site.neighbourParcel);
+    if (hit) return hit;
+  }
   if (objectRef) {
     const hit = mapFeatures.parcels.find((p) => p.id === objectRef);
     if (hit) return hit;

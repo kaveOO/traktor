@@ -7,6 +7,12 @@ import { SourceLine } from "@/components/brand/ui";
 import { C, shortParcel } from "./geo";
 
 const CODES = Object.keys(REFUSAL_LABEL) as RefusalCode[];
+const LAND_LEGEND: [string, string, number][] = [
+  ["pola", "#C9BF86", 0.55],
+  ["las", "#4F7A3A", 0.45],
+  ["zabudowa", "#B98D5F", 0.35],
+  ["woda", "#3B7FA3", 0.8],
+];
 const SHADE = [1, 0.82, 0.66, 0.52, 0.4, 0.3];
 
 /** Animated count: all points analysed → safe sites. */
@@ -140,7 +146,7 @@ export function ParcelSearch({
         onKeyDown={(e) => {
           if (e.key === "Enter" && hits[0]) pick(hits[0].id);
         }}
-        placeholder="np. 412 lub 040706_5.0012.412"
+        placeholder="np. 306/2 lub 040307_2.0023.306/2"
         className="num mt-1 w-full rounded-[2px] border-[1.5px] border-forest/40 bg-cream px-3 py-2 text-[14px] outline-none focus:border-forest"
       />
       {qq.length >= 2 && !picked && (
@@ -229,7 +235,7 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
         {showFlood && (
           <span className={row}>
             <span className="inline-block h-2.5 w-4 rounded-[1px] border" style={{ borderColor: C.water, background: "repeating-linear-gradient(45deg, rgba(59,127,163,.5) 0 2px, rgba(59,127,163,.15) 2px 5px)" }} />
-            Obszar zalewowy ISOK
+            Do 80 m od cieku (zamiast ISOK)
           </span>
         )}
         <span className={row}>
@@ -241,14 +247,13 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
           Pierścień: OTWÓRZ
         </span>
       </div>
-      <div className="mt-1.5 flex gap-1" aria-hidden>
-        {(["#EFE6D3", "#B98D5F", "#C9BF86", "#8FA86A", "#2F5F73"] as const).map((h) => (
-          <span key={h} className="h-1.5 flex-1" style={{ background: h, opacity: 0.7 }} />
+      <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10px]">
+        {LAND_LEGEND.map(([label, color, op]) => (
+          <span key={label} className="flex items-center gap-1 opacity-80">
+            <span className="inline-block h-2 w-3 rounded-[1px]" style={{ background: color, opacity: op }} />
+            {label}
+          </span>
         ))}
-      </div>
-      <div className="flex justify-between text-[10px] opacity-70">
-        <span>wyżej (zachód)</span>
-        <span>niżej (jezioro)</span>
       </div>
     </div>
   );

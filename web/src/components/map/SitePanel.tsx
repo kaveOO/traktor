@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Candidate, Conditions, CrestHeight, Order, Site } from "@/lib/traktor";
-import { CRESTS, DEMO_NOTE, LEGAL, REFUSAL_LABEL, THRESHOLDS, bufferDays, ditches, fmtRange, summary } from "@/lib/traktor";
+import { CRESTS, DEMO_NOTE, GMINA, LEGAL, REFUSAL_LABEL, THRESHOLDS, bufferDays, ditches, fmtRange, summary } from "@/lib/traktor";
 import { Button, Eyebrow, SourceLine, StatusChip } from "@/components/brand/ui";
 import { OrderBadge, StateTiles } from "@/components/brand/StateTiles";
 import { CrossSection, LongProfile } from "./Sections";
@@ -309,7 +309,7 @@ export function GminaPanel({
   return (
     <div className="space-y-4 px-5 pt-4 pb-6">
       <div>
-        <Eyebrow className="opacity-70">Gmina Kruszwica · podsumowanie</Eyebrow>
+        <Eyebrow className="opacity-70">{GMINA.short} · podsumowanie</Eyebrow>
         <h2 className="sh mt-1 text-[26px] leading-tight">
           <span className="num">{summary.sitesAccepted}</span> bezpiecznych miejsc na zastawkę
         </h2>

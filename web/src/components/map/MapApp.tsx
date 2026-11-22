@@ -34,7 +34,8 @@ export default function MapApp() {
   );
   const [scenario, setScenario] = useState<ScenarioChoice>(init.scenario);
   const [kowr, setKowr] = useState(init.kowr);
-  const [flood, setFlood] = useState(true);
+  const [flood, setFlood] = useState(false);
+  const [ortho, setOrtho] = useState(false);
   const [showRefused, setShowRefused] = useState(true);
   const [filter, setFilter] = useState<RefusalCode | null>(null);
   const [candId, setCandId] = useState<string | null>(null);
@@ -166,6 +167,7 @@ export default function MapApp() {
             selected={site}
             crest={crest}
             showFlood={flood}
+            ortho={ortho}
             showRefused={showRefused}
             refusalFilter={filter}
             kowrOnly={kowr}
@@ -224,6 +226,8 @@ export default function MapApp() {
         onKowr={() => setKowr((k) => !k)}
         flood={flood}
         onFlood={() => setFlood((f) => !f)}
+        ortho={ortho}
+        onOrtho={() => setOrtho((o) => !o)}
         refused={showRefused}
         onRefused={() => setShowRefused((r) => !r)}
       />
