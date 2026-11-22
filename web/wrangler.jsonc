@@ -27,10 +27,8 @@
   },
   // /api/analiza does FAO-56 ETP, satellite pixel loops (geotiff decode) and JSON parsing of a
   // 10-year NASA POWER series. 30 s CPU requires Workers Paid; on the Free plan the limit is 10 ms
-  // and this key must be removed (deploy fails otherwise).
-  "limits": {
-    "cpu_ms": 30000
-  },
+  // and this key must be removed (deploy fails otherwise). Removed: account is on the Free plan.
+  // To restore on Workers Paid: "limits": { "cpu_ms": 30000 },
   "vars": {
     // Native @duckdb/node-api (BDOT10k lookup) cannot load in workerd: engine falls back to Overpass.
     "TRAKTOR_DISABLE_DUCKDB": "1",
