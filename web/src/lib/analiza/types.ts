@@ -160,6 +160,10 @@ export type AnalysisResult = {
   irrigation: Irrigation | null;
   uncertainty: Uncertainty;
   sources: SourceInfo[];
+  /** origin of narrative text: deterministic template (default) or rephrased by a language model */
+  textSource?: "template" | "llm";
+  /** analysis method version shown in the report footer */
+  methodVersion?: string;
 };
 
 export type AnalysisError = { error: string; messagePl: string; step?: string };
