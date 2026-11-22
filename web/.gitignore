@@ -47,3 +47,6 @@ yarn-error.log*
 next-env.d.ts
 
 !.env.example
+
+# copied from node_modules by scripts/copy-maplibre-worker.mjs (prebuild)
+/public/vendor/

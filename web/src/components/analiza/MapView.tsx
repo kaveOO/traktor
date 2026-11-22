@@ -196,6 +196,10 @@ export default function MapView({
       .then((lib) => {
         if (cancelled || !el.current) return;
         libRef.current = lib;
+        // MapLibre 6: the tile worker is a separate ES module that Turbopack does not emit.
+        // It is copied to public/vendor by scripts/copy-maplibre-worker.mjs (prebuild).
+        const ml = lib as unknown as { setWorkerUrl?: (u: string) => void; default?: { setWorkerUrl?: (u: string) => void } };
+        (ml.setWorkerUrl ?? ml.default?.setWorkerUrl)?.("/vendor/maplibre-gl-worker.mjs");
         try {
           map = createMap(lib, el.current, (ll, z) => clickRef.current(ll, z));
         } catch {
