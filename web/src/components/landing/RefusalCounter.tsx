@@ -48,7 +48,7 @@ export function RefusalCounter({ points, accepted, rows }: { points: number; acc
   return (
     <div ref={ref} className="grid gap-10 md:grid-cols-[1fr_1.2fr] md:items-end">
       <div>
-        <p className="eb opacity-75">Punkty kandydackie → miejsca bezpieczne</p>
+        <p className="eb text-cream-muted">Punkty kandydackie → miejsca bezpieczne</p>
         <p className="hd num mt-3 text-[88px] md:text-[128px]" aria-live="off">
           {fmtInt(shown)}
         </p>
