@@ -34,7 +34,7 @@ const PRINT_CSS = `
 @page { size: A4 portrait; margin: 12mm; }
 @media print {
   html, body { background: #fff !important; }
-  .karta-sheet { box-shadow: none !important; background: #fff !important; width: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; }
+  .karta-sheet { box-shadow: none !important; background: #fff !important; width: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; zoom: 0.94; }
   .karta-sheet * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .karta-avoid { break-inside: avoid; }
 }
@@ -225,14 +225,14 @@ export default function SiteCard() {
             {site.upstreamFieldsHa.toLocaleString("pl-PL")} ha
           </p>
           {refused && (
-            <p className="mt-2 rounded-[4px] border-2 border-terra px-3 py-2 text-[12.5px] text-terra">
+            <p className="mt-1.5 rounded-[4px] border-2 border-terra px-3 py-1 text-[11px] leading-snug text-terra">
               <strong>Ta wysokość jest odrzucona.</strong> {crest.refusal?.messagePl}{" "}
               {site.maxAcceptedCrestCm ? `Najwyższa bezpieczna wysokość: ${site.maxAcceptedCrestCm} cm.` : ""}
             </p>
           )}
         </section>
 
-        <section className="karta-avoid mt-4 grid grid-cols-2 gap-4">
+        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4">
           <div>
             <p className="eb mb-1.5">Okolica miejsca</p>
             <MiniMap site={site} crestCm={crestCm} />
@@ -246,12 +246,12 @@ export default function SiteCard() {
             </div>
             <SourceLine className="mt-1">NMT LiDAR 1 m (GUGiK); przekrój uproszczony</SourceLine>
 
-            <div className="mt-3 rounded-[4px] border-2 border-forest/25 p-3">
+            <div className="mt-2 rounded-[4px] border-2 border-forest/25 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="eb">Polecenie teraz</p>
-                <OrderBadge action={order.action} className="!text-[16px]" />
+                <OrderBadge action={order.action} className="!px-2 !py-1 !text-[15px]" />
               </div>
-              <ul className="mt-2 space-y-0.5 text-[11.5px] leading-snug">
+              <ul className="mt-1.5 space-y-0.5 text-[10.5px] leading-snug">
                 {order.reasons.map((r) => (
                   <li key={r}>· {r}</li>
                 ))}
@@ -277,22 +277,22 @@ export default function SiteCard() {
           </div>
         </section>
 
-        <section className="karta-avoid mt-4 grid grid-cols-[1.25fr_1fr] gap-4">
+        <section className="karta-avoid mt-3 grid grid-cols-[1.2fr_1fr] gap-4">
           <div>
             <p className="eb mb-1">Parametry przy {crestCm} cm (zakresy)</p>
-            <table className="num w-full border-collapse text-[11.5px]">
+            <table className="num w-full border-collapse text-[11px]">
               <tbody>
                 {metrics.map((m) => (
                   <tr key={m.label} className="border-b border-forest/15">
-                    <td className="py-1 pr-2">{m.label}</td>
-                    <td className="py-1 pr-2 text-right font-semibold whitespace-nowrap">{m.value}</td>
-                    <td className="py-1 text-right text-[10px] opacity-70">{m.src}</td>
+                    <td className="py-[3px] pr-2">{m.label}</td>
+                    <td className="py-[3px] pr-2 text-right font-semibold whitespace-nowrap">{m.value}</td>
+                    <td className="py-[3px] text-right text-[9.5px] leading-tight opacity-70">{m.src}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="space-y-3 text-[11.5px] leading-snug">
+          <div className="space-y-2 text-[10.5px] leading-snug">
             <div>
               <p className="eb mb-1">Działki objęte</p>
               <ul className="space-y-0.5">
@@ -322,7 +322,7 @@ export default function SiteCard() {
           </div>
         </section>
 
-        <section className="karta-avoid mt-4 grid grid-cols-2 gap-4 text-[11.5px] leading-snug">
+        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 text-[10.5px] leading-snug">
           <div>
             <p className="eb mb-1">Czego jeszcze brakuje</p>
             <ul className="space-y-0.5">
@@ -346,7 +346,7 @@ export default function SiteCard() {
           </div>
         </section>
 
-        <div className="karta-avoid mt-5 flex items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
+        <div className="karta-avoid mt-3 flex items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
           <Icon name="pin" size={26} />
           <p className="hd text-[26px]">{LEGAL.siteVisit}</p>
           <p className="ml-auto max-w-[70mm] text-right text-[10px] leading-snug opacity-80">
@@ -354,10 +354,10 @@ export default function SiteCard() {
           </p>
         </div>
 
-        <footer className="mt-4 flex items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
+        <footer className="mt-3 flex items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
           <div>
             <p className="opacity-75">{DEMO_NOTE}</p>
-            <SourceLine>{SOURCES_MAP}; IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
+            <SourceLine>BDOT10k, NMT (GUGiK), IUNG; IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
           </div>
           <p className="sh shrink-0 text-[13px]">{TAGLINE_EN}</p>
         </footer>

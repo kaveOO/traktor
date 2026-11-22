@@ -39,7 +39,7 @@ function upstreamPath(site: Site, lenUnits: number): XY[] {
 
 export function MiniMap({ site, crestCm }: { site: Site; crestCm: CrestHeight }) {
   const W = 220;
-  const H = 150;
+  const H = 140;
   const x0 = site.xy[0] - W / 2;
   const y0 = site.xy[1] - H / 2;
   const crest = site.crests.find((k) => k.heightCm === crestCm);

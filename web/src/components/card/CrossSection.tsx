@@ -7,7 +7,7 @@ export function CrossSection({ site, crestCm }: { site: Site; crestCm: CrestHeig
   const { offset, ground } = site.xs;
   const h = crestCm / 100;
   const W = 360;
-  const H = 150;
+  const H = 125;
   const padT = 14;
   const padB = 18;
   const minX = offset[0];

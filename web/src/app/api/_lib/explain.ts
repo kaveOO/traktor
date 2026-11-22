@@ -6,7 +6,7 @@ const ACTION_PL = { TRZYMAJ: "TRZYMAJ", OTWORZ: "OTWÓRZ", NIE_RUSZAJ: "NIE RUSZ
 export function templateText(site: Site, crestCm: CrestHeight, c: Conditions): string {
   const crest = site.crests.find((k) => k.heightCm === crestCm);
   const s: string[] = [];
-  s.push(`Zastawka ${site.id} stoi na rowie ${site.name}.`);
+  s.push(`Zastawka ${site.id} stoi na rowie ${site.name.replace(/^Rów\s+/, "")}.`);
   if (!crest) {
     s.push(`Nie mamy obliczeń dla wysokości ${crestCm} cm.`);
   } else if (crest.status === "refused") {

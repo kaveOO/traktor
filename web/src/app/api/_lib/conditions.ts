@@ -29,15 +29,29 @@ async function forecast() {
   return { precip72hMm: r1(sum(p.slice(0, 3))), precip7dMm: r1(sum(p)), et0Mm: r1(e[0] as number) };
 }
 
+function kbwFrom(j: { daily?: Daily }, take?: number) {
+  let p = j.daily?.precipitation_sum;
+  let e = j.daily?.et0_fao_evapotranspiration;
+  if (!Array.isArray(p) || !Array.isArray(e)) throw new Error("bad history");
+  if (take) {
+    p = p.slice(0, take);
+    e = e.slice(0, take);
+  }
+  if (p.filter((v) => typeof v === "number").length < 30) throw new Error("short history");
+  return { kbw60Mm: Math.round(sum(p) - sum(e)) };
+}
+
 async function archive(now: Date) {
   const end = new Date(now.getTime() - 5 * 86400_000);
   const start = new Date(end.getTime() - 59 * 86400_000);
   const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${LAT}&longitude=${LON}&start_date=${ymd(start)}&end_date=${ymd(end)}&daily=precipitation_sum,et0_fao_evapotranspiration&timezone=Europe%2FWarsaw`;
-  const j = (await getJson(url)) as { daily?: Daily };
-  const p = j.daily?.precipitation_sum;
-  const e = j.daily?.et0_fao_evapotranspiration;
-  if (!Array.isArray(p) || !Array.isArray(e) || p.length < 30) throw new Error("bad archive");
-  return { kbw60Mm: Math.round(sum(p) - sum(e)) };
+  try {
+    return kbwFrom((await getJson(url)) as { daily?: Daily });
+  } catch {
+    // archive down or rate-limited: forecast API keeps the last 60 days too (past_days)
+    const alt = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=60&forecast_days=1&timezone=Europe%2FWarsaw`;
+    return kbwFrom((await getJson(alt)) as { daily?: Daily }, 60);
+  }
 }
 
 function toLevel(v: unknown): 1 | 2 | 3 {
