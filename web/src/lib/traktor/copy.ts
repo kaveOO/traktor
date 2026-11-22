@@ -61,6 +61,6 @@ export const FACTS = {
   outflow: "−30,5% odpływu (~71 mm)",
   nitrate: "−33,6% azotanów",
   storage: "retencja rowu 23% → 41%",
-  kowrHa: "1,324 mln ha",
+  kowrHa: "ok. 1,4 mln ha",
   droughtGminas: "394 gminy (16%) z suszą w 2025",
 };

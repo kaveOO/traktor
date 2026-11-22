@@ -13,7 +13,7 @@ Challenge: KOWR "Zatrzymaj wodę, chroń plony", HackNation 2026, Bydgoszcz.
 - Weirs raised usable ditch storage **23% → 41%** (Bajkowski et al. 2024, JWLD).
 - 2025: IUNG flagged drought for spring cereals in **394 gminas (16%)**.
 - 2024 drought aid: **1 000 / 2 000 / 3 000 zł/ha**, paid after the loss.
-- KOWR manages **1,324 mln ha** of state farmland.
+- KOWR manages **ok. 1,4 mln ha** of state farmland (official task description; gov.pl gave 1,324 mln ha on 28.11.2025 — on stage say "ok. 1,4 mln ha").
 - September 2024 flood = Copernicus EMS **EMSR756**.
 - A weir needs a **pozwolenie wodnoprawne (art. 389 pkt 6 Prawa wodnego)**; maintenance by owners / spółka wodna (art. 205).
 

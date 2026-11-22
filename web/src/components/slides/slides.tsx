@@ -4,36 +4,32 @@ import { useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/brand/Icon";
 import { Logo } from "@/components/brand/Logo";
 import { PointCloud } from "@/components/brand/PointCloud";
-import { OrderBadge, StateTiles } from "@/components/brand/StateTiles";
-import { Button, ProgressRail, SourceLine } from "@/components/brand/ui";
+import { StateTiles } from "@/components/brand/StateTiles";
+import { Button, SourceLine } from "@/components/brand/ui";
+import { CROPS } from "@/lib/analiza";
 import {
-  DEMO_NOTE,
   FACTS,
-  FEATURED_SITE_ID,
   GMINA,
   LEGAL,
   REFUSAL_LABEL,
   SOURCES_MAP,
-  TAGLINE_EN,
   TAGLINE_PL,
-  decideOrder,
-  fmtRange,
-  getScenario,
-  getSite,
   summary,
   type RefusalCode,
 } from "@/lib/traktor";
 
 /* ---------- helpers ---------- */
-const nbsp = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-const site = getSite(FEATURED_SITE_ID)!;
-const maxCrest = site.crests.find((c) => c.heightCm === site.maxAcceptedCrestCm)!;
+const nbsp = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+/** Parcel for the demo fallback: real ULDK id from the /mapa example. */
+const FALLBACK_PARCEL = "040307_2.0023.306/2";
+/** KOWR area as stated in the official task description (pitch kit: 1,324 mln ha). */
+const KOWR_HA_BRIEF = "ok. 1,4 mln ha";
 
 function Shell({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`absolute inset-0 px-16 pt-28 pb-24 ${className}`}>{children}</div>;
 }
-function En({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <p className={`text-[20px] leading-[1.4] opacity-65 ${className}`}>{children}</p>;
+function Sub({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <p className={`text-[22px] leading-[1.4] opacity-85 ${className}`}>{children}</p>;
 }
 
 /* ---------- 01 Title ---------- */
@@ -46,11 +42,9 @@ function Title({ active }: { active: boolean }) {
         <div className="rise">
           <Logo height={56} color="cream" />
         </div>
-        <h1 className="hd rise mt-14 max-w-[1100px] text-[132px]">Let the land hold its water.</h1>
-        <p className="sh rise mt-6 text-[40px]">{TAGLINE_PL}</p>
-        <p className="eb rise mt-16 text-[14px] opacity-80">
-          HackNation 2026 · KOWR „Zatrzymaj wodę, chroń plony”
-        </p>
+        <h1 className="hd rise mt-14 max-w-[1150px] text-[120px]">{TAGLINE_PL}</h1>
+        <p className="sh rise mt-6 text-[36px]">Asystent wody dla jednej działki rolnej.</p>
+        <p className="eb rise mt-16 text-[14px] opacity-85">HackNation 2026 · KOWR „Zatrzymaj wodę, chroń plony”</p>
       </Shell>
     </>
   );
@@ -59,201 +53,130 @@ function Title({ active }: { active: boolean }) {
 /* ---------- 02 Problem ---------- */
 function Problem() {
   const stats: { v: string; l: string; s: string; icon: IconName }[] = [
-    { v: "6,4 mln ha", l: "zmeliorowanych użytków rolnych", s: "NIK / GUS", icon: "ditch" },
     { v: "394 gminy", l: "z suszą w zbożach jarych w 2025 r. (16%)", s: "IUNG", icon: "drought" },
+    { v: FACTS.drainedHa, l: "zmeliorowanych użytków rolnych", s: "NIK / GUS", icon: "ditch" },
     { v: "do 3 000 zł/ha", l: "pomocy suszowej, wypłacanej po stracie", s: "pomoc suszowa 2024", icon: "tractor" },
     { v: "EMSR756", l: "powódź, wrzesień 2024", s: "Copernicus EMS", icon: "storm" },
   ];
   return (
     <Shell className="flex flex-col">
-      <h2 className="hd rise text-[96px]">Za dużo, potem za mało.</h2>
-      <En className="rise mt-4">Too much water, then too little.</En>
-      <div className="mt-auto grid grid-cols-4 gap-6">
+      <h2 className="hd rise text-[96px]">Za dużo wody, potem za mało.</h2>
+      <div className="mt-14 grid grid-cols-4 gap-6">
         {stats.map((s) => (
           <div key={s.v} className="rise border-t-2 border-forest pt-6">
             <Icon name={s.icon} size={32} className={s.icon === "storm" ? "text-water" : ""} />
-            <p className="hd num mt-6 text-[64px]">{s.v}</p>
+            <p className="hd num mt-6 text-[60px]">{s.v}</p>
             <p className="mt-3 text-[20px] leading-[1.4]">{s.l}</p>
-            <p className="mt-3 text-[13px] opacity-60">Źródło: {s.s}</p>
+            <p className="mt-3 text-[13px] opacity-85">Źródło: {s.s}</p>
           </div>
         ))}
       </div>
-      <p className="sh rise mt-12 text-[30px]">
-        Wiosną rów odprowadza wodę. W sierpniu jej brakuje. Melioracja działa tylko w jedną stronę: na zewnątrz.
+      <div className="rise mt-auto max-w-[1300px] space-y-2">
+        <p className="sh text-[34px]">Dane o wodzie leżą w osobnych serwisach.</p>
+        <p className="sh text-[34px]">Rolnik nie jest analitykiem GIS.</p>
+      </div>
+    </Shell>
+  );
+}
+
+/* ---------- 03 What the farmer does ---------- */
+function Steps() {
+  const steps: [string, string, string][] = [
+    ["01", "Działka", "Numer ewidencyjny albo klik na mapie."],
+    ["02", "Uprawa", `Jedna z ${CROPS.length} upraw na liście.`],
+    ["03", "Data", "Dziś albo dowolny dzień do 10 lat wstecz."],
+  ];
+  return (
+    <Shell className="flex flex-col">
+      <h2 className="hd rise text-[96px]">Trzy pola. Jeden raport.</h2>
+      <div className="mt-14 grid grid-cols-[1fr_1fr_1fr_1.15fr] gap-6">
+        {steps.map(([n, t, d]) => (
+          <div key={n} className="rise rounded-[4px] border-[1.5px] border-forest/30 p-8">
+            <p className="eb num opacity-85">{n}</p>
+            <p className="hd mt-4 text-[52px]">{t}</p>
+            <p className="mt-4 text-[20px] leading-[1.45]">{d}</p>
+          </div>
+        ))}
+        <div className="rise rounded-[4px] bg-forest p-8 text-cream">
+          <Icon name="pin" size={28} />
+          <p className="hd mt-4 text-[52px]">Raport</p>
+          <ul className="mt-4 space-y-1.5 text-[18px] leading-[1.4]">
+            <li>Stan wody na działce</li>
+            <li>Przyczyny niedoboru</li>
+            <li>Działania w kolejności</li>
+            <li>Źródła z datą</li>
+            <li>Poziom niepewności</li>
+            <li>Druk albo PDF</li>
+          </ul>
+        </div>
+      </div>
+      <p className="rise mt-auto text-[22px] leading-[1.45]">
+        Bez konta. Bez danych osobowych. Wynik liczony z danych pobranych w chwili zapytania.
       </p>
     </Shell>
   );
 }
 
-/* ---------- 03 Insight ---------- */
-function DitchProfile({ mode }: { mode: "TRZYMAJ" | "OTWORZ" }) {
-  // side view of a ditch: bank above, bed sloping downstream (left -> right), board at x = 470
-  const bedY = (x: number) => 190 + ((x - 40) / 680) * 90;
-  const bankY = (x: number) => 70 + ((x - 40) / 680) * 90;
-  const bx = 470;
-  const hold = mode === "TRZYMAJ";
-  const level = hold ? 0 : 85; // translateY of the water rect
-  const bed = Array.from({ length: 18 }, (_, i) => 40 + (i * 680) / 17).map((x) => `${x},${bedY(x)}`).join(" ");
-  return (
-    <svg viewBox="0 0 760 360" className="w-full" role="img" aria-label="Przekrój podłużny rowu z zastawką">
-      <defs>
-        <clipPath id="deck-up">
-          <polygon
-            points={`40,0 ${bx - 4},0 ${bx - 4},${bedY(bx - 4)} ${bed
-              .split(" ")
-              .filter((p) => Number(p.split(",")[0]) < bx - 4)
-              .reverse()
-              .join(" ")}`}
-          />
-        </clipPath>
-      </defs>
-      {/* field / bank */}
-      <polygon points={`40,${bankY(40)} 720,${bankY(720)} 720,340 40,340`} fill="#EFE6D3" />
-      <line x1="40" y1={bankY(40)} x2="720" y2={bankY(720)} stroke="#4F7A3A" strokeWidth="3" />
-      {/* channel cut */}
-      <polygon points={`40,${bankY(40) + 6} 720,${bankY(720) + 6} ${bed.split(" ").reverse().join(" ")}`} fill="#F3ECDD" />
-      {/* held water upstream of the board */}
-      <g clipPath="url(#deck-up)">
-        <rect
-          className="deck-water"
-          x="40"
-          y="150"
-          width={bx}
-          height="200"
-          fill="#3B7FA3"
-          opacity="0.85"
-          style={{ transform: `translateY(${level}px)` }}
-        />
-      </g>
-      {/* low flow along the bed, always there */}
-      <polyline points={bed.split(" ").map((p) => { const [x, y] = p.split(",").map(Number); return `${x},${y - 5}`; }).join(" ")} fill="none" stroke="#3B7FA3" strokeWidth="6" opacity="0.85" />
-      {/* bed */}
-      <polyline points={bed} fill="none" stroke="#6B4A2E" strokeWidth="4" />
-      {/* the board */}
-      <rect
-        className="deck-board"
-        x={bx - 6}
-        y={150}
-        width="12"
-        height={bedY(bx) - 150}
-        fill="#6B4A2E"
-        style={{ transform: `translateY(${hold ? 0 : bedY(bx) - 150 - 14}px)` }}
-      />
-      <rect x={bx - 10} y={bankY(bx) - 6} width="20" height="10" fill="#1F3A22" />
-      <text x={bx + 18} y={bankY(bx) - 14} className="eb" fill="#1F3A22">
-        Zastawka
-      </text>
-      <text x="48" y={bankY(40) - 14} className="eb" fill="#1F3A22">
-        Pole
-      </text>
-      <text x="640" y="330" className="eb" fill="#1F3A22">
-        Odpływ →
-      </text>
-      <text x="60" y="330" className="eb" fill="#3B7FA3">
-        {hold ? "Woda zatrzymana w rowie" : "Rów opróżniony przed burzą"}
-      </text>
-    </svg>
-  );
-}
-
-function Insight() {
-  const [mode, setMode] = useState<"TRZYMAJ" | "OTWORZ">("TRZYMAJ");
-  return (
-    <Shell className="grid grid-cols-[1fr_1.1fr] gap-16">
-      <div className="flex flex-col">
-        <h2 className="hd rise text-[110px]">Jedna zastawka. Dwa tryby.</h2>
-        <En className="rise mt-5">One board. Two states.</En>
-        <p className="rise mt-8 max-w-[560px] text-[22px] leading-[1.45]">
-          Drewniana zastawka w istniejącym rowie melioracyjnym. Bez koparki i bez nowego zbiornika. W suszy trzyma wodę
-          przy korzeniach. Przed burzą opróżnia rów.
-        </p>
-        <div className="rise mt-auto" data-noadvance>
-          <StateTiles active={mode} onChange={setMode} size="md" showEnglish />
-          <p className="mt-3 text-[13px] opacity-60">Kliknij, aby przełączyć.</p>
-        </div>
-      </div>
-      <div className="rise flex flex-col justify-center" data-noadvance onClick={() => setMode((m) => (m === "TRZYMAJ" ? "OTWORZ" : "TRZYMAJ"))}>
-        <DitchProfile mode={mode} />
-        <p className="mt-2 text-[13px] opacity-60">Schemat, nie w skali.</p>
-      </div>
-    </Shell>
-  );
-}
-
-/* ---------- 04 How it works ---------- */
-function How() {
-  const pillars: { icon: IconName; t: string; en: string; d: string }[] = [
-    { icon: "lidar", t: "Uziemione", en: "Grounded", d: "Istniejące rowy z BDOT10k, teren z NMT LiDAR 1 m. Bez nowych wykopów." },
-    { icon: "board", t: "Odwracalne", en: "Reversible", d: "Deska w górę albo w dół. Jedno polecenie dziennie. Bez betonu." },
-    { icon: "pin", t: "Precyzyjne", en: "Precise", d: "Każde miejsce ma wysokość deski w cm i zakres objętości w m³." },
+/* ---------- 04 How it decides ---------- */
+function Chain() {
+  const chain: { t: string; d: string; src: string }[] = [
+    { t: "Ocena", d: "Bilans wody 60 dni i sezon na tle 10 lat. Stan roślin z satelity.", src: "Open-Meteo ERA5 · Sentinel-2" },
+    { t: "Przyczyny", d: "Brak opadu, słaba retencja gleby, szybki odpływ, wrażliwa faza uprawy.", src: "ERA5 · IUNG · SoilGrids · NMT" },
+    { t: "Retencja", d: "Zastawka na rowie, oczko w obniżeniu, pas buforowy.", src: "BDOT10k · NMT 1 m" },
+    { t: "Agrotechnika", d: "Międzyplon, mulcz, uprawa uproszczona, materia organiczna.", src: "gleba · uprawa" },
+    { t: "Nawadnianie", d: "ETc − opad − zapas w glebie. Nie teraz, rozważ albo tak, z dawką w mm.", src: "Kc FAO-56 · ET₀" },
   ];
   return (
     <Shell className="flex flex-col">
-      <h2 className="hd rise text-[96px]">Od rowu do decyzji.</h2>
-      <En className="rise mt-4">From the ditch to a daily order.</En>
-      <div className="rise mt-16 [&_li>span:last-child]:text-[15px]">
-        <ProgressRail current={8} tone="onForest" />
-      </div>
-      <div className="mt-auto grid grid-cols-3 gap-6">
-        {pillars.map((p) => (
-          <div key={p.t} className="rise rounded-[4px] border-[1.5px] border-cream/30 p-8">
-            <Icon name={p.icon} size={32} />
-            <p className="hd mt-6 text-[48px]">{p.t}</p>
-            <p className="eb mt-2 opacity-60">{p.en}</p>
-            <p className="mt-4 text-[19px] leading-[1.45] opacity-90">{p.d}</p>
-          </div>
+      <h2 className="hd rise text-[96px]">Najpierw przyczyna, potem rada.</h2>
+      <Sub className="rise mt-4">Kolejność z Załącznika 1 do zadania. Nawadnianie jest opcjonalne.</Sub>
+      <ol className="mt-12 grid grid-cols-5 gap-4">
+        {chain.map((c, i) => (
+          <li key={c.t} className="rise flex flex-col rounded-[4px] border-[1.5px] border-cream/30 p-6">
+            <p className="eb num opacity-85">
+              {String(i + 1).padStart(2, "0")} {i < chain.length - 1 ? "→" : ""}
+            </p>
+            <p className="hd mt-3 text-[38px]">{c.t}</p>
+            <p className="mt-3 text-[17px] leading-[1.45] opacity-90">{c.d}</p>
+            <p className="eb mt-auto pt-5 opacity-85">{c.src}</p>
+          </li>
         ))}
-      </div>
+      </ol>
+      <p className="sh rise mt-auto text-[30px]">Bez przyczyny opartej na danych nie ma rekomendacji.</p>
     </Shell>
   );
 }
 
-/* ---------- 05 Refusal ---------- */
-function Refusal() {
-  const rows = (Object.entries(summary.refusalsByCode) as [RefusalCode, number][]).sort((a, b) => b[1] - a[1]);
-  const max = Math.max(...rows.map((r) => r[1]));
-  const refused = rows.reduce((t, r) => t + r[1], 0);
+/* ---------- 05 Data ---------- */
+function Data() {
+  const cats: { icon: IconName; t: string; src: string[]; use: string }[] = [
+    { icon: "drought", t: "Meteorologiczne", src: ["Open-Meteo ERA5, 10 lat", "IMGW-PIB"], use: "opad, ET₀, temperatura, ostrzeżenia" },
+    { icon: "lidar", t: "Satelitarne", src: ["Sentinel-2 L2A"], use: "NDVI i NDMI działki na tle lat poprzednich" },
+    { icon: "tractor", t: "Glebowe", src: ["IUNG", "SoilGrids"], use: "kategoria gleby, piasek, glina, zapas wody" },
+    { icon: "water", t: "Hydrologiczne", src: ["cieki i rowy BDOT10k", "ISOK"], use: "odległość do rowu, strefy zalewowe" },
+    { icon: "pin", t: "Przestrzenne", src: ["ULDK", "NMT 1 m", "BDOT10k"], use: "granice działki, spadek, obniżenia" },
+  ];
   return (
-    <Shell className="grid grid-cols-[1fr_1fr] gap-20">
-      <div className="flex flex-col">
-        <p className="eb rise opacity-70">{GMINA.name}</p>
-        <p className="hd num rise mt-6 text-[150px]">{nbsp(summary.pointsAnalysed)}</p>
-        <p className="sh rise text-[32px]">punktów na rowach</p>
-        <p className="hd num rise mt-8 text-[150px] text-agri">→ {summary.sitesAccepted}</p>
-        <p className="sh rise text-[32px]">bezpiecznych miejsc</p>
-        <p className="rise mt-auto max-w-[620px] text-[24px] leading-[1.4]">
-          Większość miejsc nie przyjmie zastawki. TRAKTOR mówi „nie” i mówi dlaczego.
-        </p>
-        <En className="rise mt-2 text-[18px]">Most places cannot take a board. TRAKTOR says no, and says why.</En>
+    <Shell className="flex flex-col">
+      <h2 className="hd rise text-[96px]">Pięć kategorii danych. Wszystkie darmowe.</h2>
+      <div className="mt-12 grid grid-cols-5 gap-5">
+        {cats.map((c) => (
+          <div key={c.t} className="rise border-t-2 border-forest pt-6">
+            <Icon name={c.icon} size={30} className={c.icon === "water" ? "text-water" : ""} />
+            <p className="sh mt-5 text-[28px]">{c.t}</p>
+            <ul className="mt-4 space-y-1 text-[19px] font-semibold leading-[1.35]">
+              {c.src.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+            <p className="mt-4 text-[16px] leading-[1.45] opacity-85">{c.use}</p>
+          </div>
+        ))}
       </div>
-      <div className="flex flex-col justify-center">
-        <p className="eb rise mb-6 opacity-70">
-          Odrzucone: <span className="num">{nbsp(refused)}</span>, według powodu
-        </p>
-        <ul className="space-y-5">
-          {rows.map(([code, n]) => (
-            <li key={code} className="rise">
-              <div className="flex justify-between text-[19px]">
-                <span>{REFUSAL_LABEL[code]}</span>
-                <span className="num font-semibold">{nbsp(n)}</span>
-              </div>
-              <div className="mt-1.5 h-4 bg-forest/8">
-                <div className="h-full bg-terra" style={{ width: `${(n / max) * 100}%` }} />
-              </div>
-            </li>
-          ))}
-          <li className="rise pt-3">
-            <div className="flex justify-between text-[19px] font-semibold text-agri">
-              <span>Miejsca bezpieczne</span>
-              <span className="num">{summary.sitesAccepted}</span>
-            </div>
-            <div className="mt-1.5 h-4 bg-forest/8">
-              <div className="h-full bg-agri" style={{ width: `${(summary.sitesAccepted / max) * 100}%` }} />
-            </div>
-          </li>
-        </ul>
-        <SourceLine className="mt-8">{SOURCES_MAP}</SourceLine>
-      </div>
+      <p className="rise mt-auto text-[18px] leading-[1.45] opacity-85">
+        Bez płatnych usług i bez kont. Licencje w README: Open-Meteo i SoilGrids CC BY 4.0, GUGiK, IMGW-PIB, IUNG,
+        Copernicus.
+      </p>
     </Shell>
   );
 }
@@ -261,13 +184,12 @@ function Refusal() {
 /* ---------- 06 Demo ---------- */
 function Demo({ active }: { active: boolean }) {
   const steps = [
-    `Mapa na zachód od Bydgoszczy (${GMINA.short}): każdy rów z BDOT10k. ${nbsp(summary.pointsAnalysed)} punktów → ${summary.sitesAccepted} bezpiecznych.`,
-    "Szukamy działki. Jej miejsca się podświetlają.",
-    `${FEATURED_SITE_ID}: deska z 20 na 40 cm. Rosną m³, cofka, hektary i dni zapasu.`,
-    "60 cm: woda wchodzi na działkę sąsiada. Odmowa.",
-    "Polecenie: TRZYMAJ. „Dlaczego?” → KBW −86 mm, brak opadu, gleba kat. I.",
-    "Ostrzeżenie burzowe → OTWÓRZ, z terminem i zwolnionymi m³.",
-    "Karta miejsca do druku: ścieżka prawna i „Wymaga wizji lokalnej”.",
+    "Jury podaje numer działki. Albo klikamy mapę.",
+    "Wybieramy uprawę i datę. Może być sprzed lat.",
+    "Analizuj. Lista źródeł pokazuje: pobrano albo brak danych.",
+    "Ocena i przyczyny. Każda liczba ma źródło i datę.",
+    "Retencja, agrotechnika, nawadnianie.",
+    "Raport do druku z poziomem niepewności.",
   ];
   return (
     <>
@@ -275,142 +197,117 @@ function Demo({ active }: { active: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-r from-forest from-55% to-forest/0" />
       <Shell className="flex flex-col">
         <h2 className="hd rise text-[200px] leading-[0.85]">Demo</h2>
-        <En className="rise mt-4">Na żywo, ok. 1:45. Mapa: dane rzeczywiste. Pogoda: scenariusze demonstracyjne.</En>
+        <Sub className="rise mt-4">Na żywo, na działce wskazanej przez jury.</Sub>
         <ol className="mt-10 max-w-[860px] space-y-4">
           {steps.map((s, i) => (
-            <li key={i} className="rise flex gap-6 text-[22px] leading-[1.4]">
-              <span className="num eb mt-1.5 w-8 shrink-0 text-[13px] opacity-60">{String(i + 1).padStart(2, "0")}</span>
+            <li key={i} className="rise flex gap-6 text-[24px] leading-[1.4]">
+              <span className="num eb mt-2 w-8 shrink-0 text-[13px] opacity-85">{String(i + 1).padStart(2, "0")}</span>
               <span>{s}</span>
             </li>
           ))}
         </ol>
-        <div className="rise mt-auto">
-          <Button href="/mapa?site=S-007&crest=60&scenario=drought-aug" tone="onForest" className="text-[18px]">
-            <Icon name="pin" size={20} /> Otwórz mapę: {FEATURED_SITE_ID}
+        <div className="rise mt-auto flex items-center gap-6">
+          <Button href="/analiza" tone="onForest" className="text-[18px]">
+            <Icon name="pin" size={20} /> Otwórz analizę działki
           </Button>
+          <p className="text-[15px] opacity-85">
+            Działka zapasowa: <span className="num">{FALLBACK_PARCEL}</span>
+          </p>
         </div>
       </Shell>
     </>
   );
 }
 
-/* ---------- 07 Flip ---------- */
-function Flip() {
-  const dry = getScenario("drought-aug");
-  const wet = getScenario("storm-warning");
-  const oDry = decideOrder(site, dry);
-  const oWet = decideOrder(site, wet);
-  const w = wet.warnings[0];
-  const col = (
-    o: typeof oDry,
-    label: string,
-    rows: [string, string][],
-    tone: "forest" | "water",
-    extra?: ReactNode,
-  ) => (
-    <div className={`rise rounded-[4px] border-2 p-10 ${tone === "water" ? "border-water" : "border-forest"}`}>
-      <p className="eb opacity-70">{label}</p>
-      <OrderBadge action={o.action} className="mt-5 !px-5 !py-3 !text-[56px]" />
-      <dl className="mt-8 space-y-3">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex justify-between border-b border-forest/15 pb-2 text-[20px]">
-            <dt className="opacity-70">{k}</dt>
-            <dd className="num font-semibold">{v}</dd>
-          </div>
-        ))}
-      </dl>
-      <ul className="mt-6 space-y-1.5 text-[17px] leading-[1.45]">
-        {o.reasons.map((r) => (
-          <li key={r}>{r}</li>
-        ))}
-      </ul>
-      {extra}
-      <p className="eb mt-6 opacity-50">Reguła {o.ruleId}</p>
-    </div>
-  );
+/* ---------- 07 Retention first ---------- */
+function Retention() {
+  const [mode, setMode] = useState<"TRZYMAJ" | "OTWORZ">("TRZYMAJ");
+  const rows = (Object.entries(summary.refusalsByCode) as [RefusalCode, number][]).sort((a, b) => b[1] - a[1]);
+  const top = rows.slice(0, 3);
+  const max = Math.max(...rows.map((r) => r[1]));
   return (
-    <Shell className="flex flex-col">
-      <h2 className="hd rise text-[88px]">Ta sama deska. Inne polecenie.</h2>
-      <En className="rise mt-3">
-        Miejsce {FEATURED_SITE_ID}, deska {site.maxAcceptedCrestCm} cm. Same board: the weather sets the order.
-      </En>
-      <div className="mt-10 grid grid-cols-2 gap-8">
-        {col(
-          oDry,
-          "Scenariusz: susza · sierpień",
-          [
-            ["KBW 60 dni", `${dry.kbw60Mm} mm`],
-            ["Opad 72 h", `${dry.precip72hMm} mm`],
-            ["Ostrzeżenia IMGW", "brak"],
-          ],
-          "forest",
-        )}
-        {col(
-          oWet,
-          "Scenariusz: ostrzeżenie burzowe",
-          [
-            ["Ostrzeżenie IMGW", `st. ${w?.level ?? "–"}`],
-            ["Opad 72 h", `${wet.precip72hMm} mm`],
-            ["Zwolnione w rowie", oWet.capacityFreedM3 ? fmtRange(oWet.capacityFreedM3, "m³") : "–"],
-          ],
-          "water",
-        )}
+    <Shell className="grid grid-cols-[1.05fr_1fr] gap-16">
+      <div className="flex flex-col">
+        <h2 className="hd rise text-[72px]">Zatrzymaj wodę tam, gdzie spadła.</h2>
+        <ul className="mt-8 space-y-5 text-[20px] leading-[1.45]">
+          <li className="rise">
+            <p className="sh text-[28px]">Zastawka na rowie</p>
+            <p>W suszy trzyma wodę w rowie. Przed burzą rów zostaje pusty.</p>
+          </li>
+          <li className="rise">
+            <p className="sh text-[28px]">Oczko w obniżeniu</p>
+            <p>NMT 1 m pokazuje najniższe miejsca działki. Tam zbiera się woda.</p>
+          </li>
+          <li className="rise">
+            <p className="sh text-[28px]">Międzyplon</p>
+            <p>Okryta gleba traci mniej wody.</p>
+          </li>
+        </ul>
+        <div className="rise mt-auto" data-noadvance>
+          <StateTiles active={mode} onChange={setMode} size="sm" />
+        </div>
       </div>
-      <p className="mt-auto text-[11px] opacity-60">
-        Scenariusze demonstracyjne na danych IMGW-PIB i Open-Meteo. Progi do kalibracji. Zwolnione m³ to szacunek
-        przesiewowy.
-      </p>
+      <div className="flex flex-col">
+        <p className="eb rise opacity-85">Przykład: {GMINA.name} · /mapa</p>
+        <p className="hd num rise mt-5 text-[96px]">
+          {nbsp(summary.pointsAnalysed)} <span className="text-agri">→ {summary.sitesAccepted}</span>
+        </p>
+        <p className="sh rise text-[26px]">punktów na rowach → miejsc bezpiecznych</p>
+        <ul className="mt-8 space-y-4">
+          {top.map(([code, n]) => (
+            <li key={code} className="rise">
+              <div className="flex justify-between text-[18px]">
+                <span>{REFUSAL_LABEL[code]}</span>
+                <span className="num font-semibold">{nbsp(n)}</span>
+              </div>
+              <div className="mt-1.5 h-3 bg-forest/8">
+                <div className="h-full bg-terra" style={{ width: `${(n / max) * 100}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="rise mt-6 text-[20px] leading-[1.4]">
+          Większość punktów nie przyjmie zastawki. Każda odmowa ma powód.
+        </p>
+        <SourceLine className="mt-auto">{SOURCES_MAP}</SourceLine>
+      </div>
     </Shell>
   );
 }
 
-/* ---------- 08 Data & honesty ---------- */
-function Data() {
-  const src: [string, string][] = [
-    ["BDOT10k", "rowy, drogi, przepusty, budynki"],
-    ["NMT LiDAR 1 m · GUGiK", "teren, spadek, cofka"],
-    ["ULDK", "działki ewidencyjne"],
-    ["IMGW-PIB", "ostrzeżenia, opady"],
-    ["Open-Meteo", "prognoza, ET₀"],
-    ["ISOK", "obszary zalewowe"],
-    ["IUNG", "susza rolnicza, gleby"],
-  ];
-  const honest: [string, string][] = [
-    ["Przedziały", "Retencja i hektary to szacunki przesiewowe. Zawsze podajemy zakres."],
-    ["Odmowy", "Każde odrzucone miejsce ma nazwany powód."],
-    ["Ścieżka prawna", LEGAL.permit],
-    ["Wizja lokalna", "Na każdej karcie: „Wymaga wizji lokalnej”. Drenaż podziemny oznaczamy do sprawdzenia."],
-    ["Bez obietnic plonu", "Nie podajemy wzrostu plonów. Zmierzy go pilot."],
+/* ---------- 08 Honest report ---------- */
+function Honest() {
+  const report: [string, string][] = [
+    ["Źródła", "Każda liczba z nazwą źródła i datą pobrania."],
+    ["Niepewność", "Poziom: niski, średni albo wysoki. Zależy od braków w danych."],
+    ["Braki", "Podane wprost, np. „Brak danych satelitarnych: zachmurzenie”."],
+    ["Szacunki", "Retencja i dawki jako zakres. Progi oznaczone „do kalibracji”."],
+    ["Plon", "Nie obiecujemy wzrostu plonu. Zmierzy go pilot."],
   ];
   return (
-    <Shell className="grid grid-cols-[0.9fr_1.1fr] gap-16">
+    <Shell className="grid grid-cols-[1.15fr_0.85fr] gap-16">
       <div className="flex flex-col">
-        <h2 className="hd rise text-[80px]">7 darmowych źródeł publicznych.</h2>
-        <En className="rise mt-3">Seven free public datasets. No licences.</En>
-        <ul className="mt-8 divide-y divide-forest/15 border-y border-forest/15">
-          {src.map(([n, d]) => (
-            <li key={n} className="rise flex items-baseline justify-between py-3">
-              <span className="sh text-[24px]">{n}</span>
-              <span className="text-[16px] opacity-70">{d}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="flex flex-col">
-        <p className="hd rise text-[48px]">Co mówimy wprost</p>
-        <ul className="mt-6 space-y-4">
-          {honest.map(([t, d]) => (
-            <li key={t} className="rise grid grid-cols-[200px_1fr] gap-4 text-[18px] leading-[1.4]">
+        <h2 className="hd rise text-[88px]">Raport mówi, czego nie wie.</h2>
+        <ul className="mt-10 space-y-4">
+          {report.map(([t, d]) => (
+            <li key={t} className="rise grid grid-cols-[180px_1fr] gap-4 border-b border-forest/15 pb-3 text-[20px] leading-[1.4]">
               <span className="font-semibold">{t}</span>
               <span>{d}</span>
             </li>
           ))}
         </ul>
-        <div className="rise mt-auto rounded-[4px] bg-cream-deep p-6">
-          <p className="eb opacity-70">Gdzie jest AI</p>
-          <p className="mt-2 text-[18px] leading-[1.45]">
-            Geometria i reguły są deterministyczne: nie stać nas na wymyśloną powódź. Prognozy pochodzą z IMGW i
-            Open-Meteo. Model językowy tylko opisuje wynik prostym polskim. Liczb nie zmienia.
+      </div>
+      <div className="flex flex-col gap-6">
+        <div className="rise rounded-[4px] bg-cream-deep p-7">
+          <p className="eb opacity-85">Ścieżka prawna zastawki</p>
+          <p className="mt-3 text-[20px] leading-[1.45]">{LEGAL.permit}</p>
+          <p className="mt-2 text-[18px] leading-[1.45] opacity-85">{LEGAL.maintenance}</p>
+          <p className="sh mt-4 text-[24px]">{LEGAL.siteVisit}</p>
+        </div>
+        <div className="rise mt-auto rounded-[4px] border-[1.5px] border-forest/30 p-7">
+          <p className="eb opacity-85">Gdzie jest AI</p>
+          <p className="mt-3 text-[18px] leading-[1.45]">
+            Liczby i reguły są deterministyczne. Model językowy może tylko opisać wynik prostym polskim. Liczb nie zmienia.
           </p>
         </div>
       </div>
@@ -418,70 +315,45 @@ function Data() {
   );
 }
 
-/* ---------- 09 Impact ---------- */
-function Block({ title, rows }: { title: string; rows: [string, string][] }) {
+/* ---------- 09 Scale ---------- */
+function Scale() {
+  const rows: [string, string][] = [
+    ["Zasięg", "Każda działka w ULDK"],
+    ["Dane", "Publiczne, bez licencji"],
+    ["Czas analizy", "Cel: ≤ 30 s"],
+    ["Pamięć podręczna", "Działka · uprawa · data"],
+    ["Pierwszy użytkownik", `KOWR, ${KOWR_HA_BRIEF}`],
+  ];
   return (
-    <div className="rise">
-      <p className="eb opacity-70">{title}</p>
-      <dl className="mt-4 space-y-3">
+    <Shell className="grid grid-cols-[1fr_1fr] gap-20">
+      <div className="flex flex-col">
+        <h2 className="hd rise text-[96px]">Każda działka w Polsce.</h2>
+        <p className="rise mt-8 max-w-[640px] text-[22px] leading-[1.45]">
+          Nie znaleźliśmy narzędzia, które łączy pięć kategorii danych dla jednej działki i jednej uprawy.
+        </p>
+        <p className="rise mt-5 max-w-[640px] text-[22px] leading-[1.45]">
+          Retencja idzie przed nawadnianiem. Najpierw zatrzymujemy wodę, która już spadła.
+        </p>
+        <p className="rise mt-auto text-[13px] opacity-85">Powierzchnia KOWR wg opisu zadania.</p>
+      </div>
+      <dl className="flex flex-col justify-center">
         {rows.map(([k, v]) => (
-          <div key={k} className="flex items-baseline justify-between border-b border-forest/15 pb-2">
-            <dt className="text-[19px] opacity-75">{k}</dt>
-            <dd className="hd num text-[44px]">{v}</dd>
+          <div key={k} className="rise flex items-baseline justify-between gap-6 border-b border-forest/15 py-4">
+            <dt className="text-[19px] opacity-85">{k}</dt>
+            <dd className="sh num text-right text-[34px]">{v}</dd>
           </div>
         ))}
       </dl>
-    </div>
-  );
-}
-
-function Impact() {
-  const perSite: [string, string][] = [
-    ["Wysokość deski", `${maxCrest.heightCm} cm`],
-    ["Retencja w rowie", fmtRange(maxCrest.storageM3, "m³")],
-    ["Cofka", `~${nbsp(maxCrest.backwaterM)} m`],
-    ["Nawodnione pasy pól", fmtRange(maxCrest.rehydratedHa, "ha")],
-  ];
-  const gmina: [string, string][] = [
-    ["Bezpieczne miejsca", String(summary.sitesAccepted)],
-    ["Retencja łącznie", fmtRange(summary.totalStorageM3, "m³")],
-    ["Nawodnione łącznie", fmtRange(summary.totalRehydratedHa, "ha")],
-  ];
-  const cited: [string, string, string][] = [
-    ["−30,5%", "odpływu (~71 mm)", "Kęsicka i in. 2022, PLoS ONE"],
-    ["−33,6%", "azotanów", "Kęsicka i in. 2022, PLoS ONE"],
-    ["23% → 41%", "wykorzystania pojemności rowu", "Bajkowski i in. 2024, JWLD"],
-  ];
-  return (
-    <Shell className="flex flex-col">
-      <h2 className="hd rise text-[88px]">Woda zostaje tam, gdzie spadła.</h2>
-      <En className="rise mt-3">What one board and one area can hold. Screening estimates.</En>
-      <div className="mt-10 grid grid-cols-2 gap-16">
-        <Block title={`Miejsce ${FEATURED_SITE_ID} · ${site.name}`} rows={perSite} />
-        <Block title={GMINA.name} rows={gmina} />
-      </div>
-      <div className="mt-auto grid grid-cols-3 gap-6 rounded-[4px] bg-cream-deep p-8">
-        {cited.map(([v, l, s]) => (
-          <div key={v} className="rise">
-            <p className="hd num text-[56px] text-water">{v}</p>
-            <p className="text-[18px]">{l}</p>
-            <p className="mt-1 text-[12px] opacity-60">{s}</p>
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-[11px] opacity-60">
-        Wyniki badań terenowych drenażu sterowanego, nie prognoza dla tego obszaru. Bez deklaracji plonów. {DEMO_NOTE}
-      </p>
     </Shell>
   );
 }
 
-/* ---------- 10 Path & ask ---------- */
+/* ---------- 10 Ask ---------- */
 function Ask({ active }: { active: boolean }) {
   const path: [string, string, string][] = [
-    ["01", "Pilot KOWR", `${FACTS.kowrHa} gruntów państwowych. Jeden właściciel, jedna decyzja.`],
-    ["02", "Spółki wodne", "Już utrzymują rowy (art. 205). Zastawki stają w ich sieci."],
-    ["03", "Cała Polska", `${FACTS.drainedHa} zmeliorowanych. Dane krajowe, liczone dla każdego powiatu.`],
+    ["01", "Pilot z KOWR", "Jeden oddział i jego działki. Raporty porównane z obserwacją w polu."],
+    ["02", "Kalibracja z IUNG", "Progi bilansu wody i reguły przyczyn dla każdej kategorii gleby."],
+    ["03", "Integracja", "API dla systemów KOWR. Raport PDF dla dzierżawcy."],
   ];
   return (
     <>
@@ -491,7 +363,7 @@ function Ask({ active }: { active: boolean }) {
         <div className="grid grid-cols-3 gap-6">
           {path.map(([n, t, d], i) => (
             <div key={n} className="rise border-t-2 border-cream/60 pt-5">
-              <p className="eb num opacity-60">
+              <p className="eb num opacity-85">
                 {n} {i < 2 ? "→" : ""}
               </p>
               <p className="hd mt-3 text-[44px]">{t}</p>
@@ -499,15 +371,10 @@ function Ask({ active }: { active: boolean }) {
             </div>
           ))}
         </div>
-        <p className="eb rise mt-20 opacity-70">Prośba</p>
+        <p className="eb rise mt-20 opacity-85">Prośba</p>
         <p className="sh rise mt-4 max-w-[1300px] text-[54px] leading-[1.1]">
-          „Dajcie nam jeden oddział KOWR i jego dzierżawy. Przeliczymy ich rowy i tej wiosny sprawdzimy 10 miejsc ze
-          spółką wodną.”
+          „Dajcie nam jeden oddział KOWR. Policzymy jego działki i w sezonie porównamy raporty z polem.”
         </p>
-        <En className="rise mt-4">
-          Give us one KOWR branch and its leased land. We&apos;ll index it and validate ten sites with one spółka wodna
-          this spring.
-        </En>
         <div className="rise mt-auto flex items-end justify-between pb-6">
           <Logo height={44} color="cream" />
           <p className="sh text-[26px] opacity-90">{TAGLINE_PL}</p>
@@ -521,6 +388,8 @@ function Ask({ active }: { active: boolean }) {
 export type SlideDef = {
   id: string;
   eyebrow: string;
+  /** spoken by screen readers on slide change */
+  title: string;
   ground: "forest" | "cream";
   Body: (p: { active: boolean }) => ReactNode;
   notes: string;
@@ -530,73 +399,82 @@ export const SLIDES: SlideDef[] = [
   {
     id: "title",
     eyebrow: "01 — TRAKTOR",
+    title: "TRAKTOR. Niech ziemia zatrzyma swoją wodę.",
     ground: "forest",
     Body: Title,
-    notes: `Polska zbudowała już maszynę wodną na ${FACTS.drainedHa}. Działa tylko w jedną stronę: na zewnątrz. TRAKTOR uruchamia ją w obie strony. ${TAGLINE_EN}`,
+    notes: "TRAKTOR to asystent wody dla jednej działki. Podajesz działkę, uprawę i datę. Dostajesz raport: co się dzieje z wodą, dlaczego i co zrobić.",
   },
   {
     id: "problem",
     eyebrow: "02 — Problem",
+    title: "Za dużo wody, potem za mało.",
     ground: "cream",
     Body: Problem,
-    notes:
-      "6,4 mln ha jest zmeliorowanych. W 2025 r. IUNG wskazał suszę w 394 gminach, to 16%. Pomoc suszowa, do 3 000 zł/ha, przychodzi po stracie. We wrześniu 2024 r. była powódź, EMSR756. To ten sam rów.",
+    notes: `W 2025 r. IUNG wskazał suszę w 394 gminach, to 16%. ${FACTS.drainedHa} jest zmeliorowanych. Pomoc suszowa, do 3 000 zł/ha, przychodzi po stracie. We wrześniu 2024 r. była powódź, EMSR756. Dane o wodzie są w osobnych serwisach. Rolnik nie jest analitykiem GIS.`,
   },
   {
-    id: "insight",
-    eyebrow: "03 — Pomysł",
+    id: "steps",
+    eyebrow: "03 — Co robi rolnik",
+    title: "Trzy pola. Jeden raport.",
     ground: "cream",
-    Body: Insight,
-    notes: "Jedna zastawka w istniejącym rowie. Dwa tryby: TRZYMAJ w suszy, OTWÓRZ przed burzą. Kliknij kafelek i pokaż, jak zmienia się poziom wody.",
+    Body: Steps,
+    notes: `Trzy pola. Numer działki albo klik. Uprawa z listy ${CROPS.length}. Data: dziś albo do 10 lat wstecz. Wynik to raport. Wszystko liczymy z danych pobranych w chwili zapytania.`,
   },
   {
-    id: "how",
-    eyebrow: "04 — Jak to działa",
+    id: "chain",
+    eyebrow: "04 — Jak decyduje",
+    title: "Najpierw przyczyna, potem rada.",
     ground: "forest",
-    Body: How,
-    notes: "Siedem kroków. Bierzemy każdy rów z BDOT10k i teren z LiDAR 1 m. Oceniamy punkty i sprawdzamy bezpieczeństwo. Potem mówimy, gdzie stoi zastawka, i dajemy jedno polecenie dziennie.",
+    Body: Chain,
+    notes: "Kolejność z Załącznika 1. Ocena, przyczyny, retencja, agrotechnika, nawadnianie. Każdy krok ma swoje dane. Nie dajemy rady bez przyczyny opartej na danych.",
   },
   {
-    id: "refusal",
-    eyebrow: "05 — Odmowa",
+    id: "data",
+    eyebrow: "05 — Dane",
+    title: "Pięć kategorii danych. Wszystkie darmowe.",
     ground: "cream",
-    Body: Refusal,
-    notes: `Prawdziwe rowy na zachód od Bydgoszczy. ${nbsp(summary.pointsAnalysed)} punktów, ${summary.sitesAccepted} bezpiecznych. Każda odmowa ma powód. Najczęstszy: rów niewidoczny w NMT 1 m. Wtedy nie zgadujemy, tylko odmawiamy.`,
+    Body: Data,
+    notes: "Pięć kategorii z zadania. Meteo: Open-Meteo ERA5, 10 lat, i IMGW. Satelita: Sentinel-2. Gleba: IUNG i SoilGrids. Hydrologia: rowy BDOT10k i ISOK. Przestrzenne: ULDK, NMT 1 m, BDOT10k. Wszystko darmowe, bez kont.",
   },
   {
     id: "demo",
     eyebrow: "06 — Demo",
+    title: "Demo na żywo.",
     ground: "forest",
     Body: Demo,
-    notes: "Kliknij przycisk. Mapa → działka → S-007 (działka 040307_2.0023.306/2) → 60 cm: woda na działce .304/1, odmowa → TRZYMAJ i „Dlaczego?” → burza → OTWÓRZ → karta. Wróć klawiszem 7.",
+    notes: `Kliknij przycisk. Poproś jury o numer działki i datę. Pokaż listę źródeł podczas analizy, potem zakładki w kolejności i raport. Jeśli sieć zawiedzie: działka ${FALLBACK_PARCEL}. Wróć klawiszem 7.`,
   },
   {
-    id: "flip",
-    eyebrow: "07 — Przełączenie",
+    id: "retention",
+    eyebrow: "07 — Retencja",
+    title: "Zatrzymaj wodę tam, gdzie spadła.",
     ground: "cream",
-    Body: Flip,
-    notes: "Ta sama deska. Susza: KBW −86 mm, więc TRZYMAJ. Ostrzeżenie IMGW st. 2 i 42 mm w 72 h: OTWÓRZ, z terminem i zwolnioną pojemnością. Decyduje reguła z progiem. Progi skalibrujemy w pilocie.",
+    Body: Retention,
+    notes: `Najpierw zatrzymać wodę, która spadła. Zastawka: TRZYMAJ w suszy, OTWÓRZ przed burzą. Oczko w obniżeniu. Międzyplon. Przykład spod Bydgoszczy: ${nbsp(summary.pointsAnalysed)} punktów na rowach, ${summary.sitesAccepted} bezpiecznych. Każda odmowa ma powód.`,
   },
   {
-    id: "data",
-    eyebrow: "08 — Dane i uczciwość",
+    id: "honest",
+    eyebrow: "08 — Uczciwy raport",
+    title: "Raport mówi, czego nie wie.",
     ground: "cream",
-    Body: Data,
-    notes: "Siedem darmowych źródeł publicznych. Wyniki podajemy jako zakres. Każda odmowa ma powód. Każda karta wskazuje pozwolenie wodnoprawne, art. 389 pkt 6, i wymaga wizji lokalnej. Model językowy tylko opisuje wynik. Nie liczy.",
+    Body: Honest,
+    notes: "Każda liczba ma źródło i datę. Raport podaje poziom niepewności i braki danych. Szacunki jako zakres. Zastawka wymaga pozwolenia wodnoprawnego, art. 389 pkt 6, i wizji lokalnej. Model językowy liczb nie zmienia.",
   },
   {
-    id: "impact",
-    eyebrow: "09 — Efekt",
+    id: "scale",
+    eyebrow: "09 — Skala",
+    title: "Każda działka w Polsce.",
     ground: "cream",
-    Body: Impact,
-    notes: `S-007 przy ${maxCrest.heightCm} cm: ${fmtRange(maxCrest.storageM3, "m³")}. Cały obszar: ${fmtRange(summary.totalStorageM3, "m³")}. To szacunki przesiewowe. Z badań: −30,5% odpływu, −33,6% azotanów, wykorzystanie rowu z 23% do 41%. Plonów nie obiecujemy.`,
+    Body: Scale,
+    notes: `Działa dla każdej działki w ULDK. Dane publiczne. Cel: wynik w 30 s. Wyniki zapisujemy dla trójki działka, uprawa, data. Pierwszy użytkownik: KOWR, ${KOWR_HA_BRIEF} według opisu zadania.`,
   },
   {
     id: "ask",
-    eyebrow: "10 — Droga i prośba",
+    eyebrow: "10 — Następny krok",
+    title: "Następny krok: pilot z KOWR.",
     ground: "forest",
     Body: Ask,
-    notes: "KOWR: 1,324 mln ha i jeden właściciel. Potem spółki wodne, potem kraj. Prośba: jeden oddział KOWR i 10 miejsc sprawdzonych ze spółką wodną tej wiosny.",
+    notes: "Pilot w jednym oddziale KOWR. Kalibracja progów z IUNG. Integracja z systemami KOWR. Prośba: jeden oddział, jeden sezon, raporty porównane z polem.",
   },
 ];
 
