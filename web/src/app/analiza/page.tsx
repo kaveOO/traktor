@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { Logo } from "@/components/brand/Logo";
 import { ProgressLine } from "@/components/brand/ui";
 import AnalizaApp from "@/components/analiza/AnalizaApp";
 
@@ -12,10 +13,12 @@ export default function Page() {
   return (
     <Suspense
       fallback={
-        <div className="fixed inset-0 grid place-items-center bg-cream-deep p-6">
-          <div className="w-64">
-            <p className="text-center text-[15px]">Ładuję mapę…</p>
-            <ProgressLine className="mt-3" />
+        <div className="fixed inset-0 grid place-items-center bg-cream-deep p-6 text-forest">
+          <div className="w-72">
+            <Logo height={20} />
+            <p className="eb mt-8 text-forest-muted">01 — Analiza działki</p>
+            <p className="sh mt-1 text-[22px]">Ładuję mapę</p>
+            <ProgressLine className="mt-4" label="Ładuję mapę" />
           </div>
         </div>
       }

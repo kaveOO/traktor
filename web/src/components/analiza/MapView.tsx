@@ -9,7 +9,8 @@ import type { LonLat, Parcel } from "@/lib/analiza";
 import { bboxOf } from "./api";
 
 export type Basemap = "satelita" | "mapa";
-export type MapMarker = { id: string; lonLat: LonLat; label: string; n: number };
+/** tone: default = forest, safe = agri, warning = terracotta (warnings only). All with a cream ring. */
+export type MapMarker = { id: string; lonLat: LonLat; label: string; n: number; tone?: "default" | "safe" | "warning" };
 
 /** Basemap endpoints.
  * Satelita: EOX Sentinel-2 cloudless 2020 (EPSG:3857 tiles) at small zoom, then GUGiK ORTO WMS (EPSG:3857, layer "Raster") from z11.
@@ -64,9 +65,22 @@ const STYLE: StyleSpecification = {
     { id: "orto", type: "raster", source: "orto", minzoom: 11 },
     { id: "osm", type: "raster", source: "osm", layout: { visibility: "none" } },
     { id: "kieg", type: "raster", source: "kieg", minzoom: 15 },
-    { id: "parcel-fill", type: "fill", source: "parcel", paint: { "fill-color": "#3B7FA3", "fill-opacity": 0.15 } },
-    { id: "parcel-halo", type: "line", source: "parcel", paint: { "line-color": "#F3ECDD", "line-width": 5 } },
-    { id: "parcel-line", type: "line", source: "parcel", paint: { "line-color": "#1F3A22", "line-width": 2 } },
+    // brand map style: water fill 22%, cream 2px outline either side of a 1px forest line
+    { id: "parcel-fill", type: "fill", source: "parcel", paint: { "fill-color": "#3B7FA3", "fill-opacity": 0.22 } },
+    {
+      id: "parcel-halo",
+      type: "line",
+      source: "parcel",
+      layout: { "line-join": "round" },
+      paint: { "line-color": "#F3ECDD", "line-width": 5 },
+    },
+    {
+      id: "parcel-line",
+      type: "line",
+      source: "parcel",
+      layout: { "line-join": "round" },
+      paint: { "line-color": "#1F3A22", "line-width": 1 },
+    },
   ],
 };
 
@@ -231,7 +245,7 @@ export default function MapView({
       if (refs.has(mk.id)) continue;
       const node = document.createElement("button");
       node.type = "button";
-      node.className = "analiza-marker";
+      node.className = `analiza-marker${mk.tone && mk.tone !== "default" ? ` is-${mk.tone}` : ""}`;
       node.textContent = String(mk.n);
       node.setAttribute("aria-label", `Rekomendacja ${mk.n}: ${mk.label}`);
       node.addEventListener("click", (e) => {

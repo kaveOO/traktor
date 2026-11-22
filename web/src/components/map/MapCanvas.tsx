@@ -596,7 +596,7 @@ export function MapCanvas({
             CAŁA
           </button>
         </div>
-        <div className="rounded-[2px] bg-cream/90 px-2 py-1 text-right text-forest">
+        <div className="rounded-[4px] bg-cream/95 px-2 py-1 text-right text-forest">
           <div className="ml-auto h-1.5 border-x-2 border-b-2 border-forest" style={{ width: barPx }} aria-hidden />
           <div className="num mt-0.5 text-[11px]">
             <span className="sr-only">Skala: </span>

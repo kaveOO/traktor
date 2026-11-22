@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { Icon, type IconName } from "@/components/brand/Icon";
+import { FooterLine, LevelTag, SourceChipList, SourceLine } from "@/components/brand/ui";
 import { getCrop, type AnalysisResult, type Cause, type Recommendation, type SourceInfo } from "@/lib/analiza";
-import { KbwSeasonsChart, LevelMeter, ParcelOutline } from "./charts";
+import { LEGAL } from "@/lib/traktor/copy";
+import { KbwLegend, KbwSeasonsChart, ParcelOutline } from "./charts";
 import {
   ATTR_URL,
   attributionFor,
@@ -37,28 +39,18 @@ const SRC_SHORT: Record<SourceInfo["id"], string> = {
   EDO: "EDO",
 };
 
+const KIND_PL: Record<Recommendation["kind"], string> = { retencja: "Retencja", agrotechnika: "Agrotechnika", nawadnianie: "Nawadnianie" };
+
 function SrcTags({ ids, sources }: { ids: SourceInfo["id"][]; sources: SourceInfo[] }) {
   return (
-    <span className="inline-flex flex-wrap gap-1">
-      {ids.map((id) => {
-        const s = sources.find((x) => x.id === id);
-        const st = s?.status ?? "missing";
-        return (
-          <span
-            key={id}
-            className={`num inline-block rounded-[2px] border px-1 text-[9px] leading-[14px] whitespace-nowrap ${
-              st === "ok" ? "border-forest/40" : "border-dashed border-terra text-terra"
-            }`}
-          >
-            {SRC_SHORT[id]}
-            {st !== "ok" ? ` · ${STATUS_PL[st]}` : ""}
-          </span>
-        );
-      })}
-    </span>
+    <SourceChipList
+      size="sm"
+      items={ids.map((id) => ({ id, label: SRC_SHORT[id], status: sources.find((x) => x.id === id)?.status ?? "missing" }))}
+    />
   );
 }
 
+/** Section header in the /karta pattern: icon + eyebrow "01 — TITLE" over a 1.5px forest rule. */
 function Section({
   no,
   title,
@@ -77,10 +69,9 @@ function Section({
   return (
     <section aria-labelledby={id} className={`raport-section mt-5 ${keep ? "raport-avoid" : ""}`}>
       <div className="raport-head flex items-center gap-2 border-b-[1.5px] border-forest pb-1">
-        {icon && <Icon name={icon} size={18} />}
-        <span className="eb num opacity-80">{String(no).padStart(2, "0")}</span>
-        <h2 id={id} className="sh text-[19px]">
-          {title}
+        {icon && <Icon name={icon} size={16} />}
+        <h2 id={id} className="eb num">
+          {String(no).padStart(2, "0")} — {title}
         </h2>
       </div>
       <div className="mt-2">{children}</div>
@@ -91,35 +82,42 @@ function Section({
 function RecItem({ r, causes, sources }: { r: Recommendation; causes: Cause[]; sources: SourceInfo[] }) {
   const based = r.basedOn.map((id) => causes.find((c) => c.id === id)?.titlePl ?? id);
   return (
-    <li className="raport-avoid rounded-[4px] border border-forest/30 px-3 py-2">
+    <li className="raport-avoid rounded-[4px] border border-forest/25 px-3 py-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <h3 className="text-[13px] font-semibold">{r.titlePl}</h3>
-        <span className="eb !text-[9.5px]">
-          <span className="num mr-1 inline-block border-[1.5px] border-forest px-1">{r.priority}</span>
-          {PRIORITY_PL[r.priority]}
+        <p className="eb !text-[9.5px] text-forest-muted">
+          {KIND_PL[r.kind]} · {PRIORITY_PL[r.priority]}
+        </p>
+        <span className="num inline-grid size-[18px] place-items-center rounded-full bg-forest text-[10px] font-semibold text-cream" aria-hidden>
+          {r.priority}
         </span>
       </div>
-      <dl className="mt-1 grid grid-cols-[52px_1fr] gap-x-2 gap-y-0.5 text-[11px] leading-snug">
-        <dt className="font-semibold">Dlaczego</dt>
+      <h3 className="sh mt-0.5 text-[15px]">{r.titlePl}</h3>
+      <dl className="mt-1 grid grid-cols-[64px_1fr] gap-x-2 gap-y-0.5 text-[11px] leading-snug">
+        <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Dlaczego</dt>
         <dd>{r.whyPl}</dd>
-        <dt className="font-semibold">Jak</dt>
+        <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Jak</dt>
         <dd>{r.howPl}</dd>
         {r.wherePl && (
           <>
-            <dt className="font-semibold">Gdzie</dt>
+            <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Gdzie</dt>
             <dd>
               {r.wherePl}
-              {r.location ? <span className="num opacity-75"> ({r.location[1].toFixed(5)} N, {r.location[0].toFixed(5)} E)</span> : null}
+              {r.location ? (
+                <span className="num text-forest-muted">
+                  {" "}
+                  ({r.location[1].toFixed(5)} N, {r.location[0].toFixed(5)} E)
+                </span>
+              ) : null}
             </dd>
           </>
         )}
         {r.legalPl && (
           <>
-            <dt className="font-semibold">Prawo</dt>
+            <dt className="eb !text-[9px] pt-[2px] text-terra-ink">Prawo</dt>
             <dd>{r.legalPl}</dd>
           </>
         )}
-        <dt className="font-semibold">Podstawa</dt>
+        <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Podstawa</dt>
         <dd className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span>{based.join(" · ") || "brak powiązanej przyczyny"}</span>
           <SrcTags ids={r.sources} sources={sources} />
@@ -237,94 +235,103 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
         .map((e) => [e[0], e[1]]),
     ),
   );
-  // Contract has no text-origin flag yet; tolerate one if the engine adds it (e.g. summarySource: "llm").
+  // tolerate an older text-origin flag name as well
   const extra = r as unknown as { summarySource?: string; textSource?: string };
   const llm = extra.summarySource === "llm" || extra.textSource === "llm";
+  const anyMissing = r.sources.some((x) => x.status !== "ok");
 
   return (
-    <article className="raport-sheet mx-auto mt-6 w-full max-w-[210mm] bg-cream px-[8mm] py-[9mm] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] sm:px-[12mm] print:mt-0">
-      {/* Header */}
-      <header className="border-b-2 border-forest pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Logo height={18} />
-          <p className="eb">Raport z {dateTime(r.generatedAt)}</p>
-        </div>
-        {demo && (
-          <p className="mt-2 rounded-[2px] border-[1.5px] border-dashed border-terra px-2 py-1 text-[11px] font-semibold text-terra">
-            Dane przykładowe (tryb demo). To nie jest wynik analizy tej działki.
-          </p>
-        )}
-        <div className="mt-3 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="hd text-[34px]">Raport wodny działki</h1>
-            <p className="num mt-1.5 text-[17px] font-semibold break-all">{p.id}</p>
-            <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11.5px]">
-              <dt className="eb !text-[9.5px] self-center">Położenie</dt>
-              <dd>
-                gm. {p.commune ?? NA}, pow. {p.county ?? NA}, woj. {p.voivodeship ?? NA}
-              </dd>
-              <dt className="eb !text-[9.5px] self-center">Powierzchnia</dt>
-              <dd className="num">{n(p.areaHa, 2, "ha")}</dd>
-              <dt className="eb !text-[9.5px] self-center">Uprawa</dt>
-              <dd>
-                {r.crop.namePl} <span className="opacity-75">(okres krytyczny: {period})</span>
-              </dd>
-              <dt className="eb !text-[9.5px] self-center">Data analizy</dt>
-              <dd className="num">{dateLong(r.request.date)}</dd>
-              <dt className="eb !text-[9.5px] self-center">Wygenerowano</dt>
-              <dd className="num">
-                {dateTime(r.generatedAt)} · obliczenia {n(r.durationMs / 1000, 1, "s")}
-              </dd>
-            </dl>
-          </div>
-          <figure className="shrink-0 text-center">
-            <ParcelOutline parcel={p} lowPoint={t.lowPoint} />
-            <figcaption className="mt-0.5 text-[9px] leading-tight opacity-75">
-              Obrys: ULDK
-              {t.lowPoint ? (
-                <>
-                  <br />
-                  <span className="mr-1 inline-block size-2 rounded-full bg-water align-middle" />
-                  najniższy punkt
-                </>
-              ) : null}
-            </figcaption>
-          </figure>
+    <article className="raport-sheet mx-auto mt-6 w-full max-w-[210mm] bg-cream px-[12mm] py-[11mm] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] narrow:mt-0 narrow:px-4 narrow:py-5 print:mt-0">
+      {/* Header: same lockup as /karta */}
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-forest pb-3 narrow:gap-2">
+        <Logo height={18} />
+        <div className="hd text-center text-[17px]">Raport wodny działki</div>
+        <div className="flex items-center gap-2">
+          {anyMissing && (
+            <span className="eb inline-flex items-center gap-1.5 rounded-[2px] border border-dashed border-terra px-2 py-1 text-terra-ink">
+              Niepełne dane
+            </span>
+          )}
+          <span className="num text-[11px]">{dateTime(r.generatedAt)}</span>
         </div>
       </header>
 
+      {demo && (
+        <p className="mt-3 rounded-[4px] border-2 border-dashed border-terra px-3 py-1 text-[11px] leading-snug font-semibold text-terra-ink">
+          Dane przykładowe (tryb demo). To nie jest wynik analizy tej działki.
+        </p>
+      )}
+
+      <section className="mt-4 flex items-start justify-between gap-4 narrow:flex-col">
+        <div className="min-w-0">
+          <p className="eb text-forest-muted">Działka</p>
+          <h1 className="sh num mt-1 text-[28px] break-all">{p.id}</h1>
+          <p className="num mt-1.5 text-[14px] font-medium">
+            {n(p.areaHa, 2, "ha")} · {r.crop.namePl} · analiza na {dateLong(r.request.date)}
+          </p>
+          <dl className="mt-2 grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5 text-[11.5px]">
+            <dt className="eb !text-[9.5px] text-forest-muted">Położenie</dt>
+            <dd>
+              gm. {p.commune ?? NA}, pow. {p.county ?? NA}, woj. {p.voivodeship ?? NA}
+            </dd>
+            <dt className="eb !text-[9.5px] text-forest-muted">Okres krytyczny</dt>
+            <dd>{period}</dd>
+            <dt className="eb !text-[9.5px] text-forest-muted">Obliczenia</dt>
+            <dd className="num">
+              {n(r.durationMs / 1000, 1, "s")}
+              {r.methodVersion ? ` · metoda ${r.methodVersion}` : ""}
+            </dd>
+          </dl>
+        </div>
+        <figure className="shrink-0">
+          <ParcelOutline parcel={p} lowPoint={t.lowPoint} />
+          <figcaption className="mt-1 text-[10px] leading-tight text-forest-muted">
+            {t.lowPoint ? (
+              <span className="flex items-center gap-1">
+                <span className="inline-block size-2 rounded-full border border-cream bg-water" aria-hidden /> najniższy punkt
+              </span>
+            ) : null}
+            <SourceLine>ULDK (GUGiK)</SourceLine>
+          </figcaption>
+        </figure>
+      </section>
+
       {/* 1 */}
       <Section no={1} id="s1" title="Ocena sytuacji wodnej" icon="drought">
-        <div className="raport-avoid grid gap-2 sm:grid-cols-2 print:grid-cols-2">
+        <div className="raport-avoid grid grid-cols-2 gap-2 narrow:grid-cols-1">
           {[
             { k: "Teraz (na datę analizy)", v: a.currentLevel },
             { k: "Historycznie (10 sezonów)", v: a.historicalLevel },
           ].map(({ k, v }) => (
-            <div key={k} className="flex items-center gap-3 rounded-[4px] border-2 border-forest/25 px-3 py-2">
-              <Icon name={v && LEVEL_RANK[v] >= 3 ? "drought" : "water"} size={26} />
-              <div>
-                <p className="eb !text-[9.5px]">Zagrożenie suszą · {k}</p>
-                <p className="flex items-center gap-2">
-                  <span className="hd text-[22px]">{v ? LEVEL_PL[v] : "brak danych"}</span>
-                  <LevelMeter
-                    rank={v ? LEVEL_RANK[v] : null}
-                    label={v ? `Poziom ${LEVEL_RANK[v]} z 4` : "Poziom nieznany"}
-                  />
-                </p>
+            <div key={k} className="rounded-[4px] border-2 border-forest/25 px-3 py-2">
+              <p className="eb !text-[9.5px] text-forest-muted">Zagrożenie suszą · {k}</p>
+              <div className="mt-1">
+                <LevelTag
+                  word={v ? LEVEL_PL[v] : null}
+                  rank={v ? LEVEL_RANK[v] : null}
+                  size="sm"
+                  meterLabel={v ? `Poziom ${LEVEL_RANK[v]} z 4` : "Poziom nieznany"}
+                />
               </div>
             </div>
           ))}
         </div>
         <p className="mt-2 text-[12.5px] leading-[1.45]">{a.summaryPl}</p>
-        {llm && <p className="mt-0.5 text-[10px] italic opacity-80">{LLM_LABEL}</p>}
-        {s.anomalyPl && <p className="mt-1 text-[11.5px] leading-snug opacity-90">Satelita: {s.anomalyPl}</p>}
+        {llm && <p className="mt-0.5 text-[10px] text-forest-muted italic">{LLM_LABEL}</p>}
+        {s.anomalyPl && (
+          <p className="mt-1 text-[11.5px] leading-snug">
+            <span className="eb !text-[9.5px] mr-1.5 text-forest-muted">Satelita</span>
+            {s.anomalyPl}
+          </p>
+        )}
         {m.warnings.length > 0 && (
           <div className="mt-2 flex items-start gap-2 rounded-[4px] border-2 border-terra px-3 py-1.5 text-[11.5px]">
-            <Icon name="storm" size={18} className="mt-0.5 shrink-0" />
+            <Icon name="storm" size={18} className="mt-0.5 shrink-0 text-terra-ink" />
             <ul>
               {m.warnings.map((w) => (
                 <li key={w.event + w.validTo}>
-                  Ostrzeżenie IMGW-PIB: {w.event}, stopień {w.level}, ważne do {dateTime(w.validTo)}
+                  <strong className="text-terra-ink">Ostrzeżenie IMGW-PIB:</strong> {w.event}, stopień <span className="num">{w.level}</span>,
+                  ważne do <span className="num">{dateTime(w.validTo)}</span>
                 </li>
               ))}
             </ul>
@@ -332,25 +339,27 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
         )}
 
         <table className="num mt-3 w-full border-collapse text-[11px]">
-          <caption className="eb mb-1 text-left">Kluczowe wskaźniki (wartość, kontekst, źródło)</caption>
+          <caption className="eb mb-1 text-left text-forest-muted">Kluczowe wskaźniki (wartość, kontekst, źródło)</caption>
           <thead>
             <tr className="border-b border-forest/40 text-left">
-              <th scope="col" className="py-1 pr-2 font-semibold">Wskaźnik</th>
-              <th scope="col" className="py-1 pr-2 text-right font-semibold">Wartość</th>
-              <th scope="col" className="py-1 pr-2 font-semibold">Kontekst</th>
-              <th scope="col" className="py-1 font-semibold">Źródło</th>
+              <th scope="col" className="eb !text-[9.5px] py-1 pr-2">Wskaźnik</th>
+              <th scope="col" className="eb !text-[9.5px] py-1 pr-2 text-right">Wartość</th>
+              <th scope="col" className="eb !text-[9.5px] py-1 pr-2">Kontekst</th>
+              <th scope="col" className="eb !text-[9.5px] py-1 text-right">Źródło</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.label} className="raport-avoid border-b border-forest/15 align-top">
                 <th scope="row" className="py-[3px] pr-2 text-left font-normal">{row.label}</th>
-                <td className={`py-[3px] pr-2 text-right font-semibold whitespace-nowrap ${row.value === NA ? "italic opacity-80" : ""}`}>
+                <td className={`py-[3px] pr-2 text-right font-semibold whitespace-nowrap ${row.value === NA ? "font-normal text-terra-ink italic" : ""}`}>
                   {row.value}
                 </td>
-                <td className="py-[3px] pr-2 text-[10px] leading-tight opacity-85">{row.ctx}</td>
+                <td className="py-[3px] pr-2 text-[10px] leading-tight text-forest-muted">{row.ctx}</td>
                 <td className="py-[3px]">
-                  <SrcTags ids={row.src} sources={r.sources} />
+                  <div className="flex justify-end">
+                    <SrcTags ids={row.src} sources={r.sources} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -358,12 +367,15 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
         </table>
 
         <figure className="raport-avoid mt-3 grid items-end gap-x-4 gap-y-1 print:grid-cols-[110mm_1fr]">
-          <KbwSeasonsChart seasons={m.seasons} thresholdMm={threshold} periodPl={period} />
-          <figcaption className="text-[10px] leading-snug opacity-85">
-            KBW (opad − ET₀) w okresie krytycznym uprawy ({period}), sezony {m.seasons[0]?.year ?? "?"}–
-            {m.seasons[m.seasons.length - 1]?.year ?? "?"}. Słupki kreskowane z literą S: susza (KBW poniżej progu IUNG dla kat.{" "}
-            {so.iungCategory ?? "?"}). {m.droughtYears !== null ? `Susza w ${n(m.droughtYears)} z ${seasonsN} sezonów.` : ""} Źródło:
-            Open-Meteo (ERA5), progi IUNG uproszczone, do kalibracji.
+          <div>
+            <KbwSeasonsChart seasons={m.seasons} thresholdMm={threshold} periodPl={period} />
+            <KbwLegend className="mt-1 !text-[10px]" />
+          </div>
+          <figcaption className="text-[10px] leading-snug text-forest-muted">
+            KBW (opad − ET₀) w okresie krytycznym uprawy ({period}), sezony <span className="num">{m.seasons[0]?.year ?? "?"}</span>–
+            <span className="num">{m.seasons[m.seasons.length - 1]?.year ?? "?"}</span>. Kreskowane z literą S: susza (KBW poniżej progu IUNG dla
+            kat. {so.iungCategory ?? "?"}). {m.droughtYears !== null ? `Susza w ${n(m.droughtYears)} z ${seasonsN} sezonów.` : ""}
+            <SourceLine className="mt-0.5">Open-Meteo (ERA5), progi IUNG uproszczone, do kalibracji</SourceLine>
           </figcaption>
         </figure>
       </Section>
@@ -371,19 +383,18 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
       {/* 2 */}
       <Section no={2} id="s2" title="Przyczyny" icon="lidar">
         {causes.length ? (
-          <ol className="grid gap-x-5 gap-y-1 print:grid-cols-2">
+          <ol className="grid grid-cols-2 gap-x-5 gap-y-1.5 narrow:grid-cols-1">
             {causes.map((c, i) => (
               <li key={c.id} className="raport-avoid grid grid-cols-[18px_1fr] gap-x-2 text-[11.5px] leading-snug">
                 <span className="num font-semibold">{i + 1}.</span>
                 <div>
                   <p className="font-semibold">
-                    {c.titlePl}{" "}
-                    <span className="eb !text-[9px] font-semibold opacity-75">
-                      waga {c.weight}/3
-                    </span>
+                    {c.titlePl} <span className="eb num !text-[9px] text-forest-muted">waga {c.weight}/3</span>
                   </p>
                   <p>{c.evidencePl}</p>
-                  <SrcTags ids={c.sources} sources={r.sources} />
+                  <div className="mt-0.5">
+                    <SrcTags ids={c.sources} sources={r.sources} />
+                  </div>
                 </div>
               </li>
             ))}
@@ -405,27 +416,23 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
 
       {/* 4 */}
       <Section no={4} id="s4" title="Rekomendacje agrotechniczne" icon="tractor">
-        <RecList
-          items={recs("agrotechnika")}
-          causes={r.causes}
-          sources={r.sources}
-          emptyPl="Brak rekomendacji agrotechnicznych dla tej daty i uprawy."
-        />
+        <RecList items={recs("agrotechnika")} causes={r.causes} sources={r.sources} emptyPl="Brak rekomendacji agrotechnicznych dla tej daty i uprawy." />
       </Section>
 
       {/* 5 */}
       <Section no={5} id="s5" title="Nawadnianie (opcjonalne)" icon="water">
         {irr ? (
           <div className="raport-avoid rounded-[4px] border-2 border-forest/25 px-3 py-2">
-            <p className="hd text-[22px]">{DECISION_PL[irr.decision]}</p>
+            <p className="eb !text-[9.5px] text-forest-muted">Decyzja</p>
+            <p className="hd mt-0.5 text-[22px]">{DECISION_PL[irr.decision]}</p>
             <dl className="num mt-1 grid grid-cols-[110px_1fr] gap-x-2 gap-y-0.5 text-[11px] leading-snug">
-              <dt className="font-semibold">Deficyt wody</dt>
-              <dd>{n(irr.deficitMm, 0, "mm")}</dd>
-              <dt className="font-semibold">Dawka</dt>
-              <dd>{irr.doseMm !== null ? `${n(irr.doseMm, 0, "mm")} (= ${n(irr.doseMm * 10, 0, "m³/ha")})` : NA}</dd>
-              <dt className="font-semibold">Termin</dt>
+              <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Deficyt wody</dt>
+              <dd className="font-semibold">{n(irr.deficitMm, 0, "mm")}</dd>
+              <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Dawka</dt>
+              <dd className="font-semibold">{irr.doseMm !== null ? `${n(irr.doseMm, 0, "mm")} (= ${n(irr.doseMm * 10, 0, "m³/ha")})` : NA}</dd>
+              <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Termin</dt>
               <dd>{irr.timingPl || NA}</dd>
-              <dt className="font-semibold">Uzasadnienie</dt>
+              <dt className="eb !text-[9px] pt-[2px] text-forest-muted">Uzasadnienie</dt>
               <dd>{irr.reasonPl}</dd>
             </dl>
           </div>
@@ -441,21 +448,28 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
         )}
         {irr && irr.decision !== "nie_teraz" && !recs("nawadnianie").some((x) => x.legalPl) && (
           <p className="mt-1.5 text-[10.5px]">
-            Prawo: pobór wody do nawadniania zwykle wymaga pozwolenia wodnoprawnego. Sprawdź w Wodach Polskich.
+            <span className="eb !text-[9px] mr-1.5 text-terra-ink">Prawo</span>
+            Pobór wody do nawadniania zwykle wymaga pozwolenia wodnoprawnego. Sprawdź w Wodach Polskich.
           </p>
         )}
       </Section>
 
       {/* 6 */}
       <Section no={6} id="s6" title="Ograniczenia i niepewność" icon="pin" keep>
-        <p className="flex items-center gap-2 text-[12px]">
-          <span className="eb !text-[9.5px]">Niepewność wyniku</span>
-          <span className="hd text-[20px]">{unc.level}</span>
-          <LevelMeter rank={UNC_RANK[unc.level]} of={3} label={`Niepewność ${UNC_RANK[unc.level]} z 3`} />
-        </p>
-        <div className="mt-1.5 grid gap-3 text-[11px] leading-snug sm:grid-cols-3 print:grid-cols-3">
+        <div className="flex items-center gap-3">
+          <span className="eb !text-[9.5px] text-forest-muted">Niepewność wyniku</span>
+          <LevelTag
+            word={unc.level}
+            rank={UNC_RANK[unc.level]}
+            of={3}
+            icon="lidar"
+            size="sm"
+            meterLabel={`Niepewność ${UNC_RANK[unc.level]} z 3`}
+          />
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-3 text-[11px] leading-snug narrow:grid-cols-1">
           <div className="raport-avoid">
-            <h3 className="eb mb-1 !text-[9.5px]">Dlaczego taki poziom</h3>
+            <h3 className="eb !text-[9.5px] mb-1 text-forest-muted">Dlaczego taki poziom</h3>
             <ul className="list-disc space-y-0.5 pl-4">
               {[...unc.reasonsPl, ...METHOD_LIMITS].map((x) => (
                 <li key={x}>{x}</li>
@@ -463,11 +477,14 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
             </ul>
           </div>
           <div className="raport-avoid">
-            <h3 className="eb mb-1 !text-[9.5px]">Brakujące dane</h3>
+            <h3 className="eb !text-[9.5px] mb-1 text-forest-muted">Brakujące dane</h3>
             {missing.length ? (
-              <ul className="list-disc space-y-0.5 pl-4">
+              <ul className="space-y-0.5">
                 {missing.map((x) => (
-                  <li key={x}>{x}</li>
+                  <li key={x} className="flex gap-1.5">
+                    <span aria-hidden className="mt-[7px] inline-block w-2.5 shrink-0 border-t-[1.5px] border-dashed border-terra" />
+                    <span className="text-terra-ink">{x}</span>
+                  </li>
                 ))}
               </ul>
             ) : (
@@ -475,7 +492,7 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
             )}
           </div>
           <div className="raport-avoid">
-            <h3 className="eb mb-1 !text-[9.5px]">Nie uwzględniono</h3>
+            <h3 className="eb !text-[9.5px] mb-1 text-forest-muted">Nie uwzględniono</h3>
             <ul className="list-disc space-y-0.5 pl-4">
               {unc.notConsideredPl.map((x) => (
                 <li key={x}>{x}</li>
@@ -483,27 +500,28 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
             </ul>
           </div>
         </div>
-        <p className="mt-1.5 text-[10.5px] opacity-85">
-          Aktualność: dane meteo do {dateShort(r.request.date)} (reanaliza ERA5 publikowana z ok. 5-dniowym opóźnieniem), scena
-          satelitarna z {dateShort(s.sceneDate)}. Wartości to szacunki z danych zdalnych, nie pomiary na działce.
+        <p className="mt-1.5 text-[10.5px] text-forest-muted">
+          Aktualność: dane meteo do <span className="num">{dateShort(r.request.date)}</span> (ERA5, ok. 5 dni opóźnienia), scena satelitarna z{" "}
+          <span className="num">{dateShort(s.sceneDate)}</span>. To szacunki z danych zdalnych, nie pomiary na działce.
         </p>
-        <div className="raport-avoid mt-2 flex items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-3 py-2">
-          <Icon name="pin" size={22} className="shrink-0" />
-          <p className="text-[12.5px] font-semibold">{SCREENING_NOTE}</p>
+        <div className="raport-avoid mt-2 flex flex-wrap items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
+          <Icon name="pin" size={26} />
+          <p className="hd text-[26px]">{LEGAL.siteVisit}</p>
+          <p className="ml-auto max-w-[80mm] text-right text-[10px] leading-snug text-forest-muted narrow:ml-0 narrow:text-left">{SCREENING_NOTE}</p>
         </div>
       </Section>
 
       {/* 7 */}
       <Section no={7} id="s7" title="Źródła danych" icon="ditch">
         <table className="num w-full border-collapse text-[10px] leading-tight">
-          <caption className="eb mb-1 text-left">Źródła użyte w analizie, pobrane w chwili generowania raportu</caption>
+          <caption className="eb mb-1 text-left text-forest-muted">Źródła użyte w analizie, pobrane w chwili generowania raportu</caption>
           <thead>
             <tr className="border-b border-forest/40 text-left">
-              <th scope="col" className="py-1 pr-2 font-semibold">Źródło</th>
-              <th scope="col" className="py-1 pr-2 font-semibold">Zakres / okres</th>
-              <th scope="col" className="py-1 pr-2 font-semibold">Status</th>
-              <th scope="col" className="py-1 pr-2 font-semibold">Pobrano</th>
-              <th scope="col" className="py-1 font-semibold">Licencja / uznanie autorstwa</th>
+              <th scope="col" className="eb !text-[9px] py-1 pr-2">Źródło</th>
+              <th scope="col" className="eb !text-[9px] py-1 pr-2">Zakres / okres</th>
+              <th scope="col" className="eb !text-[9px] py-1 pr-2">Status</th>
+              <th scope="col" className="eb !text-[9px] py-1 pr-2">Pobrano</th>
+              <th scope="col" className="eb !text-[9px] py-1">Licencja / uznanie autorstwa</th>
             </tr>
           </thead>
           <tbody>
@@ -512,11 +530,16 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
                 <th scope="row" className="py-[3px] pr-2 text-left font-semibold">{x.label}</th>
                 <td className="py-[3px] pr-2">
                   {x.detail}
-                  {x.note ? <span className="block opacity-75">{x.note}</span> : null}
+                  {x.note ? <span className="block text-forest-muted">{x.note}</span> : null}
                 </td>
-                <td className={`py-[3px] pr-2 whitespace-nowrap ${x.status !== "ok" ? "font-semibold text-terra" : ""}`}>
-                  {x.status === "ok" ? "" : "! "}
-                  {STATUS_PL[x.status]}
+                <td className="py-[3px] pr-2 whitespace-nowrap">
+                  {x.status === "ok" ? (
+                    STATUS_PL[x.status]
+                  ) : (
+                    <span className="inline-block rounded-[2px] border border-dashed border-terra px-1 font-semibold text-terra-ink">
+                      {STATUS_PL[x.status]}
+                    </span>
+                  )}
                 </td>
                 <td className="py-[3px] pr-2 whitespace-nowrap">{dateTime(x.fetchedAt)}</td>
                 <td className="py-[3px]">{licenseOf(x) || NA}</td>
@@ -524,8 +547,8 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
             ))}
           </tbody>
         </table>
-        <div className="raport-avoid mt-2 text-[9.5px] leading-snug opacity-85">
-          <p className="eb mb-0.5 !text-[9px]">Uznanie autorstwa</p>
+        <div className="raport-avoid mt-2 text-[9.5px] leading-snug text-forest-muted">
+          <p className="eb !text-[9px] mb-0.5">Uznanie autorstwa</p>
           <ul className="space-y-0.5">
             {attributions.map(([text, url]) => (
               <li key={text}>
@@ -533,7 +556,11 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
                 {url ? (
                   <>
                     {" "}
-                    (<a href={url} className="underline">{url.replace(/^https?:\/\//, "")}</a>)
+                    (
+                    <a href={url} className="underline">
+                      {url.replace(/^https?:\/\//, "")}
+                    </a>
+                    )
                   </>
                 ) : null}
               </li>
@@ -542,12 +569,15 @@ export function ReportSheet({ r, demo }: { r: AnalysisResult; demo?: boolean }) 
         </div>
       </Section>
 
-      <footer className="raport-avoid mt-5 flex items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[9.5px]">
-        <p className="opacity-80">
-          Raport przesiewowy z danych zdalnych. Nie zastępuje opinii agronoma, projektu ani pozwolenia. Działka {p.id} · {r.crop.namePl} ·{" "}
-          {dateShort(r.request.date)}
-        </p>
-        <p className="sh shrink-0 text-[12px]">TRAKTOR · Let the land hold its water.</p>
+      <footer className="raport-avoid mt-5 flex flex-wrap items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
+        <div className="min-w-0">
+          <p className="text-forest-muted">
+            Raport przesiewowy z danych zdalnych. Nie zastępuje opinii agronoma, projektu ani pozwolenia. Działka{" "}
+            <span className="num">{p.id}</span> · {r.crop.namePl} · <span className="num">{dateShort(r.request.date)}</span>
+          </p>
+          <SourceLine>ULDK, NMT, BDOT10k (GUGiK); Open-Meteo (CC BY 4.0); IMGW-PIB; Copernicus Sentinel-2; SoilGrids; IUNG-PIB</SourceLine>
+        </div>
+        <FooterLine className="shrink-0" />
       </footer>
     </article>
   );

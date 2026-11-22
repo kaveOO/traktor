@@ -332,7 +332,7 @@ export function SitePanel({
         </div>
 
         <div className="text-forest">
-          <SourceLine>NMT 1 m (GUGiK); BDOT10k; ULDK; {conditions.sources.join(", ")}</SourceLine>
+          <SourceLine tone="onCream">NMT 1 m (GUGiK); BDOT10k; ULDK; {conditions.sources.join(", ")}</SourceLine>
           <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
         </div>
       </div>
@@ -410,7 +410,7 @@ export function GminaPanel({
       </div>
       <AllSitesList orders={orders} onSite={onSite} kowrOnly={kowrOnly} />
       <div>
-        <SourceLine>BDOT10k; NMT 1 m (GUGiK); ULDK; obliczenia TRAKTOR</SourceLine>
+        <SourceLine tone="onCream">BDOT10k; NMT 1 m (GUGiK); ULDK; obliczenia TRAKTOR</SourceLine>
         <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
       </div>
     </div>

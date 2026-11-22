@@ -6,7 +6,7 @@ import { browser } from "react-dom";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
 import { OrderBadge } from "@/components/brand/StateTiles";
-import { SkipLink, SourceLine, StatusChip } from "@/components/brand/ui";
+import { Button, FooterLine, SkipLink, SourceLine, StatusChip } from "@/components/brand/ui";
 import { radioKeyDown } from "@/components/brand/radio";
 import {
   bufferDays,
@@ -24,7 +24,6 @@ import {
   SCENARIOS,
   sites,
   SOURCES_MAP,
-  TAGLINE_EN,
   type CrestHeight,
   type ScenarioName,
 } from "@/lib/traktor";
@@ -85,9 +84,9 @@ export default function SiteCard() {
         <Logo height={22} />
         <h1 className="sh mt-10 text-[40px]">Nie ma miejsca „{siteId}”.</h1>
         <p className="mt-4 text-[17px]">Wybierz miejsce na mapie.</p>
-        <Link href="/mapa" className="mt-8 inline-flex min-h-12 items-center rounded-[2px] bg-forest px-6 text-cream">
-          ← Wróć do mapy
-        </Link>
+        <Button href="/mapa" className="mt-8">
+          <span aria-hidden>←</span> Wróć do mapy
+        </Button>
       </main>
     );
   }
@@ -205,13 +204,9 @@ export default function SiteCard() {
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex min-h-10 items-center gap-2 rounded-[2px] bg-forest px-4 font-medium text-cream hover:brightness-[.94]"
-          >
+          <Button type="button" onClick={() => window.print()} className="!min-h-10 !px-4 !text-[14px]">
             Drukuj / zapisz PDF
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -248,14 +243,14 @@ export default function SiteCard() {
             <h2 className="eb mb-1.5">Okolica miejsca</h2>
             <MiniMap site={site} crestCm={crestCm} />
             <MiniMapLegend />
-            <SourceLine className="mt-1">{SOURCES_MAP}</SourceLine>
+            <SourceLine tone="onCream" className="mt-1">{SOURCES_MAP}</SourceLine>
           </div>
           <div>
             <h2 className="eb mb-1.5">Przekrój przy zastawce</h2>
             <div className="rounded-[4px] border border-forest/20 bg-cream-deep/60 p-2">
               <CrossSection site={site} crestCm={crestCm} />
             </div>
-            <SourceLine className="mt-1">NMT LiDAR 1 m (GUGiK); przekrój uproszczony</SourceLine>
+            <SourceLine tone="onCream" className="mt-1">NMT LiDAR 1 m (GUGiK); przekrój uproszczony</SourceLine>
 
             <div className="mt-2 rounded-[4px] border-2 border-forest/25 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
@@ -378,11 +373,9 @@ export default function SiteCard() {
         <footer className="mt-3 flex flex-wrap items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
           <div>
             <p className="text-forest-muted">{DEMO_NOTE}</p>
-            <SourceLine>BDOT10k, NMT 1 m, ULDK (GUGiK); IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
+            <SourceLine tone="onCream">BDOT10k, NMT 1 m, ULDK (GUGiK); IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
           </div>
-          <p lang="en" className="sh shrink-0 text-[13px]">
-            {TAGLINE_EN}
-          </p>
+          <FooterLine className="shrink-0" />
         </footer>
       </article>
       </main>

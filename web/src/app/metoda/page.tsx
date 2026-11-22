@@ -131,7 +131,7 @@ export default function MetodaPage() {
                 </tbody>
               </table>
             </div>
-            <SourceLine className="mt-4">{DEMO_NOTE}</SourceLine>
+            <SourceLine tone="onCream" className="mt-4">{DEMO_NOTE}</SourceLine>
           </section>
 
           <section>
@@ -177,7 +177,7 @@ export default function MetodaPage() {
                 </li>
               ))}
             </ol>
-            <SourceLine className="mt-4">IMGW-PIB (ostrzeżenia), Open-Meteo (opad, ET₀), KBW: opad minus ET₀</SourceLine>
+            <SourceLine tone="onCream" className="mt-4">IMGW-PIB (ostrzeżenia), Open-Meteo (opad, ET₀), KBW: opad minus ET₀</SourceLine>
           </section>
 
           <section>

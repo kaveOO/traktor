@@ -49,8 +49,10 @@ export function ParcelOutline({ parcel, lowPoint, size = 112 }: { parcel: Parcel
       aria-label={`Obrys działki ${parcel.id}, około ${n(parcel.areaHa, 2)} ha${lp ? ", z zaznaczonym najniższym punktem" : ""}. Północ u góry.`}
       className="shrink-0"
     >
-      <rect x="0.5" y="0.5" width={size - 1} height={size - 1} fill="none" stroke="#1F3A22" strokeOpacity=".25" />
-      <path d={d} fill="#4F7A3A" fillOpacity=".18" stroke="#1F3A22" strokeWidth="1.5" strokeLinejoin="round" fillRule="evenodd" />
+      <rect x="0.5" y="0.5" width={size - 1} height={size - 1} fill="#EFE6D3" stroke="#1F3A22" strokeOpacity=".25" rx="4" />
+      {/* same look as the /analiza map: water fill, cream halo, forest line */}
+      <path d={d} fill="#3B7FA3" fillOpacity=".22" stroke="#F3ECDD" strokeWidth="4" strokeLinejoin="round" fillRule="evenodd" />
+      <path d={d} fill="none" stroke="#1F3A22" strokeWidth="1.25" strokeLinejoin="round" />
       {lp && (
         <g>
           <circle cx={lp[0]} cy={lp[1]} r="3.2" fill="#3B7FA3" stroke="#F3ECDD" strokeWidth="1" />
@@ -70,39 +72,35 @@ export function ParcelOutline({ parcel, lowPoint, size = 112 }: { parcel: Parcel
   );
 }
 
-/** Level meter: word + filled segments (shape, not colour alone). */
-export function LevelMeter({ rank, of = 4, label }: { rank: number | null; of?: number; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-[3px]" role="img" aria-label={label}>
-      {Array.from({ length: of }, (_, i) => (
-        <span
-          key={i}
-          className={`inline-block h-[9px] w-[14px] rounded-[1px] border-[1.5px] border-forest ${rank !== null && i < rank ? "bg-forest" : "bg-transparent"}`}
-        />
-      ))}
-    </span>
-  );
-}
-
-/** KBW in the crop's critical period, 10 seasons. Bars go down from 0; drought years hatched + marked "S". */
+/**
+ * KBW in the crop's critical period, 10 seasons. Bars go down from 0; drought years hatched terracotta + "S"
+ * (pattern and letter, not colour alone). Brand palette only. Shared by /raport and /analiza.
+ */
 export function KbwSeasonsChart({
   seasons,
   thresholdMm,
   periodPl,
+  fs = 8,
+  idPrefix = "kbw",
+  className = "max-w-[110mm]",
 }: {
   seasons: { year: number; kbwCriticalMm: number; drought: boolean }[];
   thresholdMm: number | null;
   periodPl: string;
+  /** label font size in viewBox units (330 wide) */
+  fs?: number;
+  idPrefix?: string;
+  className?: string;
 }) {
   if (!seasons.length) {
-    return <p className="text-[11px]">Brak danych: archiwum meteo dla 10 sezonów niedostępne.</p>;
+    return <p className="text-[11px] text-terra-ink">Brak danych: archiwum meteo dla 10 sezonów niedostępne.</p>;
   }
   const W = 330;
-  const H = 128;
-  const L = 34;
+  const H = 118 + fs * 1.25;
+  const L = 22 + fs * 1.5;
   const R = 6;
-  const T = 14;
-  const B = 18;
+  const T = 6 + fs;
+  const B = 6 + fs * 1.5;
   const minV = Math.min(...seasons.map((s) => s.kbwCriticalMm), thresholdMm ?? 0, -50);
   const maxV = Math.max(0, ...seasons.map((s) => s.kbwCriticalMm));
   const lo = Math.floor(minV / 50) * 50;
@@ -114,27 +112,32 @@ export function KbwSeasonsChart({
   const desc = seasons
     .map((s) => `${s.year}: ${n(s.kbwCriticalMm)} mm${s.drought ? " (susza)" : ""}`)
     .join("; ");
+  const tid = `${idPrefix}-t`;
+  const did = `${idPrefix}-d`;
+  const hid = `${idPrefix}-hatch`;
+  const INK = "#1F3A22";
+  const TERRA_INK = "#984630";
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-labelledby="kbw-t kbw-d" className="block max-w-[110mm]">
-      <title id="kbw-t">Klimatyczny bilans wodny w okresie krytycznym ({periodPl}), 10 sezonów</title>
-      <desc id="kbw-d">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-labelledby={`${tid} ${did}`} className={`block ${className}`}>
+      <title id={tid}>Klimatyczny bilans wodny w okresie krytycznym ({periodPl}), 10 sezonów</title>
+      <desc id={did}>
         {desc}. {thresholdMm !== null ? `Próg suszy IUNG: ${n(thresholdMm)} mm.` : "Próg suszy nieznany."}
       </desc>
       <defs>
-        <pattern id="kbw-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="4" height="4" fill="#B5573B" fillOpacity=".25" />
+        <pattern id={hid} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="4" height="4" fill="#B5573B" fillOpacity=".22" />
           <line x1="0" y1="0" x2="0" y2="4" stroke="#B5573B" strokeWidth="2" />
         </pattern>
       </defs>
       {ticks.map((v) => (
         <g key={v}>
-          <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="#1F3A22" strokeOpacity={v === 0 ? 0.8 : 0.12} />
-          <text x={L - 4} y={y(v) + 3} fontSize="8" textAnchor="end" fill="#1F3A22" className="num">
-            {v === 0 ? "0" : `−${Math.abs(v)}`}
+          <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke={INK} strokeOpacity={v === 0 ? 0.8 : 0.12} />
+          <text x={L - 4} y={y(v) + fs * 0.38} fontSize={fs} textAnchor="end" fill={INK} className="num">
+            {v === 0 ? "0" : v < 0 ? `−${Math.abs(v)}` : `+${v}`}
           </text>
         </g>
       ))}
-      <text x={2} y={9} fontSize="8" fill="#1F3A22">mm</text>
+      <text x={2} y={fs + 1} fontSize={fs} fill={INK}>mm</text>
       {seasons.map((s, i) => {
         const x = L + i * bw + bw * 0.18;
         const w = bw * 0.64;
@@ -149,15 +152,17 @@ export function KbwSeasonsChart({
               y={top}
               width={w}
               height={h}
-              fill={s.drought ? "url(#kbw-hatch)" : "#3B7FA3"}
-              fillOpacity={s.drought ? 1 : 0.75}
+              fill={s.drought ? `url(#${hid})` : "#3B7FA3"}
+              fillOpacity={s.drought ? 1 : 0.8}
               stroke={s.drought ? "#B5573B" : "none"}
               strokeWidth="1"
             />
             {s.drought && (
-              <text x={x + w / 2} y={Math.min(y0, y1) - 3} fontSize="8" textAnchor="middle" fill="#B5573B" fontWeight="700">S</text>
+              <text x={x + w / 2} y={top - 3} fontSize={fs} textAnchor="middle" fill={TERRA_INK} fontWeight="700">
+                S
+              </text>
             )}
-            <text x={x + w / 2} y={H - 5} fontSize="8" textAnchor="middle" fill="#1F3A22" className="num">
+            <text x={x + w / 2} y={H - 4} fontSize={fs} textAnchor="middle" fill={INK} className="num">
               {String(s.year).slice(2)}
             </text>
           </g>
@@ -165,12 +170,45 @@ export function KbwSeasonsChart({
       })}
       {thresholdMm !== null && (
         <g>
-          <line x1={L} x2={W - R} y1={y(thresholdMm)} y2={y(thresholdMm)} stroke="#1F3A22" strokeWidth="1.2" strokeDasharray="4 3" />
-          <text x={W - R} y={y(thresholdMm) - 3} fontSize="7.5" textAnchor="end" fill="#1F3A22" fontWeight="600" stroke="#F3ECDD" strokeWidth="3" paintOrder="stroke">
-            próg IUNG {thresholdMm < 0 ? "−" : ""}{n(Math.abs(thresholdMm))} mm (do kalibracji)
+          <line x1={L} x2={W - R} y1={y(thresholdMm)} y2={y(thresholdMm)} stroke={INK} strokeWidth="1.2" strokeDasharray="4 3" />
+          <text
+            x={W - R}
+            y={y(thresholdMm) - 3}
+            fontSize={fs * 0.95}
+            textAnchor="end"
+            fill={INK}
+            fontWeight="600"
+            stroke="#F3ECDD"
+            strokeWidth="3"
+            paintOrder="stroke"
+          >
+            próg IUNG {thresholdMm < 0 ? "−" : ""}
+            {n(Math.abs(thresholdMm))} mm (do kalibracji)
           </text>
         </g>
       )}
     </svg>
+  );
+}
+
+/** Chart legend: water bar = season, hatched = drought (S), dashed = IUNG threshold. */
+export function KbwLegend({ className = "" }: { className?: string }) {
+  return (
+    <ul className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${className}`} aria-label="Legenda wykresu">
+      <li className="inline-flex items-center gap-1.5">
+        <span className="inline-block h-2.5 w-3 bg-water/80" aria-hidden /> sezon
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-block h-2.5 w-3 border border-terra"
+          style={{ background: "repeating-linear-gradient(45deg,#B5573B 0 1.5px,rgba(181,87,59,.22) 1.5px 4px)" }}
+          aria-hidden
+        />{" "}
+        S = susza
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span className="inline-block w-4 border-t-[1.5px] border-dashed border-forest" aria-hidden /> próg IUNG
+      </li>
+    </ul>
   );
 }

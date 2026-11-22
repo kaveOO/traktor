@@ -433,8 +433,8 @@ function BasemapCredit({ basemap }: { basemap: MapBasemap }) {
 
 export function MapSource({ basemap = "gugik-orto" }: { basemap?: MapBasemap }) {
   return (
-    <div data-ui className="max-w-[520px] rounded-[2px] bg-cream/90 px-2.5 py-1.5 text-forest">
-      <SourceLine>{SOURCES_MAP}</SourceLine>
+    <div data-ui className="max-w-[520px] rounded-[4px] bg-cream/95 px-2.5 py-1.5 text-forest">
+      <SourceLine tone="onCream">{SOURCES_MAP}</SourceLine>
       <p className="text-[11px] text-forest-muted">{DEMO_NOTE}</p>
       <p className="text-[11px] text-forest-muted">
         <BasemapCredit basemap={basemap} />
@@ -456,7 +456,7 @@ const SHORT_CREDIT: Record<MapBasemap, [string, string | null]> = {
 export function MapCredit({ basemap }: { basemap: MapBasemap }) {
   const [text, href] = SHORT_CREDIT[basemap];
   return (
-    <p data-ui className="rounded-[2px] bg-cream/90 px-1.5 py-0.5 text-[10.5px] leading-tight text-forest">
+    <p data-ui className="rounded-[4px] bg-cream/95 px-1.5 py-0.5 text-[10.5px] leading-tight text-forest">
       {href ? (
         <a href={href} target="_blank" rel="noreferrer" className="underline">
           {text}

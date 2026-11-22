@@ -83,11 +83,12 @@ export async function geocode(q: string): Promise<Fetched<Place[]>> {
   }
 }
 
-export const LEVEL_PL: Record<Level, { word: string; icon: "water" | "drought"; tone: string; rank: number }> = {
-  niskie: { word: "Niskie", icon: "water", tone: "bg-agri", rank: 1 },
-  umiarkowane: { word: "Umiarkowane", icon: "drought", tone: "bg-soil", rank: 2 },
-  wysokie: { word: "Wysokie", icon: "drought", tone: "bg-terra", rank: 3 },
-  bardzo_wysokie: { word: "Bardzo wysokie", icon: "drought", tone: "bg-terra", rank: 4 },
+/** Risk levels: word + icon + rank (the brand LevelTag maps rank to agri / soil / terracotta). */
+export const LEVEL_PL: Record<Level, { word: string; icon: "water" | "drought"; rank: number }> = {
+  niskie: { word: "Niskie", icon: "water", rank: 1 },
+  umiarkowane: { word: "Umiarkowane", icon: "drought", rank: 2 },
+  wysokie: { word: "Wysokie", icon: "drought", rank: 3 },
+  bardzo_wysokie: { word: "Bardzo wysokie", icon: "drought", rank: 4 },
 };
 
 export const fmt = (n: number | null | undefined, digits = 0, unit = "") =>

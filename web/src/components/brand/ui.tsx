@@ -1,5 +1,9 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { StepRail } from "./data";
+
+export type { ChipStatus, Step, StepState } from "./data";
+export { Callout, FooterLine, LevelMeter, LevelTag, RecCard, SectionEyebrow, SourceChip, SourceChipList, StepRail } from "./data";
 
 /* Shared brand primitives (13 UI elements). Keep these dumb and reusable. */
 
@@ -13,6 +17,8 @@ export function Button({
   variant = "primary",
   tone = "onCream",
   href,
+  target,
+  rel,
   className = "",
   children,
   ...rest
@@ -20,6 +26,9 @@ export function Button({
   variant?: "primary" | "secondary";
   tone?: Tone;
   href?: string;
+  /** links only, e.g. "_blank" (add an sr-only "otwiera się w nowej karcie" to the label) */
+  target?: string;
+  rel?: string;
   className?: string;
   children: ReactNode;
 } & Omit<ComponentProps<"button">, "className" | "children">) {
@@ -36,7 +45,7 @@ export function Button({
   const cls = `${base} ${styles} ${className}`;
   if (href) {
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} target={target} rel={rel ?? (target === "_blank" ? "noopener" : undefined)}>
         {children}
       </Link>
     );
@@ -110,33 +119,14 @@ export const RAIL_STEPS = [
 ] as const;
 
 export function ProgressRail({ current = 3, tone = "onCream" }: { current?: number; tone?: Tone }) {
-  const c = tone === "onForest" ? "text-cream" : "text-forest";
-  return (
-    <ol className={`flex w-full items-start ${c}`}>
-      {RAIL_STEPS.map((label, i) => {
-        const n = i + 1;
-        const state = n < current ? "done" : n === current ? "current" : "todo";
-        return (
-          <li key={label} className="relative flex flex-1 flex-col items-center text-center">
-            {i > 0 && <span className="absolute top-[11px] right-1/2 h-px w-full bg-current opacity-40" />}
-            <span
-              className={`num relative z-10 grid size-6 place-items-center rounded-full border-2 border-current text-[10px] font-semibold ${
-                state === "todo" ? (tone === "onForest" ? "bg-forest" : "bg-cream") : "bg-current"
-              } ${state === "current" ? "ring-4 ring-current/25" : ""}`}
-            >
-              <span className={state === "todo" ? "" : tone === "onForest" ? "text-forest" : "text-cream"}>
-                {String(n).padStart(2, "0")}
-              </span>
-            </span>
-            <span className="mt-2 text-[11px] leading-tight">{label}</span>
-          </li>
-        );
-      })}
-    </ol>
-  );
+  return <StepRail steps={RAIL_STEPS} current={current} tone={tone} label="Etapy pracy TRAKTOR" />;
 }
 
-/** Source line: required on every map and data surface. */
-export function SourceLine({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <p className={`text-[11px] leading-snug opacity-75 ${className}`}>Źródło: {children}</p>;
+/**
+ * Source line: required on every map and data surface. Informative text, so never faded:
+ * `onCream` = forest-muted, `onForest` = cream-muted, no tone = inherits the current colour.
+ */
+export function SourceLine({ children, className = "", tone }: { children: ReactNode; className?: string; tone?: Tone }) {
+  const c = tone === "onCream" ? "text-forest-muted" : tone === "onForest" ? "text-cream-muted" : "";
+  return <p className={`text-[11px] leading-snug ${c} ${className}`}>Źródło: {children}</p>;
 }
