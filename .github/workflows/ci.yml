@@ -1,0 +1,96 @@
+name: CI
+
+# Bramka na `main`: typy, build produkcyjny, audyt zależności runtime.
+# Wszystko działa bez sekretów - aplikacja buduje się bez kluczy API
+# (GOOGLE_MAPS_API_KEY i ANTHROPIC_API_KEY są opcjonalne, patrz docs/CI.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Nowy push na ten sam branch/PR ubija poprzedni przebieg.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  CI: "true"
+
+jobs:
+  typecheck-build:
+    name: Typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22 + cache npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalacja (npm ci)
+        run: npm ci
+
+      # next/font pobiera Archivo i Inter z Google Fonts w czasie builda.
+      # Ten krok nic nie blokuje - tylko mówi wprost, że sieć padła,
+      # zamiast zostawiać mylący błąd w środku `next build`.
+      - name: Sieć do Google Fonts (informacyjnie)
+        continue-on-error: true
+        run: |
+          if curl -fsS --max-time 15 "https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap" -o /dev/null; then
+            echo "fonts.googleapis.com: OK"
+          else
+            echo "::warning::fonts.googleapis.com nie odpowiada - next/font może wywalić build. To zewnętrzna sieć, nie nasz kod."
+          fi
+
+      # .next/cache przyspiesza kolejne buildy; klucz zależy od lockfile i SHA.
+      - name: Cache .next/cache
+        uses: actions/cache@v4
+        with:
+          path: web/.next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('web/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('web/package-lock.json') }}-
+
+      # NIE `npx tsc --noEmit`: typy RouteContext powstają w `next typegen`,
+      # bez tego kroku tsc zgłasza "Cannot find name 'RouteContext'".
+      - name: Typecheck (next typegen + tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Build produkcyjny
+        run: npm run build
+
+  audit:
+    name: Audit (runtime deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # `npm audit` czyta package-lock.json, więc nie potrzebuje `npm ci`.
+      # Blokujemy tylko podatności high/critical w zależnościach runtime
+      # (devDependencies nie idą na produkcję).
+      - name: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=high

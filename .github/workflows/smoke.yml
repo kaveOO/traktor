@@ -1,0 +1,114 @@
+name: Smoke
+
+# Dymny test wdrożonego builda: czy `next start` wstaje i czy kluczowe trasy
+# odpowiadają 200. Uruchamiany ręcznie i nocą (03:00 UTC).
+# Celowo NIE dotyka tras zależnych od zewnętrznych API - patrz docs/CI.md.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  CI: "true"
+  PORT: "3033"
+
+jobs:
+  smoke:
+    name: Build + start + trasy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22 + cache npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalacja (npm ci)
+        run: npm ci
+
+      - name: Cache .next/cache
+        uses: actions/cache@v4
+        with:
+          path: web/.next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('web/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ hashFiles('web/package-lock.json') }}-
+
+      - name: Build produkcyjny
+        run: npm run build
+
+      - name: Start (next start -p 3033)
+        run: |
+          nohup npm run start -- -p 3033 > "$RUNNER_TEMP/next.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/next.pid"
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 2 http://127.0.0.1:3033/api/health > /dev/null 2>&1; then
+              echo "Serwer wstał po ${i} s."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Serwer nie odpowiedział na /api/health w 60 s."
+          tail -n 120 "$RUNNER_TEMP/next.log" || true
+          exit 1
+
+      - name: Sprawdź trasy (200)
+        run: |
+          fail=0
+          check() {
+            local path="$1"
+            local code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 --retry 2 --retry-delay 2 \
+              "http://127.0.0.1:3033${path}" 2>/dev/null || echo "000")
+            if [ "$code" = "200" ]; then
+              printf 'OK   %-24s %s\n' "$path" "$code"
+            else
+              printf 'FAIL %-24s %s\n' "$path" "$code"
+              fail=1
+            fi
+          }
+          check "/"
+          check "/analiza"
+          check "/raport?demo=1"
+          check "/mapa"
+          check "/api/health"
+          exit "$fail"
+
+      - name: Kontrakt /api/health
+        run: |
+          curl -fsS --max-time 10 http://127.0.0.1:3033/api/health -o "$RUNNER_TEMP/health.json"
+          cat "$RUNNER_TEMP/health.json"
+          node -e '
+            const j = require(process.argv[1]);
+            if (j.ok !== true) { console.error("oczekiwano ok:true"); process.exit(1); }
+            if (typeof j.time !== "string") { console.error("brak pola time"); process.exit(1); }
+            console.log("health OK");
+          ' "$RUNNER_TEMP/health.json"
+
+      - name: Stop serwera + log
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/next.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/next.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/next.log" ]; then
+            echo "--- next.log (ogon) ---"
+            tail -n 80 "$RUNNER_TEMP/next.log" || true
+          fi
