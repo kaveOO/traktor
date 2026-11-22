@@ -28,11 +28,11 @@ export function TopBar({
       <Link href="/" aria-label="TRAKTOR, strona główna" className="shrink-0">
         <Logo color="cream" height={18} />
       </Link>
-      <div className="shrink-0 border-l border-cream/25 pl-4">
+      <div className="shrink-0 border-l border-cream/25 pl-4 max-[900px]:hidden">
         <p className="eb opacity-70">Mapa gminy</p>
         <p className="text-[13px] font-medium">Gmina Kruszwica · pow. inowrocławski</p>
       </div>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]" aria-live="polite">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] max-[900px]:order-last max-[900px]:basis-full max-[900px]:gap-x-3 max-[900px]:text-[11.5px]" aria-live="polite">
         <span
           className={`eb rounded-[2px] px-2 py-1 ${isLive ? "bg-cream text-forest" : "border border-cream/60"}`}
           title={conditions.labelPl}
@@ -126,7 +126,7 @@ export function ScenarioDock({
   return (
     <div className="no-print relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-forest/15 bg-cream px-4 py-2.5 text-forest">
       <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Warunki">
-        <span className="eb mr-1 opacity-70">Warunki</span>
+        <span className="eb mr-1 opacity-70 max-[900px]:hidden">Warunki</span>
         {CHOICES.map((c, i) => {
           const on = c === scenario;
           return (
@@ -150,7 +150,7 @@ export function ScenarioDock({
           );
         })}
       </div>
-      <div className="num min-w-0 flex-1 text-[13px]" aria-live="polite">
+      <div className="num min-w-0 flex-1 text-[13px] max-[900px]:order-first max-[900px]:basis-full max-[900px]:text-[12px]" aria-live="polite">
         {open.length > 0 ? (
           <span className="font-semibold text-water">
             OTWÓRZ: {open.length} miejsc · zwolniona pojemność {fmtRange(freed, "m³")}

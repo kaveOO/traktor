@@ -215,8 +215,8 @@ export function MapCanvas({
         ))}
         {/* lake */}
         <polygon points={pts(mapFeatures.lake)} fill={C.water} fillOpacity="0.85" />
-        <text x={935} y={330} fontSize={fs(12)} fill={C.cream} className="eb" textAnchor="middle" style={{ fontSize: fs(11) }}>
-          Jezioro GopÅ‚o
+        <text x={905} y={330} fontSize={fs(12)} fill={C.cream} className="eb" textAnchor="middle" style={{ fontSize: fs(11) }}>
+          Jezioro Gopło
         </text>
         {showFlood && (
           <polygon points={pts(mapFeatures.floodZone)} fill="url(#isok)" stroke={C.water} strokeOpacity="0.5" strokeWidth={1} vectorEffect="non-scaling-stroke" />
@@ -270,7 +270,7 @@ export function MapCanvas({
             fill="none"
             stroke={C.water}
             strokeOpacity="0.28"
-            strokeWidth={Math.max(9, 14 * u)}
+            strokeWidth={12 /* rehydration band: 2 x 60 m, as in the pipeline mock */}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -349,16 +349,16 @@ export function MapCanvas({
 
       {/* zoom controls, north arrow, scale bar */}
       <div data-ui className="no-print absolute right-4 bottom-12 flex flex-col overflow-hidden rounded-[4px] bg-cream/95 shadow-[0_8px_24px_rgba(31,58,34,.18)] ">
-        <button type="button" aria-label="PrzybliÅ¼" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1 / 1.4)}>
+        <button type="button" aria-label="Przybliż" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1 / 1.4)}>
           +
         </button>
         <span className="h-px bg-forest/15" />
         <button type="button" aria-label="Oddal" className="grid size-10 place-items-center text-xl text-forest hover:bg-cream-deep" onClick={() => zoomBy(1.4)}>
-          âˆ’
+          −
         </button>
         <span className="h-px bg-forest/15" />
-        <button type="button" aria-label="CaÅ‚a gmina" title="CaÅ‚a gmina" className="eb grid h-10 w-10 place-items-center text-[9px] text-forest hover:bg-cream-deep" onClick={() => animateTo(FULL, 700)}>
-          CAÅA
+        <button type="button" aria-label="Cała gmina" title="Cała gmina" className="eb grid h-10 w-10 place-items-center text-[9px] text-forest hover:bg-cream-deep" onClick={() => animateTo(FULL, 700)}>
+          CAŁA
         </button>
       </div>
       <div data-ui className="pointer-events-none absolute right-[25px] bottom-[11.5rem] flex flex-col items-center text-forest">
