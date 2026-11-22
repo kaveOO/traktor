@@ -26,17 +26,21 @@ export function StepRail({
   current = 1,
   tone = "onCream",
   label,
+  size = "sm",
   className = "",
 }: {
   steps: readonly (string | Step)[];
   current?: number;
   tone?: Tone;
   label?: string;
+  /** "sm" = compact 24px steps joined by a hairline (forms); "md" = brand artwork, 34px steps, 12px numbers, no joins */
+  size?: "sm" | "md";
   className?: string;
 }) {
   const c = tone === "onForest" ? "text-cream" : "text-forest";
+  const md = size === "md";
   return (
-    <ol className={`flex w-full items-start ${c} ${className}`} aria-label={label}>
+    <ol className={`flex w-full items-start ${md ? "gap-2" : ""} ${c} ${className}`} aria-label={label}>
       {steps.map((s, i) => {
         const step = typeof s === "string" ? { label: s } : s;
         const n = i + 1;
@@ -44,21 +48,23 @@ export function StepRail({
         return (
           <li
             key={step.label}
-            className="relative flex flex-1 flex-col items-center text-center"
+            className={`relative flex flex-1 flex-col ${md ? "items-start gap-2.5 text-left" : "items-center text-center"}`}
             aria-current={state === "current" ? "step" : undefined}
           >
-            {i > 0 && <span aria-hidden className="absolute top-[11px] right-1/2 h-px w-full bg-current opacity-40" />}
+            {!md && i > 0 && <span aria-hidden className="absolute top-[11px] right-1/2 h-px w-full bg-current opacity-40" />}
             <span
               aria-hidden
-              className={`num relative z-10 grid size-6 place-items-center rounded-full border-2 border-current text-[10px] font-semibold transition-colors duration-[400ms] ${
-                state === "todo" ? (tone === "onForest" ? "bg-forest" : "bg-cream") : "bg-current"
-              } ${state === "current" ? "ring-4 ring-current/25" : ""}`}
+              className={`num relative z-10 grid place-items-center rounded-full border-2 border-current font-semibold transition-colors duration-[400ms] ${
+                md ? "size-[34px] text-[12px]" : "size-6 text-[10px]"
+              } ${state === "todo" ? (md ? "bg-transparent" : tone === "onForest" ? "bg-forest" : "bg-cream") : "bg-current"} ${
+                state === "current" ? "ring-4 ring-current/30" : ""
+              }`}
             >
               <span className={state === "todo" ? "" : tone === "onForest" ? "text-forest" : "text-cream"}>
                 {String(n).padStart(2, "0")}
               </span>
             </span>
-            <span className="mt-2 text-[11px] leading-tight">
+            <span className={md ? "type-caption" : "mt-2 text-[11px] leading-tight"}>
               <span className="sr-only">Krok {n}: </span>
               {step.label}
               <span className="sr-only">, {STATE_PL[state]}</span>

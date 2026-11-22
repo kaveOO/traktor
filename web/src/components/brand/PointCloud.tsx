@@ -3,6 +3,9 @@
 import { useEffect, useRef } from "react";
 
 /**
+ * @deprecated Guidelines 1.0 §05: imagery is flat colour only, no shading or 3D. Use `FieldPattern`
+ * (components/brand/FieldPattern.tsx). Kept only so existing imports keep building; brand components must not use it.
+ *
  * LiDAR point-cloud field (09 Imagery: "Points, never surfaces"). Forest ground; points coloured by class:
  * cream field rows, soil-brown banks, water-blue ditch, birch-green trees. No glow, no sci-fi grid.
  * Motion: slow camera push-in (8-12 s, scale <= 1.12). Respects reduced motion.
