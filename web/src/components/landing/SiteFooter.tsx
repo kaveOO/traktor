@@ -33,11 +33,6 @@ export function SiteFooter() {
                 Karta miejsca
               </Link>
             </li>
-            <li>
-              <Link className="hover:underline" href="/slides">
-                Prezentacja
-              </Link>
-            </li>
           </ul>
           <div className="space-y-3 text-[12px] leading-snug opacity-80">
             <p>
