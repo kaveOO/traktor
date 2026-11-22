@@ -1,0 +1,434 @@
+{
+  "request": {
+    "parcelId": "040706_5.0021.44",
+    "crop": "pszenica_ozima",
+    "date": "2018-07-20"
+  },
+  "textSource": "template",
+  "methodVersion": "traktor-analiza 0.1 (SMSR progi do kalibracji)",
+  "generatedAt": "2026-11-22T08:33:14.811Z",
+  "durationMs": 5781,
+  "parcel": {
+    "id": "040706_5.0021.44",
+    "teryt": "040706_5.0021.44",
+    "voivodeship": "kujawsko-pomorskie",
+    "county": "powiat inowrocławski",
+    "commune": "Kruszwica",
+    "region": "Kraszyce",
+    "areaHa": 10.06,
+    "centroid": [
+      18.249922,
+      52.649257
+    ],
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            18.2462632975831,
+            52.6499122839825
+          ],
+          [
+            18.2469182967214,
+            52.6495087491415
+          ],
+          [
+            18.2473047373952,
+            52.6491737137329
+          ],
+          [
+            18.247379265488,
+            52.6487643762863
+          ],
+          [
+            18.2474208453548,
+            52.6483034318248
+          ],
+          [
+            18.2527802834474,
+            52.6478318024563
+          ],
+          [
+            18.2529018107361,
+            52.6502255226102
+          ],
+          [
+            18.2462984900744,
+            52.6504687807766
+          ],
+          [
+            18.2462632975831,
+            52.6499122839825
+          ]
+        ]
+      ]
+    }
+  },
+  "crop": {
+    "id": "pszenica_ozima",
+    "namePl": "Pszenica ozima"
+  },
+  "assessment": {
+    "currentLevel": "wysokie",
+    "historicalLevel": "niskie",
+    "summaryPl": "Ryzyko niedoboru wody na 20 lipca 2018: wysokie. KBW w ostatnim zakończonym oknie SMSR 21.V–20.VII: −149 mm z ETP IUNG, −142 mm z ET0 FAO, próg SMSR −239 mm. Susza w 0 z 10 ostatnich sezonów. Gleba: kat. III, glina piaszczysta.",
+    "meteo": {
+      "kbw60Mm": -142,
+      "kbw60Percentile": 27,
+      "precip30Mm": 88,
+      "precip30NormMm": 76,
+      "et0_30Mm": 113,
+      "etc30Mm": 88,
+      "tmax30MeanC": 23.3,
+      "dryDaysMax": 13,
+      "droughtYears": 0,
+      "seasons": [
+        {
+          "year": 2017,
+          "kbwCriticalMm": -80,
+          "drought": false
+        },
+        {
+          "year": 2016,
+          "kbwCriticalMm": -154,
+          "drought": false
+        },
+        {
+          "year": 2015,
+          "kbwCriticalMm": -142,
+          "drought": false
+        },
+        {
+          "year": 2014,
+          "kbwCriticalMm": -145,
+          "drought": false
+        },
+        {
+          "year": 2013,
+          "kbwCriticalMm": -108,
+          "drought": false
+        },
+        {
+          "year": 2012,
+          "kbwCriticalMm": -120,
+          "drought": false
+        },
+        {
+          "year": 2011,
+          "kbwCriticalMm": -145,
+          "drought": false
+        },
+        {
+          "year": 2010,
+          "kbwCriticalMm": -129,
+          "drought": false
+        },
+        {
+          "year": 2009,
+          "kbwCriticalMm": -130,
+          "drought": false
+        },
+        {
+          "year": 2008,
+          "kbwCriticalMm": -206,
+          "drought": false
+        }
+      ],
+      "monthly": [
+        {
+          "month": 1,
+          "pMm": 43,
+          "etcMm": 3
+        },
+        {
+          "month": 2,
+          "pMm": 29,
+          "etcMm": 4
+        },
+        {
+          "month": 3,
+          "pMm": 37,
+          "etcMm": 16
+        },
+        {
+          "month": 4,
+          "pMm": 32,
+          "etcMm": 54
+        },
+        {
+          "month": 5,
+          "pMm": 64,
+          "etcMm": 114
+        },
+        {
+          "month": 6,
+          "pMm": 71,
+          "etcMm": 130
+        },
+        {
+          "month": 7,
+          "pMm": 89,
+          "etcMm": 73
+        },
+        {
+          "month": 8,
+          "pMm": 58,
+          "etcMm": 33
+        },
+        {
+          "month": 9,
+          "pMm": 46,
+          "etcMm": 20
+        },
+        {
+          "month": 10,
+          "pMm": 50,
+          "etcMm": 16
+        },
+        {
+          "month": 11,
+          "pMm": 47,
+          "etcMm": 5
+        },
+        {
+          "month": 12,
+          "pMm": 42,
+          "etcMm": 3
+        }
+      ],
+      "warnings": []
+    },
+    "satellite": {
+      "sceneDate": "2018-07-20",
+      "cloudPct": 5,
+      "ndvi": 0.209,
+      "ndmi": -0.201,
+      "ndviNorm": 0.871,
+      "ndmiNorm": 0.477,
+      "anomalyPl": "NDVI 0,21, NDMI −0,20. Wartość z poprzedniego roku na tej działce (uprawy mogły się różnić): NDVI 0,87, NDMI 0,48. To okres dojrzewania: spadek NDVI jest naturalny, ważniejsze jest porównanie z poprzednimi latami niż sama wartość. NDVI o 0,66 niższy niż zwykle o tej porze: słabsza biomasa niż w poprzednich latach. Przy słabym pokryciu roślinnością NDMI opisuje głównie wilgotność powierzchni gleby. Satelita tylko potwierdza sygnał z bilansu wodnego, nie rozstrzyga sam.",
+      "history": [
+        {
+          "date": "2017-07-30",
+          "ndvi": 0.871,
+          "ndmi": 0.477
+        },
+        {
+          "date": "2018-07-20",
+          "ndvi": 0.209,
+          "ndmi": -0.201
+        }
+      ]
+    },
+    "soil": {
+      "iungCategory": "III",
+      "sandPct": 72,
+      "clayPct": 9,
+      "socGkg": 23.9,
+      "awcMm": 112,
+      "textureClassPl": "glina piaszczysta"
+    },
+    "terrain": {
+      "elevMin": 90.7,
+      "elevMax": 92.9,
+      "slopePct": 1.6,
+      "lowPoint": [
+        18.247737,
+        52.649403
+      ],
+      "ditchDistM": null,
+      "watercourses": [],
+      "floodZone": null
+    }
+  },
+  "causes": [
+    {
+      "id": "stres_roslin",
+      "titlePl": "Zdjęcie satelitarne potwierdza słabszy stan roślin",
+      "evidencePl": "Sentinel-2 2018-07-20: NDVI 0,21 (ta sama działka w poprzednich latach: 0,87), NDMI -0,2 (0,48). Uprawy w poprzednich latach mogły być inne. NDVI 0,21, NDMI −0,20. Wartość z poprzedniego roku na tej działce (uprawy mogły się różnić): NDVI 0,87, NDMI 0,48. To okres dojrzewania: spadek NDVI jest naturalny, ważniejsze jest porównanie z poprzednimi latami niż sama wartość. NDVI o 0,66 niższy niż zwykle o tej porze: słabsza biomasa niż w poprzednich latach. Przy słabym pokryciu roślinnością NDMI opisuje głównie wilgotność powierzchni gleby. Satelita tylko potwierdza sygnał z bilansu wodnego, nie rozstrzyga sam.",
+      "weight": 3,
+      "sources": [
+        "Sentinel2"
+      ]
+    },
+    {
+      "id": "upal",
+      "titlePl": "Wysoka temperatura i parowanie",
+      "evidencePl": "Średnia temperatura maksymalna z 30 dni: 23,3 °C; parowanie ET0 (FAO): 113 mm w 30 dni (warunki rejonu).",
+      "weight": 2,
+      "sources": [
+        "OpenMeteo"
+      ]
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "lustracja",
+      "kind": "agrotechnika",
+      "titlePl": "Sprawdzić łan w terenie",
+      "whyPl": "Zdjęcie satelitarne pokazuje słabszy stan roślin niż w poprzednich latach na tej działce, przy niedoborze wody w bilansie lub słabej glebie.",
+      "howPl": "Obejrzeć miejsca o niskim NDVI: susza, choroby, szkodniki czy zagęszczenie gleby. Sprawdzić wilgotność gleby łopatą na 20–30 cm.",
+      "priority": 1,
+      "basedOn": [
+        "stres_roslin"
+      ],
+      "sources": [
+        "Sentinel2"
+      ]
+    },
+    {
+      "id": "mulcz",
+      "kind": "agrotechnika",
+      "titlePl": "Zostawić resztki pożniwne na powierzchni",
+      "whyPl": "Mulcz osłania glebę przed słońcem i wiatrem, mniej wody wyparowuje.",
+      "howPl": "Słomę pociąć i rozrzucić równo; płytka uprawa zamiast orki tam, gdzie to możliwe.",
+      "priority": 2,
+      "basedOn": [
+        "upal"
+      ],
+      "sources": [
+        "OpenMeteo"
+      ]
+    },
+    {
+      "id": "uprawa_uproszczona",
+      "kind": "agrotechnika",
+      "titlePl": "Ograniczyć liczbę uprawek",
+      "whyPl": "Każde przejście przesusza wierzchnią warstwę gleby.",
+      "howPl": "Uprawa bezorkowa lub łączenie zabiegów (agregat uprawowo-siewny); nie uprawiać w upał.",
+      "priority": 3,
+      "basedOn": [
+        "upal"
+      ],
+      "sources": [
+        "OpenMeteo"
+      ]
+    },
+    {
+      "id": "nawadnianie",
+      "kind": "nawadnianie",
+      "titlePl": "Nawadnianie wskazane",
+      "whyPl": "Bilans wody w strefie korzeni (FAO-56, od 1 marca 2018, start: gleba pełna po zimie): ubytek 113 mm, próg stresu (RAW) 118 mm, TAW 186 mm z kategorii IUNG III. W zbożach i na użytkach zielonych nawadnianie jest rzadkie; najpierw retencja i agrotechnika.",
+      "howPl": "Na dzień 20 lipca 2018 zalecenie brzmiałoby: dawka netto ok. 130 mm (brutto ok. 144–173 mm zależnie od sprzętu), rano lub wieczorem, w ciągu 3–5 dni; pominąć, jeśli spadnie ≥ 65 mm deszczu. Za 7 dni ubytek wody ok. 130 mm (rzeczywista pogoda 7 dni po dacie (w miejsce prognozy)).",
+      "priority": 1,
+      "basedOn": [
+        "upal"
+      ],
+      "legalPl": "Pobór wody do nawadniania zwykle wymaga pozwolenia wodnoprawnego; sprawdź w Wodach Polskich.",
+      "sources": [
+        "OpenMeteo",
+        "IUNG"
+      ]
+    }
+  ],
+  "irrigation": {
+    "decision": "tak",
+    "deficitMm": 113,
+    "doseMm": 130,
+    "timingPl": "Na dzień 20 lipca 2018 zalecenie brzmiałoby: dawka netto ok. 130 mm (brutto ok. 144–173 mm zależnie od sprzętu), rano lub wieczorem, w ciągu 3–5 dni; pominąć, jeśli spadnie ≥ 65 mm deszczu. Za 7 dni ubytek wody ok. 130 mm (rzeczywista pogoda 7 dni po dacie (w miejsce prognozy)).",
+    "reasonPl": "Bilans wody w strefie korzeni (FAO-56, od 1 marca 2018, start: gleba pełna po zimie): ubytek 113 mm, próg stresu (RAW) 118 mm, TAW 186 mm z kategorii IUNG III. W zbożach i na użytkach zielonych nawadnianie jest rzadkie; najpierw retencja i agrotechnika."
+  },
+  "uncertainty": {
+    "level": "niska",
+    "reasonsPl": [
+      "Opady i parowanie z modeli dla rejonu (NASA POWER ~50 km, Open-Meteo ~10 km), nie pomiar na polu.",
+      "Progi SMSR są kalibrowane na ETP IUNG z danych stacji IMGW; tu ETP IUNG liczone ze wzoru miesięcznego z danych modelowych, usłonecznienie szacowane z promieniowania (przybliżenie).",
+      "Gleba z map (IUNG, SoilGrids 250 m) w środku działki: szacunek, nie pomiar.",
+      "Woda w glebie z modelu FAO-56 (start: gleba pełna po zimie; po suchej zimie zaniżony ubytek)."
+    ],
+    "missingPl": [
+      "Brak danych o ciekach (usługa niedostępna): nie oceniono zastawek na rowach.",
+      "Nie sprawdzono strefy zagrożenia powodziowego (ISOK): sprawdź na mapie ISOK przed budową zbiornika."
+    ],
+    "notConsideredPl": [
+      "Drenaż podziemny i stan urządzeń melioracyjnych",
+      "Poziom wody gruntowej",
+      "Dokładna faza rozwojowa i stan łanu w dniu analizy",
+      "Lokalne pomiary opadu i wilgotności gleby",
+      "Nawadnianie i pobór wody na sąsiednich działkach",
+      "Zabiegi agrotechniczne wykonane na działce"
+    ]
+  },
+  "sources": [
+    {
+      "id": "ULDK",
+      "label": "Granice działki (ULDK GUGiK)",
+      "detail": "GetParcelById: 040706_5.0021.44 → 040706_5.0021.44",
+      "status": "ok",
+      "fetchedAt": "2026-11-22T08:33:09.328Z",
+      "ms": 297,
+      "license": "GUGiK ULDK, dane publiczne (art. 40a Pgik)",
+      "url": "https://uldk.gugik.gov.pl/"
+    },
+    {
+      "id": "OpenMeteo",
+      "label": "Opady, parowanie, temperatura (NASA POWER + Open-Meteo)",
+      "detail": "NASA POWER (MERRA-2, ~50 km) 2008-01-01..2018-07-20, ET0 FAO-56 Penman-Monteith liczone z T, RH, wiatru i promieniowania; dane po dacie analizy do 2018-07-28; komórka 0,1° 52.6N 18.2E (warunki rejonu)",
+      "status": "ok",
+      "fetchedAt": "2026-11-22T08:33:12.046Z",
+      "ms": 2128,
+      "license": "NASA POWER Project, LaRC (dane otwarte); Open-Meteo.com, CC BY 4.0",
+      "url": "https://power.larc.nasa.gov"
+    },
+    {
+      "id": "Sentinel2",
+      "label": "Sentinel-2 L2A (Copernicus) via Microsoft Planetary Computer",
+      "detail": "scena S2B_MSIL2A_20180720T100029_R122_T34UCD_20201011T180507 (2018-07-20), zachmurzenie sceny 5%, ważne piksele działki 100%; norma (mediana): 2017-07-30; NDVI B08/B04 10 m, NDMI B8A/B11 20 m, maska SCL 4-5",
+      "status": "partial",
+      "fetchedAt": "2026-11-22T08:33:11.331Z",
+      "ms": 1404,
+      "license": "Contains modified Copernicus Sentinel data 2017-2018 (Copernicus Sentinel Data Legal Notice); Microsoft Planetary Computer (zapas: Earth Search by Element 84, AWS Open Data)",
+      "url": "https://planetarycomputer.microsoft.com/api/stac/v1/collections/sentinel-2-l2a/items/S2B_MSIL2A_20180720T100029_R122_T34UCD_20201011T180507",
+      "note": "Norma to mediana z poprzednich lat na tej działce (uprawy mogły się różnić)"
+    },
+    {
+      "id": "IUNG",
+      "label": "Kategoria podatności gleby na suszę (IUNG-PIB)",
+      "detail": "WCS Susza:katgl_landuse2024, 4019 pikseli 5 m na działce: kat. III (100% gruntów rolnych)",
+      "status": "ok",
+      "fetchedAt": "2026-11-22T08:33:09.918Z",
+      "ms": 590,
+      "license": "IUNG-PIB, mapa podatności gleb na suszę (warunki ponownego wykorzystania do potwierdzenia)",
+      "url": "https://susza.iung.pulawy.pl/kategorie/"
+    },
+    {
+      "id": "SoilGrids",
+      "label": "Uziarnienie i węgiel organiczny gleby (SoilGrids 250 m)",
+      "detail": "średnia 0–30 cm w punkcie 52.649N 18.250E; AWC z równań Saxton–Rawls (2006) × strefa korzeni 1.2 m",
+      "status": "ok",
+      "fetchedAt": "2026-11-22T08:33:11.525Z",
+      "ms": 1606,
+      "license": "SoilGrids 2.0, ISRIC, CC BY 4.0",
+      "url": "https://soilgrids.org/"
+    },
+    {
+      "id": "NMT",
+      "label": "Wysokości terenu (NMT GUGiK)",
+      "detail": "NMT 1 m, 32/62 punktów co ~40 m",
+      "status": "partial",
+      "fetchedAt": "2026-11-22T08:33:11.162Z",
+      "ms": 1243,
+      "license": "GUGiK NMT, dane publiczne",
+      "url": "https://services.gugik.gov.pl/nmt/"
+    },
+    {
+      "id": "BDOT10k",
+      "label": "Rowy i cieki w promieniu 1 km (OpenStreetMap)",
+      "detail": "Brak danych o ciekach (usługa niedostępna)",
+      "status": "missing",
+      "fetchedAt": "2026-11-22T08:33:14.732Z",
+      "ms": 4808,
+      "license": "© OpenStreetMap contributors, ODbL",
+      "url": "https://www.openstreetmap.org/"
+    },
+    {
+      "id": "ISOK",
+      "label": "Strefy zagrożenia powodziowego (ISOK)",
+      "detail": "nie sprawdzano automatycznie",
+      "status": "missing",
+      "fetchedAt": "2026-11-22T08:33:14.732Z",
+      "ms": 0,
+      "license": "Wody Polskie / ISOK",
+      "url": "https://wody.isok.gov.pl/imap_kzgw/"
+    }
+  ]
+}
