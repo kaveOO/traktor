@@ -1,0 +1,73 @@
+# TRAKTOR — jednostka systemd dla aplikacji Next.js (serwer Node, nie serverless).
+#
+# Instalacja:
+#   sudo cp deploy/traktor.service /etc/systemd/system/traktor.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now traktor
+#
+# Założenia (patrz docs/DEPLOY-VPS.md):
+#   - kod w /srv/traktor/releases/<data>, dowiązanie /srv/traktor/current -> najnowsze wydanie
+#   - Node 22 LTS w /usr/bin/node (pakiet nodesource)
+#   - użytkownik systemowy bez logowania: traktor
+#   - zmienne środowiskowe w /etc/traktor/traktor.env (wzór: deploy/traktor.env.example)
+#   - ruch publiczny tylko przez Caddy (443) albo nginx; aplikacja słucha na 127.0.0.1:3000
+#
+# Sprawdzenie: systemctl status traktor; journalctl -u traktor -f
+
+[Unit]
+Description=TRAKTOR — asystent wody dla jednej działki rolnej (Next.js)
+Documentation=https://github.com/kaveOO/traktor-hacknation2026
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=traktor
+Group=traktor
+WorkingDirectory=/srv/traktor/current/web
+
+# Zmienne środowiskowe (klucze opcjonalne, port, NODE_ENV). Plik musi być czytelny dla grupy traktor:
+#   sudo install -o root -g traktor -m 0640 deploy/traktor.env.example /etc/traktor/traktor.env
+EnvironmentFile=/etc/traktor/traktor.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=NEXT_TELEMETRY_DISABLED=1
+
+# Uruchamiamy binarkę Next wprost z node_modules — bez npm (mniej procesów, czystszy SIGTERM).
+# Analiza trwa do ~25 s, więc nie ustawiamy krótkiego limitu na odpowiedź.
+ExecStart=/usr/bin/node /srv/traktor/current/web/node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+
+Restart=always
+RestartSec=3
+# Next.js potrzebuje czasu na domknięcie analiz w toku (maxDuration = 30 s w kodzie).
+TimeoutStopSec=40
+KillSignal=SIGTERM
+
+# Logi: journalctl -u traktor (stdout/stderr przechwytuje systemd).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=traktor
+
+# --- utwardzenie ---
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Aplikacja pisze tylko do katalogu tymczasowego (cache serii NASA POWER, os.tmpdir()).
+# PrivateTmp daje prywatny /tmp, więc ProtectSystem=strict niczego nie blokuje.
+ReadWritePaths=/srv/traktor
+
+[Install]
+WantedBy=multi-user.target

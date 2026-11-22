@@ -1,0 +1,64 @@
+# TRAKTOR — Caddy 2 (automatyczny TLS z Let's Encrypt).
+#
+# Instalacja:
+#   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+#   sudo nano /etc/caddy/Caddyfile          # podmień traktor.example.pl i e-mail
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Wymagania: rekord A (i AAAA, jeśli jest IPv6) domeny wskazuje na IP VPS,
+# porty 80 i 443 otwarte w firewallu. Caddy sam pobiera i odnawia certyfikat.
+#
+# Aplikacja słucha na 127.0.0.1:3000 (deploy/traktor.service), więc port 3000
+# nie może być widoczny z zewnątrz.
+
+{
+	# Adres do powiadomień Let's Encrypt o wygasaniu certyfikatu.
+	email admin@example.pl
+	# Na VPS bez IPv6 wyłącz próby walidacji po IPv6:
+	# servers {
+	# 	protocols h1 h2
+	# }
+}
+
+traktor.example.pl {
+	encode zstd gzip
+
+	# Statyczne zasoby Next.js mają w nazwie hash treści — mogą być cache'owane na rok.
+	@nextstatic path /_next/static/* /maps/* /icons/*
+	header @nextstatic Cache-Control "public, max-age=31536000, immutable"
+
+	# Odpowiedzi API zależą od zapytania (analiza działki, cache 1 h po stronie serwera).
+	# Przeglądarka i pośrednicy nie mogą ich trzymać.
+	@api path /api/*
+	header @api Cache-Control "no-store"
+
+	# Nagłówki bezpieczeństwa (CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy)
+	# ustawia web/next.config.ts — nie duplikujemy ich tutaj.
+	# HSTS dodajemy tylko na poziomie proxy, bo aplikacja nie wie, czy działa po HTTPS.
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	# Analiza jednej działki trwa 5–30 s (limit w kodzie: maxDuration = 30).
+	# Domyślne limity Caddy są hojne, ale ustawiamy je jawnie, żeby nikt ich nie „poprawił” w dół.
+	reverse_proxy 127.0.0.1:3000 {
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 90s
+			read_timeout 90s
+			write_timeout 90s
+		}
+		# Bez buforowania odpowiedzi: postęp analizy i strumieniowane odpowiedzi
+		# docierają do przeglądarki od razu.
+		flush_interval -1
+	}
+
+	# Logi dostępu: stderr trafia do journala usługi caddy → journalctl -u caddy.
+	# (Moduł „journald” nie jest w standardowej kompilacji Caddy, dlatego stderr, nie output journal.)
+	log {
+		output stderr
+		format console
+	}
+}
