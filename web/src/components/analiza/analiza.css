@@ -97,6 +97,19 @@
   box-shadow: 0 0 0 6px #1f3a22;
 }
 
+/* Result panel: never wider than the panel (CR8 P2: horizontal scrollbar at 1440×900).
+   Long ids, dataset names and date ranges wrap instead of pushing the panel sideways. */
+.analiza-results {
+  overflow-wrap: anywhere;
+}
+.analiza-results .hd,
+.analiza-results .eb {
+  overflow-wrap: normal;
+}
+.analiza-results svg {
+  max-width: 100%;
+}
+
 .analiza-ui :focus-visible {
   outline: 2px solid #1f3a22;
   outline-offset: 2px;
