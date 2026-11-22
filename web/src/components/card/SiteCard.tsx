@@ -5,7 +5,7 @@ import { use, useState } from "react";
 import { browser } from "react-dom";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
-import { OrderBadge } from "@/components/brand/StateTiles";
+import { OrderBadge, StateTiles } from "@/components/brand/StateTiles";
 import { Button, FooterLine, SkipLink, SourceLine, StatusChip } from "@/components/brand/ui";
 import { radioKeyDown } from "@/components/brand/radio";
 import {
@@ -42,6 +42,9 @@ const PRINT_CSS = `
   .karta-sheet .mt-4 { margin-top: 3mm !important; }
   .karta-sheet .gap-4 { gap: 3mm !important; }
   .karta-sheet header { padding-bottom: 2mm !important; }
+  .karta-tiles .p-3 { padding: 2mm 2.5mm !important; }
+  .karta-tiles .text-2xl { font-size: 18px !important; margin-top: 1mm !important; }
+  .karta-tiles .sh { font-size: 10px !important; margin-top: 0.5mm !important; }
 }
 `;
 
@@ -218,20 +221,46 @@ export default function SiteCard() {
           <div className="hd text-center text-[17px]">Karta miejsca</div>
           <div className="flex items-center gap-2">
             <StatusChip status={refused ? "refused" : "accepted"} />
-            <span className="num text-[11px]">{today}</span>
+            <span className="num text-[12px] print:text-[11px]">{today}</span>
           </div>
         </header>
 
-        <section className="mt-4">
-          <p className={`eb ${refused ? "text-terra-ink" : "text-agri-ink"}`}>
-            MIEJSCE {site.id}
-          </p>
-          <h1 className="sh mt-1 text-[28px]">{site.name}</h1>
-          <p className="num mt-1.5 text-[14px] font-medium">
-            Wysokość zastawki {crestCm} cm · Retencja {fmtRange(crest.storageM3, "m³")} (szacunek) · Spadek {site.slopePct.toLocaleString("pl-PL")}%
-          </p>
+        {/* data card pattern (brand 06): Zastawka nr [ID] · status / Retencja [m³] / Spadek [%] · Długość rowu [m] / Źródło */}
+        <section className="mt-4" aria-labelledby="karta-title">
+          <div className={`karta-avoid rounded-[4px] border-l-4 bg-cream-deep px-4 py-3 ${refused ? "border-terra" : "border-agri"}`}>
+            <p className={`eb num ${refused ? "text-terra-ink" : "text-agri-ink"}`}>
+              Zastawka nr {site.id} · {refused ? "Odrzucona" : "Zaakceptowana"}
+            </p>
+            <h1 id="karta-title" className="sh mt-1 text-[26px] narrow:text-[24px]">
+              {site.name}
+            </h1>
+            <dl className="num mt-2 grid grid-cols-[auto_1fr] items-end gap-x-6 gap-y-1 narrow:grid-cols-1">
+              <div>
+                <dt className="eb text-forest-muted">Retencja [m³]</dt>
+                <dd className="hd text-[34px] narrow:text-[30px]">
+                  {fmtRange(crest.storageM3, "")}
+                  <span className="sr-only"> m³</span>
+                </dd>
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-[15px] print:text-[12px]">
+                <div>
+                  <dt className="eb text-forest-muted">Spadek [%] · Długość rowu [m]</dt>
+                  <dd className="font-semibold">
+                    {site.slopePct.toLocaleString("pl-PL")} · {site.ditchLengthM.toLocaleString("pl-PL")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="eb text-forest-muted">Zastawka [cm]</dt>
+                  <dd className="font-semibold">{crestCm}</dd>
+                </div>
+              </div>
+            </dl>
+            <SourceLine tone="onCream" className="mt-1.5">
+              BDOT10k; NMT LiDAR 1 m (GUGiK). Retencja to szacunek przesiewowy
+            </SourceLine>
+          </div>
           {refused && (
-            <p className="mt-1.5 rounded-[4px] border-2 border-dashed border-terra px-3 py-1 text-[11px] leading-snug text-terra-ink">
+            <p className="mt-2 rounded-[4px] border-2 border-dashed border-terra px-3 py-1.5 text-[14px] leading-snug text-terra-ink print:text-[11px]">
               <strong>{crestCm} cm: odrzucone.</strong> {crest.refusal?.messagePl}{" "}
               {site.maxAcceptedCrestCm ? `Bezpieczne maksimum: ${site.maxAcceptedCrestCm} cm.` : ""}
             </p>
@@ -252,18 +281,21 @@ export default function SiteCard() {
             </div>
             <SourceLine tone="onCream" className="mt-1">NMT LiDAR 1 m (GUGiK); przekrój uproszczony</SourceLine>
 
-            <div className="mt-2 rounded-[4px] border-2 border-forest/25 px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="eb">Polecenie na dziś</h2>
-                <OrderBadge action={order.action} className="!px-2 !py-1 !text-[15px]" />
+            <div className="mt-3">
+              <div className="flex min-h-8 items-center justify-between gap-2">
+                <h2 className="eb">Tryb na dziś</h2>
+                {order.action === "NIE_RUSZAJ" && <OrderBadge action={order.action} className="!px-2 !py-0.5 !text-[15px]" />}
               </div>
-              <ul className="mt-1.5 space-y-0.5 text-[10.5px] leading-snug">
+              <div className="karta-tiles mt-1.5">
+                <StateTiles active={order.action} size="sm" />
+              </div>
+              <ul className="mt-2 space-y-0.5 text-[14px] leading-snug print:text-[10.5px]">
                 {order.reasons.map((r) => (
                   <li key={r}>· {r}</li>
                 ))}
               </ul>
               {order.action === "OTWORZ" && order.deadline && (
-                <p className="mt-1.5 text-[12px] font-semibold text-water-ink">
+                <p className="mt-1.5 text-[14px] font-semibold text-water-ink print:text-[12px]">
                   Termin:{" "}
                   {new Date(order.deadline).toLocaleString("pl-PL", {
                     weekday: "long",
@@ -275,7 +307,7 @@ export default function SiteCard() {
                   {order.capacityFreedM3 ? ` · zwolnisz ${fmtRange(order.capacityFreedM3, "m³")}` : ""}
                 </p>
               )}
-              <p className="mt-1.5 text-[10px] text-forest-muted">
+              <p className="mt-1.5 text-[12px] text-forest-muted print:text-[10px]">
                 {cond.labelPl} · reguła {order.ruleId}
                 {refused && orderCrest ? ` · liczone dla ${orderCrest} cm` : ""}
               </p>
@@ -286,7 +318,7 @@ export default function SiteCard() {
         <section className="karta-avoid mt-3 grid grid-cols-[1.2fr_1fr] gap-4 narrow:grid-cols-1">
           <div className="min-w-0">
             <h2 className="eb mb-1">Parametry przy {crestCm} cm (zakresy)</h2>
-            <table className="num w-full border-collapse text-[11px]">
+            <table className="num w-full border-collapse text-[14px] print:text-[11px]">
               <caption className="sr-only">Parametry miejsca {site.id} przy zastawce {crestCm} cm, ze źródłem każdej wartości</caption>
               <thead className="sr-only">
                 <tr>
@@ -300,26 +332,26 @@ export default function SiteCard() {
                   <tr key={m.label} className="border-b border-forest/15">
                     <th scope="row" className="py-[3px] pr-2 text-left font-normal">{m.label}</th>
                     <td className="py-[3px] pr-2 text-right font-semibold whitespace-nowrap">{m.value}</td>
-                    <td className="py-[3px] text-right text-[10px] leading-tight text-forest-muted">{m.src}</td>
+                    <td className="py-[3px] text-right text-[12px] leading-tight text-forest-muted print:text-[10px]">{m.src}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="space-y-2 text-[10.5px] leading-snug">
+          <div className="space-y-3 text-[14px] leading-snug print:space-y-2 print:text-[10.5px]">
             <div>
               <h2 className="eb mb-1">Działki</h2>
               <ul className="space-y-0.5">
                 {site.ownParcels.map((p) => (
                   <li key={p} className="num">
-                    <span className="inline-block size-2 border border-agri bg-agri/20" /> {p} · przy zastawce
+                    <span aria-hidden className="inline-block size-2 border border-agri bg-agri/20" /> {p} · przy zastawce
                   </li>
                 ))}
                 {refusedCrests
                   .filter((k, i, all) => k.refusal?.objectRef && all.findIndex((q) => q.refusal?.objectRef === k.refusal?.objectRef) === i)
                   .map((k) => (
                     <li key={k.heightCm} className="num text-terra-ink">
-                      <span className="inline-block size-2 border border-dashed border-terra" /> {k.refusal!.objectRef} · sąsiad ·{" "}
+                      <span aria-hidden className="inline-block size-2 border border-dashed border-terra" /> {k.refusal!.objectRef} · sąsiad ·{" "}
                       {REFUSAL_LABEL[k.refusal!.code].toLowerCase()} od {k.heightCm} cm
                     </li>
                   ))}
@@ -336,13 +368,13 @@ export default function SiteCard() {
           </div>
         </section>
 
-        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 text-[10.5px] leading-snug narrow:grid-cols-1">
+        <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 text-[14px] leading-snug narrow:grid-cols-1 print:text-[10.5px]">
           <div>
             <h2 className="eb mb-1">Do sprawdzenia</h2>
             <ul className="space-y-0.5">
               {MISSING.map((m) => (
                 <li key={m} className="flex items-center gap-1.5">
-                  <span className="inline-block size-3 rounded-[2px] border-[1.5px] border-forest" /> {m}
+                  <span aria-hidden className="inline-block size-3 shrink-0 rounded-[2px] border-[1.5px] border-forest" /> {m}
                 </li>
               ))}
             </ul>
@@ -354,7 +386,7 @@ export default function SiteCard() {
               <p>
                 Drenaż sterowany w badaniach: <strong>{FACTS.outflow}</strong> i <strong>{FACTS.nitrate}</strong> w wodzie
                 z drenów.
-                <span className="block text-[10px] text-forest-muted">
+                <span className="block text-[12px] text-forest-muted print:text-[10px]">
                   <span lang="en">Kęsicka et al. 2022, PLoS ONE.</span> To nie prognoza dla tego miejsca.
                 </span>
               </p>
@@ -365,12 +397,12 @@ export default function SiteCard() {
         <div className="karta-avoid mt-3 flex flex-wrap items-center gap-3 rounded-[4px] border-[3px] border-double border-forest px-4 py-2.5">
           <Icon name="pin" size={26} />
           <p className="hd text-[26px]">{LEGAL.siteVisit}</p>
-          <p className="ml-auto max-w-[70mm] text-right text-[10px] leading-snug text-forest-muted narrow:ml-0 narrow:text-left">
+          <p className="ml-auto max-w-[70mm] text-right text-[12px] leading-snug print:text-[10px] text-forest-muted narrow:ml-0 narrow:text-left">
             Karta to wstępna ocena z danych zdalnych. Nie zastępuje projektu ani pozwolenia.
           </p>
         </div>
 
-        <footer className="mt-3 flex flex-wrap items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
+        <footer className="mt-3 flex flex-wrap items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[12px] print:text-[10px]">
           <div>
             <p className="text-forest-muted">{DEMO_NOTE}</p>
             <SourceLine tone="onCream">BDOT10k, NMT 1 m, ULDK (GUGiK); IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
