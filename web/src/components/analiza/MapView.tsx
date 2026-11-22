@@ -14,8 +14,10 @@ export type MapMarker = { id: string; lonLat: LonLat; label: string; n: number }
 /** Basemap endpoints.
  * Satelita: EOX Sentinel-2 cloudless 2020 (EPSG:3857 tiles) at small zoom, then GUGiK ORTO WMS (EPSG:3857, layer "Raster") from z11.
  * The GUGiK ORTO WMTS only offers EPSG:2180 / EPSG:4326 matrix sets, so WMS with {bbox-epsg-3857} is used instead. */
+// WMTS StandardResolution has an EPSG:3857 matrix set (TileMatrix "EPSG:3857:{z}"), verified for /mapa;
+// ~5x faster than the WMS (docs/review/05-performance.md).
 const ORTO_WMS =
-  "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolution?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=Raster&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=512&HEIGHT=512&FORMAT=image/jpeg";
+  "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&TILEMATRIXSET=EPSG:3857&FORMAT=image/jpeg&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}";
 const KIEG_WMS =
   "https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaEwidencjiGruntow?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=dzialki,numery_dzialek&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE";
 
@@ -34,7 +36,7 @@ const STYLE: StyleSpecification = {
     orto: {
       type: "raster",
       tiles: [ORTO_WMS],
-      tileSize: 512,
+      tileSize: 256,
       minzoom: 11,
       maxzoom: 19,
       attribution: 'Ortofotomapa © <a href="https://www.geoportal.gov.pl" target="_blank" rel="noopener">GUGiK</a>',
