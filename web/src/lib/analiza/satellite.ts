@@ -5,9 +5,35 @@
  * Debug: TRAKTOR_SAT_PROVIDER=es forces Earth Search.
  * Plain TS, no Next imports: testable with `node --experimental-strip-types`.
  */
-import { fromUrl } from "geotiff";
+import { BaseClient, BaseResponse, fromCustomClient } from "geotiff";
 import type { Assessment, Parcel, SourceInfo } from "./types";
 import type { Crop } from "./crops";
+import { errText, netFetch } from "./net";
+
+/* ---------- HTTP through the connection gate (Workers: ≤ 4 of the 6 per-request connections) ---------- */
+class GateResponse extends BaseResponse {
+  private readonly res: Response;
+  constructor(res: Response) {
+    super();
+    this.res = res; // no parameter property: keeps the file runnable with node --experimental-strip-types
+  }
+  get status() {
+    return this.res.status;
+  }
+  getHeader(name: string) {
+    return this.res.headers.get(name) ?? undefined;
+  }
+  async getData() {
+    return this.res.arrayBuffer();
+  }
+}
+/** geotiff client whose range requests go through `netFetch` (lane "sat") instead of a bare fetch */
+class GateClient extends BaseClient {
+  async request(o: RequestInit = {}): Promise<BaseResponse> {
+    return new GateResponse(await netFetch(this.url, { headers: o.headers, signal: o.signal }, { lane: "sat" }));
+  }
+}
+const satFetch = (url: string, init: RequestInit = {}, timeoutMs?: number) => netFetch(url, init, { lane: "sat", timeoutMs });
 
 const STAC = "https://earth-search.aws.element84.com/v1";
 const BUDGET_MS = 15000;
@@ -98,7 +124,7 @@ async function pcToken(signal: AbortSignal): Promise<string> {
   if (sas && sas.exp - Date.now() > 5 * 60000) return sas.token;
   if (!sasInflight)
     sasInflight = (async () => {
-      const r = await fetch("https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-2-l2a", { signal: AbortSignal.timeout(5000) });
+      const r = await satFetch("https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-2-l2a", {}, 5000);
       if (!r.ok) throw new Error(`SAS ${r.status}`);
       const j = (await r.json()) as { token: string; "msft:expiry": string };
       sas = { token: j.token, exp: Date.parse(j["msft:expiry"]) };
@@ -138,7 +164,7 @@ function normalize(f: RawItem, provider: Provider, token: string): Item {
 
 async function searchOne(provider: Provider, bb: number[], from: string, to: string, signal: AbortSignal): Promise<Item[]> {
   const token = provider === "pc" ? await pcToken(signal) : "";
-  const res = await fetch(`${provider === "pc" ? STAC_PC : STAC}/search`, {
+  const res = await satFetch(`${provider === "pc" ? STAC_PC : STAC}/search`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -171,6 +197,7 @@ async function search(bb: number[], from: string, to: string, signal: AbortSigna
     return await searchOne("pc", bb, from, to, signal);
   } catch (e) {
     if (signal.aborted) throw e;
+    console.error("sentinel2 search pc failed, trying es:", errText(e));
     return searchOne("es", bb, from, to, signal);
   }
 }
@@ -179,7 +206,7 @@ async function search(bb: number[], from: string, to: string, signal: AbortSigna
 type Win = { data: ArrayLike<number>; x0: number; y0: number; w: number; h: number; ox: number; oy: number; rx: number; ry: number };
 
 async function readWin(href: string, ub: [number, number, number, number], signal: AbortSignal): Promise<Win | null> {
-  const tif = await fromUrl(href, { allowFullFile: false }, signal);
+  const tif = await fromCustomClient(new GateClient(href), { allowFullFile: false }, signal);
   const img = await tif.getImage();
   const [ox, oy] = img.getOrigin();
   const [rx, ry] = img.getResolution(); // ry < 0
@@ -273,9 +300,10 @@ async function bestScene(items: Item[], parcel: Parcel, signal: AbortSignal, max
     try {
       const r = await evalScene(it, parcel, signal);
       if ("ndvi" in r) return { scene: r, tries, errors };
-    } catch {
+    } catch (e) {
       if (signal.aborted) break;
       errors++;
+      console.error(`sentinel2 scene read failed (${it.provider} ${it.id}):`, errText(e));
     }
   }
   return { scene: null, tries, errors };
@@ -287,7 +315,10 @@ async function findScene(bb: number[], from: string, to: string, parcel: Parcel,
   if (order) items.sort(order);
   let r = await bestScene(items, parcel, signal, maxTries);
   if (!r.scene && r.tries > 0 && r.errors === r.tries && items[0]?.provider === "pc" && !signal.aborted) {
-    const es = await searchOne("es", bb, from, to, signal).catch(() => [] as Item[]);
+    const es = await searchOne("es", bb, from, to, signal).catch((e) => {
+      if (!signal.aborted) console.error("sentinel2 search es failed:", errText(e));
+      return [] as Item[];
+    });
     if (order) es.sort(order);
     if (es.length) r = await bestScene(es, parcel, signal, maxTries);
   }
@@ -426,7 +457,10 @@ export async function getSatellite(parcel: Parcel, date: string, crop: Crop, opt
         r = await findScene(bb4, iso(t - 45 * DAY), iso(t - (firstDays + 1) * DAY), parcel, signal, 4);
       }
       return r;
-    })().catch(() => ({ scene: null, tries: 0, errors: 0, readError: false }));
+    })().catch((e) => {
+      if (!signal.aborted) console.error("sentinel2 current scene failed:", errText(e));
+      return { scene: null, tries: 0, errors: 0, readError: false };
+    });
 
     const years = [1, 2, 3, 4, 5].map((k) => year - k).filter((y) => y >= 2017);
     const hist = years.map(async (y) => {
@@ -436,7 +470,15 @@ export async function getSatellite(parcel: Parcel, date: string, crop: Crop, opt
       return (await findScene(bb4, iso(tc - 15 * DAY), iso(tc + 15 * DAY), parcel, signal, 3, order)).scene;
     });
 
-    const [c, ...hs] = await Promise.all([current, ...hist.map((p) => p.catch(() => null))]);
+    const [c, ...hs] = await Promise.all([
+      current,
+      ...hist.map((p) =>
+        p.catch((e) => {
+          if (!signal.aborted) console.error("sentinel2 history year failed:", errText(e));
+          return null;
+        }),
+      ),
+    ]);
     const timedOut = signal.aborted && !opts.signal?.aborted;
     clearTimeout(timer);
     opts.signal?.removeEventListener("abort", onOuter);

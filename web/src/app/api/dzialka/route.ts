@@ -2,13 +2,19 @@ import { MAX_AREA_HA } from "@/lib/analiza/analyze";
 import { clientIp, rateLimited, validLonLat } from "@/lib/analiza/server";
 import { AmbiguousParcel, getParcelById, getParcelByXY, looksLikeParcelId } from "@/lib/analiza/uldk";
 import { UpstreamError } from "@/lib/analiza/util";
+import { withNetScope } from "@/lib/analiza/net";
 
 export const maxDuration = 20;
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 /** GET /api/dzialka?id=.. or ?lon=..&lat=.. → Parcel (ULDK, WGS84) */
-export async function GET(req: Request) {
+export function GET(req: Request) {
+  // own connection budget per request (ULDK id lookup can fan out to 6 parallel calls; Workers allow 6)
+  return withNetScope(() => handle(req));
+}
+
+async function handle(req: Request) {
   if (rateLimited("dz:" + clientIp(req), 120)) return json({ error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, 429);
   const q = new URL(req.url).searchParams;
   const id = q.get("id") ?? q.get("parcelId");

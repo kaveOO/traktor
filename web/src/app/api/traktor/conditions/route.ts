@@ -1,4 +1,5 @@
 import { getScenario } from "@/lib/traktor";
+import { clientIp, rateLimited } from "@/lib/analiza/ratelimit";
 import { liveConditions, SOURCE_IMGW, SOURCE_OM } from "../../_lib/conditions";
 import { isScenario, json } from "../../_lib/util";
 
@@ -11,6 +12,9 @@ export async function GET(req: Request) {
     if (scenario !== "live") {
       return json({ error: "Nieznany scenariusz", allowed: ["live", "drought-aug", "storm-warning", "spring-wet"] }, 400);
     }
+    // live mode calls Open-Meteo + IMGW on every request: cap per client (the map asks once per view)
+    if (rateLimited("cond:" + clientIp(req), 30))
+      return json({ error: "rate_limited", messagePl: "Za dużo zapytań. Odczekaj minutę." }, 429, { "Retry-After": "60" });
     return json(await liveConditions(), 200, CACHE);
   } catch {
     const fb = getScenario("drought-aug");

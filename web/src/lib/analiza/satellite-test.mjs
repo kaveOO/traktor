@@ -1,5 +1,15 @@
 ﻿// Run from web/: node --experimental-strip-types src/lib/analiza/satellite-test.mjs 2025-06-15,2021-07-20 pszenica_ozima
-import { getSatellite } from "./satellite.ts";
+import { registerHooks } from "node:module";
+// the engine uses extensionless relative imports (bundler style): map them to .ts for plain Node
+registerHooks({
+  resolve(spec, ctx, next) {
+    if (/^\.\.?\//.test(spec) && !/\.[cm]?[jt]s$/.test(spec)) {
+      try { return next(spec + ".ts", ctx); } catch { /* fall through */ }
+    }
+    return next(spec, ctx);
+  },
+});
+const { getSatellite } = await import("./satellite.ts");
 
 const crops = {
   pszenica_ozima: { id: "pszenica_ozima", namePl: "Pszenica ozima", kc: [0.4, 0.4, 0.5, 0.8, 1.15, 1.15, 0.6, 0.3, 0.3, 0.5, 0.5, 0.4], critical: [5, 6], rootDepthM: 1, iungKbw: [-150, -170, -190, -210], ndviHealthy: 0.75 },

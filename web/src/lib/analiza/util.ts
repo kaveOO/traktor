@@ -1,10 +1,13 @@
+import { netFetch } from "./net";
 import type { SourceInfo } from "./types";
 
 export const UA = "TRAKTOR-hackathon/2.0 (parcel water assistant)";
 
 export class UpstreamError extends Error {
-  constructor(msg: string, public readonly userPl?: string) {
+  readonly userPl?: string;
+  constructor(msg: string, userPl?: string) {
     super(msg);
+    this.userPl = userPl; // no parameter property: the engine stays runnable with node --experimental-strip-types
   }
 }
 
@@ -17,15 +20,14 @@ export async function fetchT(
   let last: unknown;
   for (let a = 0; a <= retries; a++) {
     if (opts.signal?.aborted) throw new UpstreamError("aborted");
-    const signals = [AbortSignal.timeout(opts.timeoutMs)];
-    if (opts.signal) signals.push(opts.signal);
     try {
-      const res = await fetch(url, {
-        ...opts.init,
-        headers: { "User-Agent": UA, ...(opts.init?.headers ?? {}) },
-        signal: AbortSignal.any(signals),
-        cache: "no-store",
-      });
+      // through the per-request connection gate (Workers: 6 open connections per request); the timeout
+      // starts once a slot is granted, the outer signal also aborts the wait
+      const res = await netFetch(
+        url,
+        { ...opts.init, headers: { "User-Agent": UA, ...(opts.init?.headers ?? {}) }, signal: opts.signal, cache: "no-store" },
+        { timeoutMs: opts.timeoutMs },
+      );
       if (!res.ok) throw new UpstreamError(`HTTP ${res.status}`);
       return res;
     } catch (e) {
