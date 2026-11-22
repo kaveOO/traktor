@@ -177,6 +177,7 @@ export default function MapApp() {
           />
           <div className="pointer-events-none absolute top-3 left-4 z-10 [&>*]:pointer-events-auto max-[900px]:hidden">
             <RefusalCounter
+              compact={!!site}
               filter={filter}
               onFilter={(c) => {
                 setFilter(c);

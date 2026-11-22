@@ -13,10 +13,15 @@ const SHADE = [1, 0.82, 0.66, 0.52, 0.4, 0.3];
 export function RefusalCounter({
   filter,
   onFilter,
+  compact = false,
 }: {
   filter: RefusalCode | null;
   onFilter: (c: RefusalCode | null) => void;
+  /** collapse to the headline when a site is open, so the card never covers it */
+  compact?: boolean;
 }) {
+  const [open, setOpen] = useState(!compact);
+  useEffect(() => setOpen(!compact), [compact]);
   const from = summary.pointsAnalysed;
   const to = summary.sitesAccepted;
   const [n, setN] = useState(from);
@@ -49,8 +54,18 @@ export function RefusalCounter({
         </span>
       </div>
       <p className="text-[12px] opacity-75">
-        Przeanalizowano <span className="num">{from.toLocaleString("pl-PL")}</span> punktów → bezpieczne miejsca
+        Przeanalizowano <span className="num">{from.toLocaleString("pl-PL")}</span> punktów →{" "}
+        <span className="num font-semibold">{to}</span> bezpiecznych miejsc
       </p>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="mt-1 text-[11px] underline opacity-70"
+      >
+        {open ? "Zwiń powody odmowy" : "Pokaż powody odmowy"}
+      </button>
+      {open && (<>
       <div className="mt-3 flex h-2 w-full overflow-hidden rounded-[1px]" aria-hidden>
         <span style={{ width: `${(to / total) * 100}%`, background: C.agri, minWidth: 3 }} />
         {CODES.map((c, i) => (
@@ -87,6 +102,7 @@ export function RefusalCounter({
           Pokaż wszystkie powody
         </button>
       )}
+      </>)}
     </div>
   );
 }

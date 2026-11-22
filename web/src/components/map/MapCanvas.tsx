@@ -303,9 +303,9 @@ export function MapCanvas({
                 key={c.id}
                 cx={c.xy[0]}
                 cy={c.xy[1]}
-                r={(isSel ? 5 : hl ? 3.2 : 2.1) * u}
+                r={(isSel ? 5 : hl ? 3.2 : 1.5) * u}
                 fill={C.terra}
-                fillOpacity={isSel ? 1 : dim ? 0.15 : hl ? 0.95 : 0.55}
+                fillOpacity={isSel ? 1 : dim ? 0.12 : hl ? 0.95 : 0.32}
                 stroke={isSel ? C.cream : undefined}
                 strokeWidth={isSel ? 1.5 : undefined}
                 vectorEffect="non-scaling-stroke"
