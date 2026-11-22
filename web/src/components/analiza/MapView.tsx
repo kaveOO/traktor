@@ -339,13 +339,17 @@ export default function MapView({
 
   return (
     <>
-      <div
-        ref={el}
-        className="analiza-map absolute inset-0"
-        role="region"
-        aria-label={ariaLabel}
-        aria-roledescription="mapa"
-      />
+      {/* MapLibre adds .maplibregl-map (position: relative) to the map node, and its lazily loaded CSS
+          wins over `absolute`; so the outer box is positioned and the map node only fills it. */}
+      <div className="absolute inset-0">
+        <div
+          ref={el}
+          className="analiza-map h-full w-full"
+          role="region"
+          aria-label={ariaLabel}
+          aria-roledescription="mapa"
+        />
+      </div>
       {loadError ? (
         // the map is gone, the panel still works; the error sits mid-screen above the sheet
         <div className="pointer-events-none absolute inset-x-0 top-1/3 z-10 flex justify-center px-6 min-[900px]:pr-[460px]">
