@@ -86,13 +86,13 @@ npm run build
 npm run start -- -p 3010      # http://localhost:3010/analiza
 ```
 
-Aplikacja działa **bez żadnych kluczy**. Serwer Node, nie funkcje serverless: analiza trwa do ok. 25 s, a cache jest w pamięci procesu.
+Aplikacja działa **bez żadnych kluczy**. Serwer Node, nie funkcje serverless: analiza trwa do ok. 25 s, a cache jest w pamięci procesu. `npm run build` wymaga internetu (`next/font` pobiera kroje Archivo i Inter). `npm audit --omit=dev` w `web/`: 0 podatności (22.11.2026).
 
-### Zmienne środowiskowe (`web/.env.local`, poza repozytorium)
+### Zmienne środowiskowe (`web/.env.local`, poza repozytorium; wzór: `web/.env.example`)
 
 | Zmienna | Do czego | Domyślnie |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | opcjonalne przeredagowanie opisu na karcie zastawki (`/api/traktor/explain`), ze strażnikiem liczb | brak → tekst z szablonu |
+| `ANTHROPIC_API_KEY` | opcjonalne przeredagowanie opisu miejsca zastawki w trasie `/api/traktor/explain`, ze strażnikiem liczb | brak → tekst z szablonu |
 | `GOOGLE_MAPS_API_KEY` | opcjonalne podkłady Google na `/mapa` | brak → trasy `/api/tiles/google/*` zwracają 404, podkład ukryty |
 
 ### Skąd są dane
@@ -106,7 +106,8 @@ Aplikacja działa **bez żadnych kluczy**. Serwer Node, nie funkcje serverless: 
   - IUNG WCS, SoilGrids, NMT GUGiK,
   - Overpass (cieki, opcjonalnie).
 
-  Każde źródło ma limit czasu. Brak źródła = wynik częściowy i wyższa niepewność.
+  Każde źródło ma limit czasu (wspólny termin ok. 20 s po ULDK, cała analiza 24 s). Brak źródła = wynik częściowy i wyższa niepewność.
+- **Na żywo dla `/mapa`** (`web/src/app/api/_lib/conditions.ts`, trasa `/api/traktor/conditions`): Open-Meteo prognoza 7 dni, archiwum Open-Meteo (ERA5) 60 dni do KBW (zapasowo prognoza z `past_days=60`), ostrzeżenia IMGW-PIB dla powiatu 0403. Limit 5 s na źródło; przy braku odpowiedzi wartości ze scenariusza zapisanego `drought-aug`.
 - **Pobrane wcześniej (22.11.2026)**: tylko przykład `/mapa`, czyli `web/src/lib/traktor/real-data.json` (BDOT10k, NMT, ULDK) i `web/public/maps/orto-bydgoszcz-west.jpg` (ortofotomapa GUGiK). Odtworzenie: `cd scripts/geo; npm ci; node extract.mjs; node build.mjs` (5–15 min, sieć do `opendata.geoportal.gov.pl`, `services.gugik.gov.pl`, `uldk.gugik.gov.pl`, `extensions.duckdb.org`).
 - **Stałe w kodzie**:
   - uprawy (Kc FAO-56, okresy krytyczne) w `crops.ts`,
@@ -117,8 +118,8 @@ Aplikacja działa **bez żadnych kluczy**. Serwer Node, nie funkcje serverless: 
 ### Utrzymanie
 
 - **Cache**: w pamięci, klucz (działka, uprawa, data), TTL 1 h, maks. 200 wyników. Seria NASA POWER także w katalogu tymczasowym systemu. W produkcji: Redis lub dysk, dłuższy TTL dla dat z przeszłości.
-- **Limity**: 30 analiz/min na IP (w pamięci procesu). Za load balancerem: wspólny limit (Redis) i poprawny `X-Forwarded-For`.
-- **Monitorowanie**: `/api/health`. W raporcie zapisany jest status każdego źródła, więc warto logować odsetek wyników częściowych per źródło.
+- **Limity** (`web/src/lib/analiza/server.ts`, w pamięci procesu): 30 analiz/min i 60 zapytań `/api/dzialka`/min na IP, maks. 4 analizy naraz (kolejne czekają do 4 s, potem 503). Za load balancerem: wspólny limit (Redis) i poprawny `X-Forwarded-For`.
+- **Monitorowanie**: `/api/health` (`{ ok, sha, demo: true, time }`; `sha` z `VERCEL_GIT_COMMIT_SHA` albo `"local"`; flagę `demo` zmienić przy wdrożeniu produkcyjnym). W raporcie zapisany jest status każdego źródła, więc warto logować odsetek wyników częściowych per źródło.
 - **Zmiany API dostawców**: każde źródło ma osobny moduł (`uldk.ts`, `meteo.ts`, `power.ts`, `soil.ts`, `terrain.ts`, `satellite.ts`). Awaria jednego nie zatrzymuje analizy.
 - **Kalibracja**: progi KBW i NDVI do weryfikacji z IUNG na danych z pilotażu.
 - **Wersja metody**: pole `methodVersion` w wyniku. Podnosić przy każdej zmianie reguł.

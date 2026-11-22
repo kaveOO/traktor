@@ -2,7 +2,7 @@
 
 Zespół: **<NAZWA ZESPOŁU>** · Tytuł rozwiązania: **TRAKTOR: asystent wody dla jednej działki rolnej** · Zadanie KOWR „Zatrzymaj wodę, chroń plony” · HackNation 2026
 
-Pakiet zgłoszeniowy i lista kontrolna pkt 4.1: **`deliverables/README.md`**.
+Pakiet zgłoszeniowy i lista kontrolna pkt 4.1: **`deliverables/README.md`** (tam też lista znaczników „DO UZUPEŁNIENIA PRZEZ ZESPÓŁ”: nazwa zespołu, link do filmu, link do wersji działającej, SHA).
 
 | Co | Plik |
 |---|---|
@@ -32,6 +32,8 @@ Raport ma poziom niepewności, braki danych i tabelę źródeł. Druk, PDF, JSON
 - Sentinel-2 L2A (Microsoft Planetary Computer, zapasowo Earth Search),
 - IUNG-PIB (kategoria gleby, progi SMSR) i SoilGrids,
 - NMT 1 m GUGiK, cieki z OSM.
+
+Przykład zastawek `/mapa` dodatkowo pobiera na żywo warunki z Open-Meteo (prognoza 7 dni, archiwum 60 dni) i ostrzeżenia IMGW-PIB.
 
 Wynik liczy aplikacja jawnymi regułami. Model językowy niczego nie liczy.
 

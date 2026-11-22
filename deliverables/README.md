@@ -11,6 +11,22 @@
 | Film (≤ 3:00) | <LINK DO FILMU> |
 | Data przygotowania pakietu | 22.11.2026 |
 
+## DO UZUPEŁNIENIA PRZEZ ZESPÓŁ
+
+Te pola są celowo zostawione jako znaczniki `<…>`. Nie wysyłamy zgłoszenia, dopóki któryś z nich zostaje w plikach (sprawdzenie: `Select-String -Path README.md,docs\*.md,deliverables\*.md -Pattern '<NAZWA ZESPOŁU>|<LINK DO|<SHA>'`).
+
+| Znacznik | Gdzie wpisać | Skąd wziąć |
+|---|---|---|
+| `<NAZWA ZESPOŁU>` | `README.md` (tabela „Zgłoszenie” i sekcja „Zespół”), `docs/ZGLOSZENIE.md`, `deliverables/opis-rozwiazania.md`, ten plik (tabela wyżej) | decyzja zespołu, bez imion i nazwisk (§ 6) |
+| `<LINK DO FILMU>` | `README.md` (tabela „Zgłoszenie”), ten plik | po nagraniu wg `film-scenariusz.md` (YouTube niepubliczny / Drive) |
+| `<LINK DO WERSJI DZIAŁAJĄCEJ>` | `README.md` §1, ten plik, `demo-final.md` (T−60) | po wdrożeniu na serwer Node; jeśli nie wdrażamy: zamienić na „uruchomienie lokalne, README pkt 1” |
+| `<SHA>` | ten plik (tabela wyżej) | `git log -1 --format=%H` po ostatnim pushu |
+
+Do ponownego eksportu po poprawkach silnika (robi lider):
+- `deliverables/prezentacja.pdf` (slajdy zmieniły się po eksporcie z 09:30; sprawdzić ≤ 10 stron),
+- raporty prawdziwych działek w `deliverables/raporty/` (PDF + JSON, 2–3 działki z `demo-final.md`),
+- zrzut `/analiza` z mapą i wynikiem.
+
 ## Lista kontrolna pkt 4.1
 
 Legenda: ✅ gotowe · ⏳ zostało do zrobienia (z opisem)
@@ -20,12 +36,12 @@ Legenda: ✅ gotowe · ⏳ zostało do zrobienia (z opisem)
 | 1 | Nazwa zespołu i tytuł rozwiązania | ⏳ | Tytuł gotowy. Wpisać nazwę zespołu tutaj, w `docs/ZGLOSZENIE.md`, `README.md` (sekcja Zespół) i na platformie |
 | 2 | Zwięzły opis: problem, funkcjonalności, dane, korzyści | ✅ | [`opis-rozwiazania.md`](opis-rozwiazania.md) (do wklejenia na platformę) |
 | 3 | Link do prywatnego repozytorium + dostęp jury | ⏳ | `git push -u origin main`, potem dostęp wg [`dostep-jury.md`](dostep-jury.md) i lista kontrolna prywatności (wylogowany → 404) |
-| 4 | README (lub równoważny dokument) z 9 punktami pkt 4.2 | ✅ | [`../README.md`](../README.md). Stan silnika oznaczony „w trakcie”, zaktualizować po scaleniu |
-| 5 | Prezentacja PDF ≤ 10 slajdów | ✅ / ⏳ | [`prezentacja.pdf`](prezentacja.pdf): **10 stron**, eksport z `/slides` 22.11.2026. ⏳ Wyeksportować ponownie po aktualizacji slajdów (uwagi niżej) |
-| 6 | Działający prototyp: link do wersji online **lub** instrukcja uruchomienia w README (obowiązkowe) | ⏳ | Instrukcja w README ✅. ⏳ Silnik `/api/analiza` i `/api/dzialka` **nie jest jeszcze na `main`** (gałąź `v2/engine`, praca niezatwierdzona), więc `/analiza` na `main` nie liczy jeszcze wyniku. ⏳ Wdrożenie i link online |
-| 7 | Film ≤ 3 min | ⏳ | Scenariusz: [`film-scenariusz.md`](film-scenariusz.md). Nagrać po scaleniu silnika, wgrać (YouTube niepubliczny / Drive), wpisać link |
-| 8 | Raporty wygenerowane przez prototyp | ⏳ | Jest tylko [`raporty/raport-demo-DANE-PRZYKLADOWE.pdf`](raporty/raport-demo-DANE-PRZYKLADOWE.pdf) (`/raport?demo=1`, **dane przykładowe, nie wynik analizy**). ⏳ Do wygenerowania po scaleniu silnika: 2–3 działki z różnych województw (PDF + JSON), dziś i −5 lat |
-| 9 | Zrzuty ekranu / grafiki (opcjonalne) | ✅ / ⏳ | [`zrzuty/mapa-1440x900.png`](zrzuty/mapa-1440x900.png), [`zrzuty/raport-demo-1440x900.png`](zrzuty/raport-demo-1440x900.png), [`zrzuty/analiza-kreator-bez-mapy-1440x900.png`](zrzuty/analiza-kreator-bez-mapy-1440x900.png). ⏳ `/analiza` z mapą i wynikiem: przeglądarka bez trybu headless (WebGL), najlepiej po scaleniu silnika |
+| 4 | README (lub równoważny dokument) z 9 punktami pkt 4.2 | ✅ | [`../README.md`](../README.md). Opisuje stan na `main` (silnik scalony w `8ef08a1`) i poprawki silnika w toku |
+| 5 | Prezentacja PDF ≤ 10 slajdów | ✅ / ⏳ | [`prezentacja.pdf`](prezentacja.pdf): **10 stron**, eksport z `/slides` 22.11.2026 (09:30). ⏳ **Do ponownego eksportu po poprawkach silnika** (slajdy w kodzie zmienione po eksporcie) |
+| 6 | Działający prototyp: link do wersji online **lub** instrukcja uruchomienia w README (obowiązkowe) | ✅ / ⏳ | Instrukcja w README ✅. Silnik `/api/analiza` i `/api/dzialka` jest na `main`, `/analiza` liczy wynik na żywo ✅. ⏳ Poprawki reguł silnika (P0 z `docs/review2/01-engine-logic.md`: limit dawki nawadniania, miesiąc zbioru, SMSR 2018). ⏳ Wdrożenie i link online (opcjonalne, bo jest instrukcja) |
+| 7 | Film ≤ 3 min | ⏳ | Scenariusz: [`film-scenariusz.md`](film-scenariusz.md). Nagrać po poprawkach silnika, wgrać (YouTube niepubliczny / Drive), wpisać link |
+| 8 | Raporty wygenerowane przez prototyp | ⏳ | Jest tylko [`raporty/raport-demo-DANE-PRZYKLADOWE.pdf`](raporty/raport-demo-DANE-PRZYKLADOWE.pdf) (`/raport?demo=1`, **dane przykładowe, nie wynik analizy**). ⏳ **Do ponownego eksportu po poprawkach silnika**: 2–3 działki z `demo-final.md` (PDF + JSON), dziś i 2018-07-20 lub −5 lat |
+| 9 | Zrzuty ekranu / grafiki (opcjonalne) | ✅ / ⏳ | [`zrzuty/mapa-1440x900.png`](zrzuty/mapa-1440x900.png), [`zrzuty/raport-demo-1440x900.png`](zrzuty/raport-demo-1440x900.png), [`zrzuty/analiza-kreator-bez-mapy-1440x900.png`](zrzuty/analiza-kreator-bez-mapy-1440x900.png). ⏳ `/analiza` z mapą i wynikiem: przeglądarka bez trybu headless (WebGL), po poprawkach silnika |
 
 ## Pozostałe wymagania (README pkt 4.2, 5.4–5.6, Regulamin)
 
@@ -62,7 +78,7 @@ Filmu nie dodajemy do gita (link). Pliki `*.mp4` trzymamy poza repozytorium.
 - Eksport: Microsoft Edge headless, `--print-to-pdf --no-pdf-header-footer` (slajdy, raport demo) i `--screenshot --window-size=1440,900` (zrzuty).
 - Headless bez GPU nie renderuje mapy WebGL (MapLibre), dlatego zrzut `/analiza` pokazuje tylko panele. `/mapa` (SVG) renderuje się w pełni.
 
-Odtworzenie po scaleniu silnika (PowerShell):
+Ponowny eksport po poprawkach silnika (PowerShell; build wymaga internetu, `next/font`):
 
 ```powershell
 cd web; npm run build; npm run start -- -p 3015
@@ -73,21 +89,18 @@ $edge = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
 
 Raport prawdziwej działki najlepiej zapisać z przeglądarki („Drukuj / zapisz PDF” i „Pobierz JSON”), bo analiza trwa do ~25 s.
 
-## Uwagi do slajdów (właściciel: lane slides, nie zmieniane w tym pakiecie)
+## Uwagi do slajdów
 
-Slajdy w `prezentacja.pdf` mają dwa sformułowania niezgodne z obecną implementacją. Poprawić w `web/src/components/slides/**` i wyeksportować ponownie:
-1. Slajdy 4 i 5: „Open-Meteo ERA5, 10 lat”. Silnik bierze 10 lat z **NASA POWER**, a Open-Meteo (prognoza) daje ostatnie dni i prognozę. Archiwum ERA5 Open-Meteo nie jest używane (limit 429).
-2. Slajd 9: „Publiczne, bez licencji”. Dane są publiczne i bez opłat, ale mają licencje (CC BY 4.0, warunki GUGiK, Copernicus). Proponowane: „Publiczne, bez opłat”.
-
-Slajd 5 wymienia też „ISOK” jako źródło hydrologiczne. W silniku ISOK jest tylko linkiem, a na `/mapa` jest przybliżenie 80 m. Lepiej „ISOK (link)” albo usunąć.
+Stary `prezentacja.pdf` (eksport 09:30) ma sformułowania, które w kodzie slajdów już poprawiono (slajdy mówią teraz o NASA POWER). Nowy eksport po poprawkach silnika powinien to usunąć. Przy eksporcie sprawdzić:
+1. Slajdy 4 i 5: 10 lat pogody z **NASA POWER**, Open-Meteo dla ostatnich dni i prognozy (w starym PDF: „Open-Meteo ERA5, 10 lat”).
+2. Slajd 9: „Publiczne, bez opłat”, nie „bez licencji” (dane mają licencje: CC BY 4.0, warunki GUGiK, Copernicus).
+3. Slajd 5: ISOK tylko jako link (silnik nie sprawdza stref automatycznie, na `/mapa` jest przybliżenie 80 m).
 
 ## Ostatnie kroki (człowiek)
 
-1. Nazwa zespołu: wpisać w 4 miejscach (pkt 1 tabeli).
-2. Scalić silnik (`v2/engine`) do `main` → `npm run build` → odświeżyć README („w trakcie” → „gotowe”).
-3. Wdrożyć (serwer Node: Railway / Render / VPS, bez kluczy) → wpisać <LINK DO WERSJI DZIAŁAJĄCEJ>.
-4. Wygenerować raporty 2–3 działek (`demo-final.md`, tabela) → `deliverables/raporty/`.
-5. Poprawić slajdy (wyżej) → ponowny eksport `prezentacja.pdf`, sprawdzić ≤ 10 stron.
-6. Nagrać film wg `film-scenariusz.md` → wgrać → wpisać <LINK DO FILMU>.
-7. `git push -u origin main` → wpisać SHA → dostęp jury wg `dostep-jury.md` → test prywatności (wylogowany = 404).
-8. Złożyć zgłoszenie na platformie (lider zespołu): nazwa, tytuł, opis, link do repo, README, PDF, link online, film, raporty, zrzuty.
+1. Uzupełnić znaczniki z sekcji „DO UZUPEŁNIENIA PRZEZ ZESPÓŁ” (nazwa zespołu w 5 miejscach).
+2. Po poprawkach silnika: `cd web; npm run build` → ponowny eksport `prezentacja.pdf` (≤ 10 stron) i raportów 2–3 działek z `demo-final.md` → `deliverables/raporty/`.
+3. Wdrożyć (serwer Node: Railway / Render / VPS, bez kluczy) → wpisać `<LINK DO WERSJI DZIAŁAJĄCEJ>`; albo zostawić instrukcję lokalną i usunąć znacznik.
+4. Nagrać film wg `film-scenariusz.md` → wgrać → wpisać `<LINK DO FILMU>`.
+5. `git push -u origin main` → wpisać `<SHA>` → dostęp jury wg `dostep-jury.md` → test prywatności (wylogowany = 404).
+6. Złożyć zgłoszenie na platformie (lider zespołu): nazwa, tytuł, opis, link do repo, README, PDF, link online, film, raporty, zrzuty.

@@ -1,6 +1,6 @@
 # TRAKTOR: rejestr źródeł, licencji i warunków (Regulamin § 2 ust. 10)
 
-Stan na 22.11.2026. Podstawa: przegląd `docs/review/03-licences.md`, pola `license` w `node_modules` (`web/`, `scripts/geo/`) oraz kod (`main` i gałąź silnika `v2/engine`).
+Stan na 22.11.2026. Podstawa: przegląd `docs/review/03-licences.md`, pola `license` w `node_modules` (`web/`, `scripts/geo/`) oraz kod na `main` (silnik scalony w `8ef08a1`; SHA zgłoszonej wersji: `deliverables/README.md`).
 Warunki usług to nasza lektura opublikowanych regulaminów. Pozycje oznaczone **(sprawdzić)** trzeba potwierdzić na aktualnej stronie dostawcy przed wdrożeniem produkcyjnym.
 
 ## 1. Co jest czyje
@@ -23,10 +23,10 @@ Warunki usług to nasza lektura opublikowanych regulaminów. Pozycje oznaczone *
 | OpenStreetMap, kafle (`tile.openstreetmap.org`) | `/analiza` i `/mapa` (podkład „Mapa”) | Dane ODbL 1.0, kafle CC BY-SA 2.0. Tile Usage Policy OSMF: atrybucja, bez masowego pobierania i dużego ruchu, bez SLA | „© autorzy OpenStreetMap” z linkiem do openstreetmap.org/copyright | Produkcja: własny serwer kafli albo podkłady GUGiK |
 | Nominatim (`nominatim.openstreetmap.org`) | `/analiza` (wyszukiwanie miejscowości) | Polityka OSMF: ≤ 1 zapytanie/s, bez autouzupełniania, identyfikujący nagłówek, cache. Dane ODbL | „Wyszukiwanie: © autorzy OpenStreetMap (Nominatim)” | Produkcja: geokoder GUGiK (UUG) albo własny Nominatim |
 | Overpass API (`overpass-api.de`, `overpass.kumi.systems`) | silnik, cieki w promieniu 1 km (opcjonalne) | Publiczne instancje, fair use (~10 tys. zapytań/dzień). Dane ODbL | „© autorzy OpenStreetMap” | Bywa niedostępny. Wtedy wynik częściowy. Produkcja: wyciąg offline albo BDOT10k |
-| Open-Meteo, prognoza (`api.open-meteo.com`, `past_days=92`) | silnik: ostatnie dni i prognoza | Dane CC BY 4.0. **Darmowe API tylko do użytku niekomercyjnego** (limity dzienne; zapytania o długie okresy liczone wielokrotnie) | „Weather data by Open-Meteo.com” z linkiem | KOWR: plan komercyjny albo własna instancja (serwer AGPL-3.0 jako osobna usługa, nie dotyka naszego kodu) albo dane IMGW-PIB |
-| Open-Meteo, archiwum ERA5 | **nieużywane** w silniku (limit 429 w czasie hackathonu) | jw. + licencja Copernicus | „Contains modified Copernicus Climate Change Service information” | Możliwy powrót przy planie komercyjnym |
+| Open-Meteo, prognoza (`api.open-meteo.com`) | silnik (`past_days=92`, `forecast_days=10`): ostatnie dni i prognoza; `/mapa` (`/api/traktor/conditions`): prognoza 7 dni, zapasowo 60 dni wstecz | Dane CC BY 4.0. **Darmowe API tylko do użytku niekomercyjnego** (limity dzienne; zapytania o długie okresy liczone wielokrotnie) | „Weather data by Open-Meteo.com” z linkiem | KOWR: plan komercyjny albo własna instancja (serwer AGPL-3.0 jako osobna usługa, nie dotyka naszego kodu) albo dane IMGW-PIB |
+| Open-Meteo, archiwum ERA5 (`archive-api.open-meteo.com`) | **tylko `/mapa`**: KBW z 60 dni dla przykładu pod Bydgoszczą (`web/src/app/api/_lib/conditions.ts`). W silniku `/analiza` nieużywane (limit 429 w czasie hackathonu) | jw. + warunki Copernicus C3S (ERA5) | „Contains modified Copernicus Climate Change Service information” + „Weather data by Open-Meteo.com” | Przy 429 `/mapa` przechodzi na prognozę z `past_days=60`. Możliwe szersze użycie przy planie komercyjnym |
 | NASA POWER (`power.larc.nasa.gov`, community AG) | silnik: dobowa seria 10 lat (opad, ET0, temperatura) dla komórki 0,1° | Dane NASA, otwarte, bez opłat i kont. NASA prosi o cytowanie projektu POWER (sprawdzić aktualną formułę) | „Dane: NASA Langley Research Center (LaRC) POWER Project, NASA Earth Science/Applied Science Program” | Inny produkt niż ERA5. W raporcie podajemy źródło wprost |
-| IMGW-PIB (`danepubliczne.imgw.pl`) | ostrzeżenia meteo (data = dziś) | Ponowne wykorzystanie na warunkach IMGW-PIB | „Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy.” + „Dane IMGW-PIB zostały przetworzone.” | – |
+| IMGW-PIB (`danepubliczne.imgw.pl`) | ostrzeżenia meteo: silnik (powiat działki, data = dziś) i `/mapa` (powiat bydgoski 0403) | Ponowne wykorzystanie na warunkach IMGW-PIB | „Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy.” + „Dane IMGW-PIB zostały przetworzone.” | – |
 | Copernicus Sentinel-2 L2A przez **Microsoft Planetary Computer** (STAC `planetarycomputer.microsoft.com/api/stac/v1`, token SAS) | `web/src/lib/analiza/satellite.ts`: NDVI, NDMI, maska SCL | Dane Copernicus: wolny, pełny i otwarty dostęp (rozp. UE 1159/2013). Usługa Planetary Computer ma własne Terms of Use: bezpłatna, bez SLA, tokeny SAS krótkotrwałe (sprawdzić) | „Zawiera zmodyfikowane dane Copernicus Sentinel [rok]” | Bez konta. Przy dużym ruchu: własna kopia scen lub Copernicus Data Space |
 | Copernicus Sentinel-2 L2A przez **Earth Search** (Element 84, AWS Open Data `sentinel-cogs`), zapas | jw., gdy Planetary Computer nie odpowie | Dane Copernicus jw. STAC Element 84 bezpłatny, bez SLA | jw. | – |
 | IUNG-PIB, WCS podatności na suszę (`sgeo.iung.pl`, warstwa 2024) | silnik: kategoria gleby I–IV | **Brak jawnej licencji w usłudze.** Instytut państwowy, ustawa o otwartych danych (sprawdzić) | „Źródło: IUNG-PIB, System Monitoringu Suszy Rolniczej” | KOWR powinien uzyskać od IUNG pisemne warunki |
@@ -34,7 +34,7 @@ Warunki usług to nasza lektura opublikowanych regulaminów. Pozycje oznaczone *
 | ISRIC SoilGrids 2.0 (`rest.isric.org`) | silnik: piasek, glina, SOC → pojemność wodna | **CC BY 4.0**. REST w wersji beta, fair use, bez SLA | „SoilGrids 2.0, ISRIC – World Soil Information, CC BY 4.0” | Cache per działka |
 | ISOK, PGW Wody Polskie | link w raporcie. Warstwa na `/mapa` to **przybliżenie 80 m, nie ISOK** | Informacja sektora publicznego | „Mapy zagrożenia powodziowego: PGW Wody Polskie, ISOK” | Do podłączenia |
 | Google Map Tiles API | `/api/tiles/google/**` (proxy, opcjonalne) | **Płatne**, warunki Google Maps Platform (logo, atrybucja dynamiczna, zakaz cache). Klucza i umowy nie da się przenieść | logo Google + atrybucja | **Wyłączone w wersji dla jury** (brak `GOOGLE_MAPS_API_KEY` = trasa nieaktywna). KOWR potrzebuje własnej umowy |
-| Anthropic API (Claude) | `/api/traktor/explain` (karta zastawki): opcjonalne przeredagowanie opisu | **Płatne**, Commercial Terms (wyniki należą do klienta). Klucz zespołu, nieprzenoszalny | „Opis przeredagowany przez model AI. Liczby z reguł.” | **Domyślnie wyłączone** (brak `ANTHROPIC_API_KEY` = tekst z szablonu). Wysyłamy tylko wskaźniki, bez danych osobowych |
+| Anthropic API (Claude) | trasa `/api/traktor/explain`: opcjonalne przeredagowanie opisu miejsca zastawki (strony obecnie jej nie wywołują) | **Płatne**, Commercial Terms (wyniki należą do klienta). Klucz zespołu, nieprzenoszalny | „Opis przeredagowany przez model AI. Liczby z reguł.” | **Domyślnie wyłączone** (brak `ANTHROPIC_API_KEY` = tekst z szablonu). Wysyłamy tylko wskaźniki, bez danych osobowych |
 
 ## 3. Usługi płatne lub z ograniczeniem komercyjnym: koszty i alternatywy (pkt 5.4)
 
@@ -50,14 +50,14 @@ Warunki usług to nasza lektura opublikowanych regulaminów. Pozycje oznaczone *
 
 | Krój | Licencja | Uwagi |
 |---|---|---|
-| Archivo (oś `wdth`), Inter | SIL Open Font License 1.1 | `next/font/google` pobiera pliki przy budowaniu i serwuje je z naszej domeny. W czasie działania nie ma wywołań do Google |
+| Archivo (oś `wdth`), Inter | SIL Open Font License 1.1 | `next/font/google` pobiera pliki przy budowaniu (dlatego `npm run build` wymaga internetu) i serwuje je z naszej domeny. W czasie działania nie ma wywołań do Google |
 
 ## 5. Narzędzia AI (pkt 4.2.6, § 2 ust. 10)
 
 | Narzędzie | Do czego | Warunki |
 |---|---|---|
 | Claude (Anthropic) przez OpenCode, asystent programowania | pisanie i przegląd kodu, dokumentacji, slajdów; przeglądy w `docs/review/` | Warunki Anthropic przyznają wyniki użytkownikowi. Projekt, reguły, decyzje i weryfikacja: zespół |
-| Claude przez Anthropic API, w aplikacji (opcjonalnie) | przeredagowanie gotowego opisu na prostszy język (karta `/karta`) | Domyślnie wyłączone. Strażnik liczb odrzuca tekst z liczbą spoza wyniku. Analiza w `/analiza` jest w pełni deterministyczna (`textSource: "template"`) |
+| Claude przez Anthropic API, w aplikacji (opcjonalnie) | przeredagowanie gotowego opisu miejsca zastawki na prostszy język (trasa `/api/traktor/explain`) | Domyślnie wyłączone. Strażnik liczb odrzuca tekst z liczbą spoza wyniku. Analiza w `/analiza` jest w pełni deterministyczna (`textSource: "template"`) |
 
 Nie używamy wygenerowanych obrazów w aplikacji ani w prezentacji. Jeśli pojawią się w filmie, dopiszemy narzędzie i jego warunki.
 

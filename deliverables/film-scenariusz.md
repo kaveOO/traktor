@@ -5,7 +5,7 @@ Długość docelowa **2:50** (10 s zapasu). Limit twardy 3:00. Dłuższy film mo
 
 ## Przed nagraniem
 
-- Nagrywaj **po scaleniu silnika** (`/api/analiza`, `/api/dzialka`) na buildzie produkcyjnym: `cd web; npm run build; npm run start -- -p 3010`. Najlepiej na wersji online.
+- Silnik (`/api/analiza`, `/api/dzialka`) jest na `main`. Nagrywaj **po poprawkach reguł silnika** (limit dawki nawadniania, miesiąc zbioru, SMSR 2018; `docs/review2/01-engine-logic.md`) na buildzie produkcyjnym: `cd web; npm run build; npm run start -- -p 3010`. Najlepiej na wersji online.
 - Bez kluczy: `GOOGLE_MAPS_API_KEY` i `ANTHROPIC_API_KEY` **nieustawione** (pokazujemy wersję dla jury).
 - Działka A (na żywo, dzisiejsza data): `040307_2.0023.306/2` (kujawsko-pomorskie) albo działka z innego województwa sprawdzona dzień wcześniej (`deliverables/demo-final.md`, tabela). Uprawa: pszenica ozima.
 - Działka A, data −5 lat, np. 2021-06-15: ta sama działka w scenie zmiany daty.

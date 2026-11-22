@@ -19,6 +19,8 @@ Słaby copyleft dotyczy tylko niezmienionych binariów:
 
 Nie modyfikujemy tych pakietów.
 
+Bezpieczeństwo zależności: `npm audit --omit=dev` w `web/` uruchomiony ponownie 22.11.2026 po scaleniu silnika (z `geotiff`): **0 podatności** (info 0, low 0, moderate 0, high 0, critical 0).
+
 ## Zależności bezpośrednie (`web/package.json`)
 
 | Pakiet | Wersja | Licencja | Repozytorium |
