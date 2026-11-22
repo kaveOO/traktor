@@ -343,7 +343,7 @@ Pełna lista kontrolna ze stanem każdego punktu: **`deliverables/README.md`**.
 |---|---|
 | Nazwa zespołu i tytuł: **<NAZWA ZESPOŁU>** / TRAKTOR: asystent wody dla jednej działki rolnej | nazwa do uzupełnienia przez zespół |
 | Zwięzły opis rozwiązania | `deliverables/opis-rozwiazania.md` |
-| Link do prywatnego repozytorium | `https://github.com/philpiano/traktor` (dostęp jury: `deliverables/dostep-jury.md`) |
+| Link do prywatnego repozytorium | `https://github.com/kaveOO/traktor-hacknation2026` (dostęp jury: `deliverables/dostep-jury.md`) |
 | README (ten plik) | gotowe |
 | Prezentacja PDF ≤ 10 slajdów | `deliverables/prezentacja.pdf` (10 stron), **do ponownego eksportu po poprawkach silnika** |
 | Film ≤ 3 min (scenariusz: `deliverables/film-scenariusz.md`) | `<LINK DO FILMU>` (do uzupełnienia przez zespół) |

@@ -5,7 +5,7 @@
 | Nazwa zespołu | **<NAZWA ZESPOŁU>** (bez imion i nazwisk, § 6) |
 | Tytuł rozwiązania | **TRAKTOR: asystent wody dla jednej działki rolnej** |
 | Zadanie | KOWR „Zatrzymaj wodę, chroń plony” |
-| Repozytorium (prywatne) | `https://github.com/philpiano/traktor` |
+| Repozytorium (prywatne) | `https://github.com/kaveOO/traktor-hacknation2026` |
 | Wersja zgłoszona (commit SHA) | `<SHA>` (wpisać wynik `git log -1 --format=%H` po ostatnim pushu) |
 | Wersja działająca | <LINK DO WERSJI DZIAŁAJĄCEJ> |
 | Film (≤ 3:00) | <LINK DO FILMU> |
