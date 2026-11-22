@@ -1,10 +1,12 @@
 "use client";
 
-import * as maplibregl from "maplibre-gl";
+// maplibre-gl (~1 MB) is loaded lazily inside the init effect, so it is not in the /analiza first load.
+import type * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./analiza.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ProgressLine } from "@/components/brand/ui";
 import type { LonLat, Parcel } from "@/lib/analiza";
 import { bboxOf } from "./api";
 
@@ -106,6 +108,28 @@ const padding = () =>
     ? { top: 96, bottom: 64, left: 48, right: 468 }
     : { top: 120, bottom: Math.round(window.innerHeight * 0.5), left: 24, right: 24 };
 
+function createMap(lib: typeof maplibregl, container: HTMLDivElement, onClick: (lonLat: LonLat, zoom: number) => void) {
+  const map = new lib.Map({
+    container,
+    style: STYLE,
+    bounds: [14.07, 49.0, 24.15, 54.84],
+    fitBoundsOptions: { padding: padding() },
+    attributionControl: false,
+    keyboard: true,
+    locale: LOCALE,
+    maxZoom: 19,
+    minZoom: 4,
+    dragRotate: false,
+    pitchWithRotate: false,
+  });
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new lib.NavigationControl({ showCompass: false }), "bottom-left");
+  map.addControl(new lib.ScaleControl({ unit: "metric" }), "bottom-left");
+  map.addControl(new lib.AttributionControl({ compact: true }), "bottom-left");
+  map.on("click", (e: maplibregl.MapMouseEvent) => onClick([e.lngLat.lng, e.lngLat.lat], map.getZoom()));
+  return map;
+}
+
 export default function MapView({
   parcel,
   basemap,
@@ -128,7 +152,11 @@ export default function MapView({
   ariaLabel: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
+  const libRef = useRef<typeof maplibregl | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  /** true once maplibre-gl is loaded and the map exists; re-runs the effects below */
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const markerRefs = useRef(new Map<string, { m: maplibregl.Marker; node: HTMLButtonElement }>());
   const clickRef = useRef(onMapClick);
   const markerClickRef = useRef(onMarkerClick);
@@ -139,31 +167,25 @@ export default function MapView({
 
   // init once
   useEffect(() => {
-    if (!el.current) return;
-    const map = new maplibregl.Map({
-      container: el.current,
-      style: STYLE,
-      bounds: [14.07, 49.0, 24.15, 54.84],
-      fitBoundsOptions: { padding: padding() },
-      attributionControl: false,
-      keyboard: true,
-      locale: LOCALE,
-      maxZoom: 19,
-      minZoom: 4,
-      dragRotate: false,
-      pitchWithRotate: false,
-    });
-    map.touchZoomRotate.disableRotation();
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
-    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
-    map.on("click", (e: maplibregl.MapMouseEvent) => clickRef.current([e.lngLat.lng, e.lngLat.lat], map.getZoom()));
-    mapRef.current = map;
+    let cancelled = false;
+    let map: maplibregl.Map | null = null;
     const markersNow = markerRefs.current;
+    import("maplibre-gl")
+      .then((lib) => {
+        if (cancelled || !el.current) return;
+        libRef.current = lib;
+        map = createMap(lib, el.current, (ll, z) => clickRef.current(ll, z));
+        mapRef.current = map;
+        setReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
     return () => {
+      cancelled = true;
       markersNow.forEach(({ m }) => m.remove());
       markersNow.clear();
-      map.remove();
+      map?.remove();
       mapRef.current = null;
     };
   }, []);
@@ -181,7 +203,7 @@ export default function MapView({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [basemap, showParcels]);
+  }, [basemap, showParcels, ready]);
 
   // parcel outline + camera
   useEffect(() => {
@@ -208,7 +230,7 @@ export default function MapView({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [parcel]);
+  }, [parcel, ready]);
 
   // explicit camera moves (search result, "Pokaż na mapie")
   useEffect(() => {
@@ -227,12 +249,13 @@ export default function MapView({
     } else {
       map.flyTo({ center: flyTarget.lonLat, zoom: flyTarget.zoom ?? Math.max(map.getZoom(), 16), duration, padding: padding() });
     }
-  }, [flyTarget]);
+  }, [flyTarget, ready]);
 
   // recommendation markers
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    const lib = libRef.current;
+    if (!map || !lib) return;
     const refs = markerRefs.current;
     const want = new Set(markers.map((m) => m.id));
     refs.forEach((v, id) => {
@@ -252,10 +275,10 @@ export default function MapView({
         e.stopPropagation();
         markerClickRef.current(mk.id);
       });
-      const m = new maplibregl.Marker({ element: node }).setLngLat(mk.lonLat).addTo(map);
+      const m = new lib.Marker({ element: node }).setLngLat(mk.lonLat).addTo(map);
       refs.set(mk.id, { m, node });
     }
-  }, [markers]);
+  }, [markers, ready]);
 
   useEffect(() => {
     markerRefs.current.forEach(({ node }, id) => {
@@ -263,15 +286,28 @@ export default function MapView({
       node.classList.toggle("is-active", on);
       node.setAttribute("aria-pressed", on ? "true" : "false");
     });
-  }, [activeMarker, markers]);
+  }, [activeMarker, markers, ready]);
 
   return (
-    <div
-      ref={el}
-      className="analiza-map absolute inset-0"
-      role="region"
-      aria-label={ariaLabel}
-      aria-roledescription="mapa"
-    />
+    <>
+      <div
+        ref={el}
+        className="analiza-map absolute inset-0"
+        role="region"
+        aria-label={ariaLabel}
+        aria-roledescription="mapa"
+      />
+      {!ready && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10" aria-live="polite">
+          {loadError ? (
+            <p role="alert" className="m-3 ml-auto w-fit rounded-[2px] bg-cream px-3 py-2 text-[13px] text-terra-ink">
+              Nie udało się wczytać mapy. Odśwież stronę.
+            </p>
+          ) : (
+            <ProgressLine label="Ładuję mapę" />
+          )}
+        </div>
+      )}
+    </>
   );
 }
