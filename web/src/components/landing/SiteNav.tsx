@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 
 const LINKS = [
-  { href: "/#jak", label: "Jak to działa" },
-  { href: "/mapa", label: "Miejsca" },
-  { href: "/metoda", label: "Dane" },
+  { href: "/analiza", label: "Analiza" },
+  { href: "/mapa", label: "Przykład" },
+  { href: "/metoda", label: "Metoda" },
   { href: "/slides", label: "Prezentacja" },
 ];
 
@@ -25,7 +25,7 @@ export function SiteNav({ solid = false }: { solid?: boolean }) {
         </Link>
         <ul className="flex items-center gap-4 text-[14px] md:gap-7 md:text-[15px]">
           {LINKS.map((l, i) => (
-            <li key={l.href} className={i === 1 ? "" : "hidden sm:block"}>
+            <li key={l.href} className={i === 0 ? "" : "hidden sm:block"}>
               <Link
                 href={l.href}
                 className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cream"

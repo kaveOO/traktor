@@ -3,6 +3,7 @@ import { Icon, type IconName } from "@/components/brand/Icon";
 import { PointCloud } from "@/components/brand/PointCloud";
 import { Button, Card, Eyebrow, ProgressRail, SourceLine } from "@/components/brand/ui";
 import { BoardStates } from "@/components/landing/BoardStates";
+import { ParallaxHero } from "@/components/landing/ParallaxHero";
 import { RefusalCounter, type RefusalRow } from "@/components/landing/RefusalCounter";
 import { Section } from "@/components/landing/Section";
 import { SiteFooter } from "@/components/landing/SiteFooter";
@@ -69,32 +70,8 @@ export default function Home() {
     <>
       <SiteNav />
       <main className="flex-1">
-        {/* 01 HERO */}
-        <section className="relative -mt-16 h-[100svh] min-h-[620px] overflow-hidden bg-forest text-cream">
-          <div className="absolute inset-0">
-            <PointCloud water={0.7} />
-          </div>
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-forest via-forest/55 to-forest/10" />
-          <div className="relative mx-auto flex h-full max-w-6xl flex-col justify-end px-5 pb-16 md:px-8 md:pb-24">
-            <Eyebrow className="rise opacity-80">01 — Pomysł</Eyebrow>
-            <h1 className="hd rise mt-4 max-w-5xl text-[52px] md:text-[96px]">Przyszłość wody jest już w polu.</h1>
-            <p className="rise mt-3 text-[15px] opacity-80 [animation-delay:80ms]">
-              The future of water is already in the field.
-            </p>
-            <p className="rise mt-6 max-w-2xl text-[18px] leading-[1.5] [animation-delay:160ms] md:text-[20px]">
-              Polska ma gęstą sieć rowów melioracyjnych. TRAKTOR dodaje jedną drewnianą zastawkę i prostą zasadę:
-              trzymaj wodę, gdy ziemia jest sucha. Otwórz rów przed burzą.
-            </p>
-            <div className="rise mt-8 flex flex-wrap gap-3 [animation-delay:240ms]">
-              <Button tone="onForest" href="/mapa?site=S-007&crest=40&scenario=drought-aug">
-                Zobacz bezpieczne miejsca
-              </Button>
-              <Button variant="secondary" tone="onForest" href="#jak">
-                Jak to działa
-              </Button>
-            </div>
-          </div>
-        </section>
+        {/* 01 HERO: layered Blender render, scroll parallax (static composite under reduced motion) */}
+        <ParallaxHero />
 
         {/* 02 PROBLEM */}
         <Section
@@ -252,7 +229,10 @@ export default function Home() {
               Zindeksujemy jego dzierżawy i zweryfikujemy 10 miejsc ze spółką wodną tej wiosny.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button tone="onForest" href="/mapa">
+              <Button tone="onForest" href="/analiza">
+                Sprawdź działkę
+              </Button>
+              <Button variant="secondary" tone="onForest" href="/mapa">
                 Zobacz miejsca
               </Button>
               <Button variant="secondary" tone="onForest" href="/slides">

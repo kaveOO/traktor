@@ -14,6 +14,11 @@ export function SiteFooter() {
         <div className="grid gap-6 sm:grid-cols-2">
           <ul className="space-y-2 text-[15px]">
             <li>
+              <Link className="hover:underline" href="/analiza">
+                Analiza działki
+              </Link>
+            </li>
+            <li>
               <Link className="hover:underline" href="/mapa">
                 Miejsca
               </Link>
