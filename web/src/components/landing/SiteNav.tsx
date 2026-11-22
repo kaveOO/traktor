@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
+import { Button } from "@/components/brand/ui";
 
 const LINKS = [
   { href: "/analiza", label: "Analiza" },
   { href: "/mapa", label: "Przykład" },
   { href: "/metoda", label: "Metoda" },
-  { href: "/slides", label: "Prezentacja" },
 ];
 
-/** Sticky top bar: small cream logo top-left, plain links. Forest ground, translucent over the hero. */
+/** Sticky top bar: small cream logo top-left, plain links, primary CTA. Forest ground, translucent over the hero. */
 export function SiteNav({ solid = false }: { solid?: boolean }) {
   return (
     <header
@@ -23,18 +23,23 @@ export function SiteNav({ solid = false }: { solid?: boolean }) {
         <Link href="/" aria-label="TRAKTOR, strona główna" className="shrink-0">
           <Logo color="cream" height={18} />
         </Link>
-        <ul className="flex items-center gap-4 text-[14px] md:gap-7 md:text-[15px]">
-          {LINKS.map((l, i) => (
-            <li key={l.href} className={i === 0 ? "" : "hidden sm:block"}>
-              <Link
-                href={l.href}
-                className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cream"
-              >
-                {l.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-center gap-4 md:gap-7">
+          <ul className="flex items-center gap-4 text-[14px] md:gap-7 md:text-[15px]">
+            {LINKS.map((l) => (
+              <li key={l.href} className="hidden sm:block">
+                <Link
+                  href={l.href}
+                  className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cream"
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Button tone="onForest" href="/analiza" className="shrink-0 px-4 md:px-6">
+            Sprawdź działkę
+          </Button>
+        </div>
       </nav>
     </header>
   );

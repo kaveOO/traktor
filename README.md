@@ -10,7 +10,7 @@ Zadanie KOWR „Zatrzymaj wodę, chroń plony”, HackNation 2026.
 | Element | Stan |
 |---|---|
 | `/mapa`: przykład zastawek pod Bydgoszczą (BDOT10k + NMT + ULDK) z warunkami na żywo (Open-Meteo, IMGW-PIB) | gotowe |
-| `/slides`: prezentacja (10 slajdów) | gotowe. `deliverables/prezentacja.pdf` **do ponownego eksportu po poprawkach silnika** |
+| Prezentacja PDF (10 slajdów): `deliverables/prezentacja.pdf`, plik zgłoszeniowy poza stroną | gotowe. **Do ponownego eksportu po poprawkach silnika** (źródło slajdów usunięte ze strony; jest w historii git, commit `6034855`, `web/src/components/slides/`) |
 | Kontrakt analizy (`web/src/lib/analiza/types.ts`, `crops.ts`) | gotowe |
 | Moduł satelitarny `web/src/lib/analiza/satellite.ts` (Sentinel-2 L2A: Microsoft Planetary Computer, zapasowo Earth Search) | gotowe |
 | Raport `/raport` (druk, PDF, JSON, zapis w przeglądarce; `?demo=1` = dane przykładowe) | gotowe |
@@ -86,7 +86,6 @@ Inne strony:
 |---|---|
 | `/mapa` | Przykład: zastawki na rowach na zachód od Bydgoszczy (Białe Błota / Sicienko), dane BDOT10k + NMT 1 m + ULDK. Suwak wysokości piętrzenia, odmowy z powodem, tryby TRZYMAJ / OTWÓRZ. Polecenia liczone z **warunków na żywo** (`/api/traktor/conditions`: Open-Meteo prognoza 7 dni + archiwum 60 dni, ostrzeżenia IMGW-PIB dla powiatu bydgoskiego) albo ze scenariuszy zapisanych |
 | `/karta?site=S-007&crest=40&scenario=drought-aug` | Karta miejsca zastawki do druku |
-| `/slides` | Prezentacja (strzałki, `F` pełny ekran, `P` notatki, druk = PDF) |
 | `/metoda` | Metoda, źródła, ograniczenia |
 | `/` | Strona główna |
 
@@ -323,7 +322,7 @@ Wdrożone w commicie `7ec9bab` (a11y + mobile) i w przejściu marki `643c96e`. �
 | Mapa `/mapa` z klawiatury (strzałki, +/−, znaczniki miejsc osiągalne tabulatorem), tabela wszystkich miejsc jako opis tekstowy | zrobione |
 | Panel miejsca jako okno dialogowe (`role="dialog"`), na telefonie zwijany panel dolny | zrobione |
 | Przełączniki jako grupy radiowe (`role="radiogroup"`, strzałki) | zrobione |
-| Postęp i wyniki ogłaszane przez `aria-live` (`/analiza`, `/mapa`, `/slides`) | zrobione |
+| Postęp i wyniki ogłaszane przez `aria-live` (`/analiza`, `/mapa`) | zrobione |
 | Wartości z tabelą danych (raport: tabele źródeł i serii; `/mapa`: tabele parametrów) | zrobione |
 | Kolor nigdy jedynym nośnikiem informacji (ikona + tekst, poziom słownie) | zrobione |
 | Kontrast: osobne odcienie „ink” do tekstu z par księgi znaku | zrobione (bez pomiaru narzędziem dla każdej pary) |
@@ -354,10 +353,10 @@ Pełna lista kontrolna ze stanem każdego punktu: **`deliverables/README.md`**.
 
 ```
 web/                      aplikacja Next.js 16
-  src/app/                strony: /, /analiza, /raport, /mapa, /karta, /slides, /metoda; api/
+  src/app/                strony: /, /analiza, /raport, /mapa, /karta, /metoda; api/
   src/lib/analiza/        silnik v2: typy, uprawy, moduły źródeł
   src/lib/traktor/        przykład /mapa: dane i reguły zastawek
-  src/components/         komponenty (brand, map, card, slides, analiza, raport)
+  src/components/         komponenty (brand, map, card, analiza, raport)
 scripts/geo/              skrypty offline (DuckDB) dla przykładu /mapa
 scripts/lanes.ps1         równoległe gałęzie robocze
 docs/                     zgłoszenie, licencje, przekazanie KOWR, przeglądy, notatki do slajdów

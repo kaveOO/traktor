@@ -89,7 +89,7 @@ Ponowny eksport po poprawkach silnika (PowerShell; build wymaga internetu, `next
 ```powershell
 cd web; npm run build; npm run start -- -p 3015
 $edge = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
-& $edge --headless --disable-gpu --no-pdf-header-footer --virtual-time-budget=10000 --print-to-pdf="$PWD\..\deliverables\prezentacja.pdf" http://localhost:3015/slides
+# deck PDF: deliverables/prezentacja.pdf (strona nie ma już /slides; źródło slajdów: historia git, commit 6034855)
 & $edge --headless --disable-gpu --no-pdf-header-footer --virtual-time-budget=40000 --print-to-pdf="$PWD\..\deliverables\raporty\raport-<woj>-<uprawa>-<data>.pdf" "http://localhost:3015/raport?parcelId=<ID>&crop=<uprawa>&date=<RRRR-MM-DD>"
 ```
 
