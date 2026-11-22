@@ -1,0 +1,77 @@
+# TRAKTOR — uruchomienie w kontenerze (Docker Compose v2).
+#
+#   docker compose up -d --build      # zbuduj i wystartuj
+#   docker compose ps                 # stan + healthcheck
+#   docker compose logs -f app        # logi
+#   docker compose down               # zatrzymaj
+#
+# Aplikacja: http://localhost:3031/analiza  (port hosta 3031 -> kontener 3000)
+# Instrukcja: docs/DEPLOY-DOCKER.md
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: traktor:local
+    container_name: traktor-app
+    # `init: true` = mały PID 1, poprawna obsługa SIGTERM przy `docker stop`.
+    init: true
+    restart: unless-stopped
+    ports:
+      - "3031:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Wersja widoczna w /api/health (pole `sha`). Domyślnie "local".
+      VERCEL_GIT_COMMIT_SHA: "${GIT_SHA:-local}"
+      # Opcjonalne. Puste = usługa wyłączona (tak działa wersja dla jury).
+      # Wartości bierzemy ze środowiska powłoki, nie z pliku w repozytorium:
+      #   $env:ANTHROPIC_API_KEY = "..."; docker compose up -d
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GOOGLE_MAPS_API_KEY: "${GOOGLE_MAPS_API_KEY:-}"
+    # Analiza ma budżet 24 s (maxDuration 30). Dajemy czas na dokończenie żądań w toku.
+    stop_grace_period: 40s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:'+(process.env.PORT||'3000')+'/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Opcjonalna odwrotna proxy (TLS, jeden adres publiczny, kilka instancji app).
+  # Odkomentuj razem z sekcją `networks` i `ports` wyżej, gdy potrzebny jest HTTPS.
+  # Wymaga publicznej domeny i otwartych portów 80/443.
+  #
+  # caddy:
+  #   image: caddy:2-alpine
+  #   container_name: traktor-caddy
+  #   restart: unless-stopped
+  #   depends_on:
+  #     app:
+  #       condition: service_healthy
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   networks:
+  #     - traktor
+  #
+  # volumes:
+  #   caddy_data:
+  #   caddy_config:
+  #
+  # networks:
+  #   traktor:

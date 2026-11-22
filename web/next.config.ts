@@ -17,6 +17,9 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Docker: `next build` writes `.next/standalone` (server.js + traced node_modules). Compatible with
+  // `cacheComponents` (only `output: "export"` is incompatible with it). See docs/DEPLOY-DOCKER.md.
+  output: "standalone",
   async headers() {
     return [
       {

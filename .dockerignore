@@ -1,0 +1,37 @@
+# Kontekst budowania = katalog główny repo, ale obraz powstaje wyłącznie z `web/`.
+# Dzięki temu build jest szybki, a do obrazu nie trafiają dokumenty, dane badawcze ani sekrety.
+
+# --- poza obrazem ---
+.git
+.gitattributes
+.github
+.opencode
+.vscode
+docs
+research
+deliverables
+scripts
+node_modules
+*.md
+*.html
+build.log
+
+# --- zależności i wyniki buildów (odtwarzane w obrazie) ---
+web/node_modules
+web/.next
+web/out
+web/build
+**/.turbo
+**/*.tsbuildinfo
+web/next-env.d.ts
+
+# --- sekrety: nigdy do obrazu (wzór .env.example zostaje w repo, ale nie w obrazie) ---
+web/.env
+web/.env.*
+!web/.env.example
+
+# --- śmieci systemowe i logi ---
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+npm-debug.log*
