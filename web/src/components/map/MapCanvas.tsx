@@ -101,7 +101,11 @@ export function MapCanvas({
     if (!el) return;
     const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width || 1, h: e.contentRect.height || 1 }));
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      // no camera frame may run after unmount
+      if (anim.current) cancelAnimationFrame(anim.current);
+    };
   }, []);
 
   // px per map unit (preserveAspectRatio slice)

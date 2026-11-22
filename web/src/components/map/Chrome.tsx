@@ -7,8 +7,9 @@ import { GMINA, SCENARIO_LABEL, fmtRange, miejsc } from "@/lib/traktor";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
 import { radioKeyDown } from "@/components/brand/radio";
+import { DATA_DATE } from "./geo";
 
-type BasemapChoice = "gugik-orto" | "s2-cloudless" | "osm" | "google-roadmap" | "google-satellite" | "schema";
+type BasemapChoice = "gugik-orto" | "s2-cloudless" | "osm" | "schema";
 
 export type ScenarioChoice = ScenarioName | "live";
 export const CHOICES: ScenarioChoice[] = ["live", "drought-aug", "storm-warning", "spring-wet"];
@@ -35,10 +36,12 @@ export function TopBar({
         <Logo color="cream" height={18} />
       </Link>
       <div className="shrink-0 border-l border-cream/25 pl-4 max-[900px]:pl-3">
-        <p className="eb text-cream-muted max-[900px]:hidden">Mapa rowów</p>
+        <p className="eb text-cream-muted max-[900px]:hidden">Przykład: zastawki na rowach (pod Bydgoszczą)</p>
         <p className="text-[13px] font-medium max-[900px]:text-[12px]">
+          <span className="min-[901px]:hidden">Przykład · </span>
           {GMINA.name}
           <span className="max-[900px]:hidden"> · pow. {GMINA.powiat}</span>
+          <span className="num text-cream-muted max-[640px]:hidden"> · stan danych {DATA_DATE}</span>
         </p>
       </div>
       <button
@@ -93,8 +96,11 @@ export function TopBar({
         <Link href="/" className="inline-flex min-h-6 items-center underline-offset-4 hover:underline">
           Start
         </Link>
-        <Link href="/slides" className="inline-flex min-h-6 items-center underline-offset-4 hover:underline">
-          Prezentacja
+        <Link
+          href="/analiza"
+          className="inline-flex min-h-9 items-center rounded-[2px] bg-cream px-3 font-medium text-forest transition-colors duration-200 hover:bg-cream-deep"
+        >
+          Sprawdź swoją działkę
         </Link>
       </nav>
       {loading && (
@@ -133,13 +139,11 @@ export function ScenarioDock({
   onRefused,
   basemap,
   onBasemap,
-  googleEnabled = false,
   shortcuts,
   onShortcuts,
 }: {
   basemap: BasemapChoice;
   onBasemap: (b: BasemapChoice) => void;
-  googleEnabled?: boolean;
   scenario: ScenarioChoice;
   onScenario: (s: ScenarioChoice) => void;
   orders: Order[];
@@ -161,12 +165,6 @@ export function ScenarioDock({
     Math.round(open.reduce((s, o) => s + (o.capacityFreedM3?.[1] ?? 0), 0) / 10) * 10,
   ];
   const basemaps = [
-    ...(googleEnabled
-      ? ([
-          ["google-roadmap", "Google"],
-          ["google-satellite", "Google satelita"],
-        ] as const)
-      : []),
     ["s2-cloudless", "Satelita"],
     ["gugik-orto", "Ortofoto"],
     ["osm", "Mapa"],

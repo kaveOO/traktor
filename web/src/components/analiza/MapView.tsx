@@ -15,11 +15,11 @@ export type Basemap = "satelita" | "mapa";
 export type MapMarker = { id: string; lonLat: LonLat; label: string; n: number; tone?: "default" | "safe" | "warning" };
 
 /** Basemap endpoints.
- * Satelita: EOX Sentinel-2 cloudless 2020 (EPSG:3857 tiles) at small zoom, then GUGiK ORTO WMS (EPSG:3857, layer "Raster") from z11.
- * The GUGiK ORTO WMTS only offers EPSG:2180 / EPSG:4326 matrix sets, so WMS with {bbox-epsg-3857} is used instead. */
-// WMTS StandardResolution has an EPSG:3857 matrix set (TileMatrix "EPSG:3857:{z}"), verified for /mapa;
-// ~5x faster than the WMS (docs/review/05-performance.md).
-const ORTO_WMS =
+ * Satelita: EOX Sentinel-2 cloudless 2016 (layer s2cloudless_3857, CC BY 4.0) up to z13, then the GUGiK
+ * orthophoto from z11: WMTS StandardResolution, matrix set "EPSG:3857" (TileMatrix "EPSG:3857:{z}"),
+ * ~5x faster than the WMS (docs/review/05-performance.md).
+ * Działki: KIEG WMS with {bbox-epsg-3857}. Mapa: OSM standard tiles (ODbL). */
+const ORTO_WMTS =
   "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&TILEMATRIXSET=EPSG:3857&FORMAT=image/jpeg&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}";
 const KIEG_WMS =
   "https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaEwidencjiGruntow?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&LAYERS=dzialki,numery_dzialek&STYLES=&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE";
@@ -38,7 +38,7 @@ const STYLE: StyleSpecification = {
     },
     orto: {
       type: "raster",
-      tiles: [ORTO_WMS],
+      tiles: [ORTO_WMTS],
       tileSize: 256,
       minzoom: 11,
       maxzoom: 19,
@@ -49,7 +49,8 @@ const STYLE: StyleSpecification = {
       tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       tileSize: 256,
       maxzoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">autorzy OpenStreetMap</a> (ODbL)',
     },
     kieg: {
       type: "raster",
@@ -67,8 +68,9 @@ const STYLE: StyleSpecification = {
     { id: "orto", type: "raster", source: "orto", minzoom: 11 },
     { id: "osm", type: "raster", source: "osm", layout: { visibility: "none" } },
     { id: "kieg", type: "raster", source: "kieg", minzoom: 15 },
-    // brand map style: water fill 22%, cream 2px outline either side of a 1px forest line
-    { id: "parcel-fill", type: "fill", source: "parcel", paint: { "fill-color": "#3B7FA3", "fill-opacity": 0.22 } },
+    // parcel: faint cream wash (water blue is reserved for water and the retention zone, SPEC §06),
+    // a 1.5 px forest line on a 5 px cream halo so it reads on orthophoto and on OSM alike
+    { id: "parcel-fill", type: "fill", source: "parcel", paint: { "fill-color": "#F3ECDD", "fill-opacity": 0.18 } },
     {
       id: "parcel-halo",
       type: "line",
@@ -81,7 +83,7 @@ const STYLE: StyleSpecification = {
       type: "line",
       source: "parcel",
       layout: { "line-join": "round" },
-      paint: { "line-color": "#1F3A22", "line-width": 1 },
+      paint: { "line-color": "#1F3A22", "line-width": 1.5 },
     },
   ],
 };
@@ -108,6 +110,16 @@ const padding = () =>
     ? { top: 96, bottom: 64, left: 48, right: 468 }
     : { top: 120, bottom: Math.round(window.innerHeight * 0.5), left: 24, right: 24 };
 
+/** MapLibre needs WebGL; without it the Map constructor throws. */
+function hasWebGL() {
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    return false;
+  }
+}
+
 function createMap(lib: typeof maplibregl, container: HTMLDivElement, onClick: (lonLat: LonLat, zoom: number) => void) {
   const map = new lib.Map({
     container,
@@ -119,13 +131,20 @@ function createMap(lib: typeof maplibregl, container: HTMLDivElement, onClick: (
     locale: LOCALE,
     maxZoom: 19,
     minZoom: 4,
+    // flat map, north up (SPEC §06: no 3D tilt)
+    maxPitch: 0,
     dragRotate: false,
     pitchWithRotate: false,
+    touchPitch: false,
+    // tracks the container with a ResizeObserver (mobile sheet, rotation, window resize)
+    trackResize: true,
   });
   map.touchZoomRotate.disableRotation();
+  map.keyboard.disableRotation();
   map.addControl(new lib.NavigationControl({ showCompass: false }), "bottom-left");
   map.addControl(new lib.ScaleControl({ unit: "metric" }), "bottom-left");
-  map.addControl(new lib.AttributionControl({ compact: true }), "bottom-left");
+  // default = responsive: always open on wide maps, collapses to (i) only on maps < 640 px after a move
+  map.addControl(new lib.AttributionControl(), "bottom-left");
   map.on("click", (e: maplibregl.MapMouseEvent) => onClick([e.lngLat.lng, e.lngLat.lat], map.getZoom()));
   return map;
 }
@@ -156,7 +175,9 @@ export default function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null);
   /** true once maplibre-gl is loaded and the map exists; re-runs the effects below */
   const [ready, setReady] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+  /** first style + tiles drawn: hides the progress line */
+  const [painted, setPainted] = useState(false);
+  const [loadError, setLoadError] = useState<null | "webgl" | "load">(null);
   const markerRefs = useRef(new Map<string, { m: maplibregl.Marker; node: HTMLButtonElement }>());
   const clickRef = useRef(onMapClick);
   const markerClickRef = useRef(onMarkerClick);
@@ -170,23 +191,32 @@ export default function MapView({
     let cancelled = false;
     let map: maplibregl.Map | null = null;
     const markersNow = markerRefs.current;
-    import("maplibre-gl")
+    // no WebGL: skip the ~1 MB download and say so
+    (hasWebGL() ? import("maplibre-gl") : Promise.reject(new Error("webgl")))
       .then((lib) => {
         if (cancelled || !el.current) return;
         libRef.current = lib;
-        map = createMap(lib, el.current, (ll, z) => clickRef.current(ll, z));
+        try {
+          map = createMap(lib, el.current, (ll, z) => clickRef.current(ll, z));
+        } catch {
+          setLoadError("webgl");
+          return;
+        }
+        map.once("load", () => !cancelled && setPainted(true));
         mapRef.current = map;
         setReady(true);
       })
-      .catch(() => {
-        if (!cancelled) setLoadError(true);
+      .catch((e: unknown) => {
+        if (!cancelled) setLoadError(e instanceof Error && e.message === "webgl" ? "webgl" : "load");
       });
     return () => {
       cancelled = true;
       markersNow.forEach(({ m }) => m.remove());
       markersNow.clear();
+      // frees the WebGL context, workers and the ResizeObserver
       map?.remove();
       mapRef.current = null;
+      libRef.current = null;
     };
   }, []);
 
@@ -203,6 +233,9 @@ export default function MapView({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
+    return () => {
+      map.off("load", apply);
+    };
   }, [basemap, showParcels, ready]);
 
   // parcel outline + camera
@@ -230,6 +263,9 @@ export default function MapView({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
+    return () => {
+      map.off("load", apply);
+    };
   }, [parcel, ready]);
 
   // explicit camera moves (search result, "Pokaż na mapie")
@@ -264,13 +300,22 @@ export default function MapView({
         refs.delete(id);
       }
     });
-    for (const mk of markers) {
-      if (refs.has(mk.id)) continue;
-      const node = document.createElement("button");
-      node.type = "button";
+    const paint = (node: HTMLButtonElement, mk: MapMarker) => {
       node.className = `analiza-marker${mk.tone && mk.tone !== "default" ? ` is-${mk.tone}` : ""}`;
       node.textContent = String(mk.n);
       node.setAttribute("aria-label", `Rekomendacja ${mk.n}: ${mk.label}`);
+    };
+    for (const mk of markers) {
+      const have = refs.get(mk.id);
+      if (have) {
+        // same id, new content (tone, number, position): update in place
+        paint(have.node, mk);
+        have.m.setLngLat(mk.lonLat);
+        continue;
+      }
+      const node = document.createElement("button");
+      node.type = "button";
+      paint(node, mk);
       node.addEventListener("click", (e) => {
         e.stopPropagation();
         markerClickRef.current(mk.id);
@@ -297,16 +342,26 @@ export default function MapView({
         aria-label={ariaLabel}
         aria-roledescription="mapa"
       />
-      {!ready && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10" aria-live="polite">
-          {loadError ? (
-            <p role="alert" className="m-3 ml-auto w-fit rounded-[2px] bg-cream px-3 py-2 text-[13px] text-terra-ink">
-              Nie udało się wczytać mapy. Odśwież stronę.
+      {loadError ? (
+        // the map is gone, the panel still works; the error sits mid-screen above the sheet
+        <div className="pointer-events-none absolute inset-x-0 top-1/3 z-10 flex justify-center px-6 min-[900px]:pr-[460px]">
+          <div role="alert" className="max-w-sm rounded-[4px] bg-cream/95 p-4 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
+            <p className="text-[15px] font-semibold">
+              {loadError === "webgl" ? "Mapa wymaga WebGL." : "Nie udało się wczytać mapy."}
             </p>
-          ) : (
-            <ProgressLine label="Ładuję mapę" />
-          )}
+            <p className="mt-1 text-[13px] text-forest-muted">
+              {loadError === "webgl"
+                ? "Włącz akcelerację sprzętową w przeglądarce albo otwórz stronę w innej. Wyszukiwanie i analiza działają bez mapy."
+                : "Sprawdź połączenie i odśwież stronę. Wyszukiwanie i analiza działają bez mapy."}
+            </p>
+          </div>
         </div>
+      ) : (
+        !painted && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
+            <ProgressLine label="Ładuję mapę" />
+          </div>
+        )
       )}
     </>
   );
