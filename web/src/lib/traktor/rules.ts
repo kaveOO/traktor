@@ -19,7 +19,7 @@ export function decideOrder(site: Site, c: Conditions, crestCm?: CrestHeight | n
   const crest = site.crests.find((k) => k.heightCm === (crestCm ?? site.maxAcceptedCrestCm));
   const capacity: Range | undefined = crest?.storageM3;
   const expiresAt = new Date(Date.now() + 24 * 3600_000).toISOString();
-  const base = { siteId: site.id, operatorPl: "Właściciel zastawki / spółka wodna (do potwierdzenia)", expiresAt };
+  const base = { siteId: site.id, operatorPl: "właściciel lub spółka wodna (do potwierdzenia)", expiresAt };
   const inputs = {
     "KBW 60 dni [mm]": c.kbw60Mm,
     "Opad 72 h [mm]": c.precip72hMm,
@@ -57,7 +57,7 @@ export function decideOrder(site: Site, c: Conditions, crestCm?: CrestHeight | n
         storm
           ? `IMGW: ${storm.event}, stopień ${storm.level} dla powiatu ${storm.powiat}.`
           : `Prognoza ${c.precip72hMm} mm w 72 h (próg ${THRESHOLDS.rain72hMm} mm).`,
-        `Otwórz do: ${fmtDeadline(deadlineIso)}, aby zwolnić pojemność rowu.`,
+        `Otwórz najpóźniej: ${fmtDeadline(deadlineIso)}. Rów zrobi miejsce na deszcz.`,
       ],
       deadline: deadlineIso,
       capacityFreedM3: capacity,
@@ -73,7 +73,7 @@ export function decideOrder(site: Site, c: Conditions, crestCm?: CrestHeight | n
       reasons: [
         `KBW ${c.kbw60Mm} mm w 60 dni (próg ${THRESHOLDS.droughtKbwMm} mm).`,
         `Prognoza ${c.precip7dMm} mm w 7 dni. Brak ostrzeżeń.`,
-        `Gleba kat. ${site.soilCategory} (przykład; IUNG do pobrania).`,
+        `Gleba kat. ${site.soilCategory} (przykładowa, bez danych IUNG).`,
       ],
       inputs,
     };

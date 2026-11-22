@@ -110,7 +110,7 @@ export default function MapApp() {
     return getScenario(scenario);
   }, [scenario, live.c]);
 
-  const liveNote = scenario === "live" && !live.loading && live.failed ? "brak połączenia — dane zapisane" : null;
+  const liveNote = scenario === "live" && !live.loading && live.failed ? "Brak połączenia. Pokazuję dane zapisane." : null;
 
   const orders = useMemo(() => {
     const out: Record<string, Order> = {};

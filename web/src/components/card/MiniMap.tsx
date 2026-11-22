@@ -148,8 +148,8 @@ export function MiniMapLegend() {
     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
       {item(<span className="inline-block size-2.5 rounded-full bg-agri" />, "Zastawka")}
       {item(<span className="inline-block h-0.5 w-4 bg-water" />, "Rów")}
-      {item(<span className="inline-block h-2 w-4 bg-water/30" />, "Strefa piętrzenia")}
-      {item(<span className="inline-block size-2.5 border border-agri bg-agri/15" />, "Działka własna")}
+      {item(<span className="inline-block h-2 w-4 bg-water/30" />, "Cofka")}
+      {item(<span className="inline-block size-2.5 border border-agri bg-agri/15" />, "Działka przy zastawce")}
       {item(<span className="inline-block size-2.5 border border-dashed border-terra bg-terra/15" />, "Działka sąsiada (ryzyko)")}
     </div>
   );

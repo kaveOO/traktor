@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAKTOR · Plan v2: zgodność z zadaniem KOWR</title>
+<style>
+  :root{--ink:#1F3A22;--cream:#F3ECDD;--deep:#EFE6D3;--agri:#4F7A3A;--water:#3B7FA3;--terra:#B5573B;--soil:#6B4A2E;--line:#d9d2c1;--muted:#5b6157}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--cream)}
+  header{background:var(--ink);color:var(--cream);padding:22px 28px}
+  header h1{margin:0;font-size:26px;letter-spacing:.3px}
+  header p{margin:4px 0 0;opacity:.85}
+  .tb{margin-top:12px;display:flex;gap:8px}
+  .tb button{border:1px solid #F3ECDD99;background:transparent;color:var(--cream);padding:6px 12px;border-radius:2px;cursor:pointer}
+  main{max-width:1080px;margin:0 auto;padding:20px}
+  section{background:#fff8ec;border:1px solid var(--line);border-radius:4px;padding:16px 22px;margin-bottom:16px}
+  h2{margin:0 0 10px;font-size:19px}
+  h3{margin:14px 0 6px;font-size:15px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{border-bottom:1px solid var(--line);padding:6px 7px;text-align:left;vertical-align:top}
+  th{background:var(--deep)}
+  code{font:12.5px ui-monospace,Consolas,monospace;background:var(--deep);padding:1px 4px;border-radius:2px}
+  ul,ol{margin:4px 0;padding-left:20px}
+  .p{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:2px;color:#fff;white-space:nowrap}
+  .must{background:var(--terra)}.should{background:var(--soil)}.nice{background:var(--water)}
+  .ok{color:var(--agri);font-weight:700}.gap{color:var(--terra);font-weight:700}.part{color:var(--soil);font-weight:700}
+  .warn{border-left:4px solid var(--terra);background:#f8e6df;padding:8px 12px;margin:8px 0}
+  .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;margin:6px 0}
+  .flow span{background:var(--deep);border:1px solid var(--line);border-radius:2px;padding:4px 8px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  input[type=checkbox]{transform:scale(1.15)}
+  .sm{font-size:12.5px;color:var(--muted)}
+  @media(max-width:800px){.cols{grid-template-columns:1fr}}
+  @media print{.tb{display:none}body{background:#fff}section{break-inside:avoid;border:0;padding:0 0 8px}header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAKTOR · Plan v2: dostosowanie do zadania KOWR</h1>
+  <p>Na podstawie: opis zadania „Zatrzymaj wodę, chroń plony”, Załącznik 1 „Podstawy naukowe”, Regulamin zadania · 22.11.2026</p>
+  <div class="tb"><button onclick="print()">Drukuj / PDF</button></div>
+</header>
+<main>
+
+<section>
+  <h2>1. Najważniejszy wniosek</h2>
+  <div class="warn"><b>Obecna wersja nie przejdzie testu jury.</b> Jury wpisuje <b>dowolny numer działki w Polsce i datę</b> (dziś lub do 10 lat wstecz) i porównuje wynik z danymi referencyjnymi (pkt 6). Wyniki muszą być <b>liczone na żywo z pobranych danych</b>; „wyświetlenie wcześniej przygotowanych rekomendacji nie spełnia wymagań” (pkt 3.3.4). My mamy jeden przeliczony obszar pod Bydgoszczą.</div>
+  <p>Zmiana kierunku: z „mapy zastawek w jednej gminie” na <b>asystenta jednej działki</b> dla całej Polski. Zastawka zostaje, ale jako jedna z rekomendacji retencyjnych. Opis zadania wprost podaje przykład: „spowolnienie odpływu wód w rowach melioracyjnych”.</p>
+  <p class="sm">Wymagana kolejność (Zał. 1): ocena sytuacji wodnej → przyczyny → rekomendacje retencyjne → agrotechnika → nawadnianie (opcjonalnie). Rekomendacje nie mogą powstać bez wcześniejszej oceny.</p>
+</section>
+
+<section>
+  <h2>2. Co mamy, czego brakuje</h2>
+  <table>
+    <tr><th>Wymaganie</th><th>Źródło w opisie</th><th>Stan</th><th>Co zrobić</th></tr>
+    <tr><td>Dowolna działka w Polsce, po numerze lub kliknięciu</td><td>3.3.2, 5.5, 6</td><td class="gap">brak</td><td>ULDK na żywo (numer lub klik), mapa całej Polski</td></tr>
+    <tr><td>Data analizy (dziś lub do 10 lat wstecz)</td><td>6</td><td class="gap">brak</td><td>Pole daty; wszystkie zapytania liczone „na dzień X”</td></tr>
+    <tr><td>Wybór uprawy</td><td>3.3.3</td><td class="gap">brak</td><td>Lista upraw z Kc (FAO-56) i okresem krytycznym</td></tr>
+    <tr><td>Dane z 10 lat, liczone przez aplikację</td><td>3.3.4, 4.2.5</td><td class="gap">brak</td><td>Open-Meteo archiwum 10 lat dla centroidu działki</td></tr>
+    <tr><td>Dane satelitarne z uwzględnieniem uprawy</td><td>3.2.1a, 3.3</td><td class="gap">brak</td><td>Sentinel-2 (Earth Search, bez konta): NDVI/NDMI działki vs te same tygodnie w latach poprzednich</td></tr>
+    <tr><td>Dane glebowe</td><td>3.3</td><td class="part">przykład</td><td>IUNG WCS (kategoria podatności) + SoilGrids (piasek, glina, SOC → pojemność wodna)</td></tr>
+    <tr><td>Hydrologia, rzeźba terenu</td><td>3.2.2a, 3.3</td><td class="part">jeden obszar</td><td>NMT wokół działki (spadek, obniżenia), rowy i cieki BDOT10k dla powiatu na żądanie, strefy ISOK</td></tr>
+    <tr><td>Przyczyny niedoboru</td><td>3.3.5, Zał. 1</td><td class="gap">brak</td><td>Reguły: deficyt opadów, niska retencja gleby, odpływ po spadku, wrażliwość uprawy</td></tr>
+    <tr><td>Rekomendacje retencyjne i agrotechniczne</td><td>3.2.2</td><td class="part">tylko zastawki</td><td>Katalog działań NWRM (KE 2014/2015) dobierany do przyczyn</td></tr>
+    <tr><td>Nawadnianie (opcjonalne)</td><td>3.2.3</td><td class="gap">brak</td><td>Bilans ETc − P − zapas w glebie: czy, kiedy, ile mm</td></tr>
+    <tr><td>Raport: stan, przyczyny, działania, data, źródła, ograniczenia, niepewność; PDF lub druk</td><td>3.3.5–6</td><td class="part">karta miejsca</td><td>Nowy raport działki; „brak danych” podany wprost</td></tr>
+    <tr><td>Wynik w ≤ 30 s</td><td>7.5</td><td class="ok">tak, ale dla przeliczonych</td><td>Zapytania równoległe, limity czasu, pamięć podręczna</td></tr>
+    <tr><td>Przeglądarki: Chrome, Firefox, Edge, Safari, Opera; mobile mile widziane</td><td>3.2</td><td class="part">nie testowane</td><td>Test w 5 przeglądarkach; widok mobilny</td></tr>
+    <tr><td>Bez płatnych usług w podstawowych funkcjach</td><td>5.4</td><td class="part">Google opcjonalne</td><td>Usunąć Google z wersji dla jury lub opisać koszt i alternatywę</td></tr>
+    <tr><td>Bez danych osobowych, podstawy bezpieczeństwa</td><td>5.6</td><td class="ok">brak kont</td><td>Walidacja wejścia, limit zapytań, nagłówki bezpieczeństwa</td></tr>
+    <tr><td>README z 9 punktami, licencje, AI, skalowanie</td><td>4.2, 5.3, 5.5</td><td class="part">częściowo</td><td>Przepisać README pod listę z 4.2</td></tr>
+    <tr><td>PDF prezentacji ≤ 10 slajdów, film ≤ 3 min, wygenerowane raporty</td><td>4.1</td><td class="part">slajdy są</td><td>Zaktualizować slajdy, nagrać film, dołączyć 2–3 raporty PDF</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>3. Nowy przepływ użytkownika (mapa na cały ekran)</h2>
+  <div class="flow"><span>1 Działka: numer lub klik</span>→<span>2 Uprawa</span>→<span>3 Data</span>→<span>Analizuj (postęp krok po kroku)</span>→<span>Ocena</span>→<span>Przyczyny</span>→<span>Retencja</span>→<span>Agrotechnika</span>→<span>Nawadnianie</span>→<span>Raport PDF</span></div>
+  <ul>
+    <li><b>Mapa na cały ekran</b> (MapLibre GL, cała Polska). Podkłady darmowe: ortofotomapa i mapa topograficzna GUGiK (WMTS), OSM jako zapas.</li>
+    <li><b>Wyszukiwanie</b>: numer działki (ULDK), miejscowość lub adres (geokoder GUGiK). Klik na mapie zaznacza działkę i pokazuje jej numer.</li>
+    <li><b>Panel boczny</b> (na telefonie dolna szuflada): kreator 1–3, potem wyniki w wymaganej kolejności jako zakładki.</li>
+    <li><b>Interakcja na mapie</b>: obrys działki, rowy i cieki w promieniu 1 km, obniżenia terenu, proponowane miejsca zastawek (przyjęte i odrzucone z powodem), strefa ISOK, warstwa NDVI. Najechanie pokazuje opis, klik otwiera szczegóły.</li>
+    <li><b>Postęp analizy</b>: lista źródeł z czasem i statusem (pobrano / brak danych), cienka linia postępu, bez kręciołków.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>4. Silnik analizy (na żywo, dla działki i daty)</h2>
+  <table>
+    <tr><th>Krok</th><th>Dane (kategoria z 3.3)</th><th>Metoda</th></tr>
+    <tr><td>Działka</td><td>ULDK GetParcelById / ByXY (przestrzenne)</td><td>Geometria, powierzchnia, centroid, TERYT</td></tr>
+    <tr><td>Pogoda 10 lat</td><td>Open-Meteo archiwum ERA5: opad, ET₀, Tmax (meteo); IMGW ostrzeżenia dla daty bieżącej</td><td>KBW 60 dni wg IUNG, ETc = Kc·ET₀, percentyl bieżącego sezonu na tle 10 lat, liczba lat z suszą w okresie krytycznym uprawy</td></tr>
+    <tr><td>Satelita</td><td>Sentinel-2 L2A z Earth Search (satelitarne)</td><td>NDVI i NDMI średnio dla działki (maska chmur SCL), najbliższa scena do daty; porównanie z medianą tych samych tygodni z lat poprzednich, interpretacja zależna od uprawy i fazy</td></tr>
+    <tr><td>Gleba</td><td>IUNG WCS kategoria podatności na suszę; SoilGrids (glebowe)</td><td>Kategoria I–IV; pojemność wodna dostępna (pedotransfer Saxton-Rawls)</td></tr>
+    <tr><td>Teren i woda</td><td>NMT GetHByPointList (siatka nad działką); BDOT10k rowy/cieki dla powiatu (DuckDB na żądanie); ISOK WMS (hydrologiczne, przestrzenne)</td><td>Spadek i kierunek odpływu, obniżenia, odległość do rowu; dotychczasowa logika zastawek (cofka, odmowy, działki sąsiadów)</td></tr>
+    <tr><td>Przyczyny</td><td>wyniki powyżej</td><td>Reguły z Zał. 1: deficyt opadów + temperatura; niska retencja gleby; nadmierny odpływ; wrażliwość uprawy. Każda przyczyna z liczbą i źródłem</td></tr>
+    <tr><td>Rekomendacje</td><td>przyczyny + teren</td><td>Katalog NWRM: zastawka na rowie, strefy buforowe, zadrzewienia, oczko w obniżeniu, międzyplony, resztki pożniwne, uprawa uproszczona, materia organiczna. Każda z uzasadnieniem</td></tr>
+    <tr><td>Nawadnianie</td><td>bilans</td><td>Niedobór = ETc − P − zapas wody w glebie; „nie teraz / rozważ / tak, X mm do dnia Y”</td></tr>
+    <tr><td>Niepewność</td><td>kompletność danych</td><td>Poziom: niski / średni / wysoki, zależny od braków (chmury, brak gleby, rów niewidoczny w NMT). Braki opisane wprost</td></tr>
+  </table>
+  <p class="sm">Budżet czasu: wszystkie źródła równolegle, limit 8 s na źródło, wynik częściowy zamiast błędu. Pamięć podręczna według (działka, data, uprawa). Cel: 10–20 s.</p>
+</section>
+
+<section>
+  <div class="cols">
+    <div>
+      <h2>5. Dostępność (WCAG 2.2 AA)</h2>
+      <ul>
+        <li>Cała analiza bez użycia myszy: numer działki zamiast klikania w mapę.</li>
+        <li>Widoczny fokus, link „Przejdź do treści”, logiczna kolejność tabulacji.</li>
+        <li>Mapa obsługiwana klawiaturą (strzałki, +/−), z tekstowym opisem tego, co widać.</li>
+        <li>Postęp analizy i wyniki ogłaszane przez <code>aria-live</code>.</li>
+        <li>Wykresy z tabelą danych obok. Kolor nigdy jako jedyny nośnik informacji (ikona + tekst).</li>
+        <li>Kontrast według par z księgi znaku; kremowy tekst na wodzie lub terakocie tylko ≥ 24 px.</li>
+        <li>Etykiety pól, komunikaty błędów przy polach, cele dotyku ≥ 44 px, powiększenie 200%.</li>
+        <li><code>prefers-reduced-motion</code>, <code>lang="pl"</code>, test axe w Lighthouse.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>6. Zgodność z regulaminem</h2>
+      <ul>
+        <li>Repozytorium prywatne do końca wydarzenia; dostęp dla jury wg platformy.</li>
+        <li>Tylko darmowe i legalne dane; licencje w README (OSM ODbL, GUGiK, Open-Meteo CC BY 4.0, IMGW, Copernicus, SoilGrids CC BY 4.0, IUNG).</li>
+        <li>Biblioteki na licencjach otwartych (MapLibre BSD-3, geotiff MIT, DuckDB MIT).</li>
+        <li>Opis użycia AI: kod pisany z pomocą asystenta AI; w aplikacji LLM tylko opisuje wynik, bez liczb od modelu (opcjonalne).</li>
+        <li>Bez kont i danych osobowych; raport zapisywany lokalnie lub jako PDF.</li>
+        <li>Google Maps poza wersją dla jury (płatne). Klucz z czatu: unieważnić.</li>
+        <li>Nazwa zespołu bez imion i nazwisk (§ 6 ust. 2).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>7. Plan pracy (równoległe tory, osobne gałęzie)</h2>
+  <table>
+    <tr><th></th><th>Tor</th><th>Zakres</th><th>Prio</th></tr>
+    <tr><td><input type="checkbox"></td><td><b>A · Silnik</b></td><td><code>/api/analiza</code>: ULDK, Open-Meteo 10 lat, IUNG, SoilGrids, NMT, przyczyny, rekomendacje, nawadnianie, niepewność; testy na 5 działkach z różnych województw</td><td><span class="p must">MUST</span></td></tr>
+    <tr><td><input type="checkbox"></td><td><b>B · Satelita</b></td><td>Sentinel-2 z Earth Search: wyszukiwanie scen, odczyt COG dla działki, NDVI/NDMI, porównanie z latami poprzednimi</td><td><span class="p must">MUST</span></td></tr>
+    <tr><td><input type="checkbox"></td><td><b>C · Mapa i kreator</b></td><td>MapLibre na cały ekran, podkłady GUGiK, wyszukiwarka, klik → działka, kreator 1–3, zakładki wyników, warstwy rowów i zastawek</td><td><span class="p must">MUST</span></td></tr>
+    <tr><td><input type="checkbox"></td><td><b>D · Raport</b></td><td>Raport działki do druku i PDF: stan, przyczyny, działania, data, źródła, ograniczenia, niepewność</td><td><span class="p must">MUST</span></td></tr>
+    <tr><td><input type="checkbox"></td><td><b>E · Rowy i zastawki</b></td><td>Przeniesienie logiki zastawek z jednego obszaru na dowolny powiat (BDOT10k na żądanie + NMT)</td><td><span class="p should">SHOULD</span></td></tr>
+    <tr><td><input type="checkbox"></td><td><b>F · Dostępność i przeglądarki</b></td><td>Lista z pkt 5, test 5 przeglądarek, widok mobilny, Lighthouse</td><td><span class="p should">SHOULD</span></td></tr>
+    <tr><td><input type="checkbox"></td><td><b>G · Dokumenty</b></td><td>README (9 punktów z 4.2), licencje, skalowanie i koszty, slajdy ≤ 10 (PDF), film ≤ 3 min, 2–3 raporty przykładowe</td><td><span class="p must">MUST</span></td></tr>
+  </table>
+  <p class="sm">Kolejność: A, B, C, G równolegle → D po A → E i F po C. Bramka: raport dla 3 losowych działek z różnych części Polski w ≤ 30 s, dla dzisiejszej daty i daty sprzed 5 lat.</p>
+</section>
+
+<section>
+  <h2>8. Decyzje do zatwierdzenia</h2>
+  <table>
+    <tr><th></th><th>Decyzja</th><th>Rekomendacja</th></tr>
+    <tr><td><input type="checkbox"></td><td>Zmiana kierunku na asystenta działki dla całej Polski</td><td>Tak. Bez tego zgłoszenie nie spełnia pkt 3.3 i 6.</td></tr>
+    <tr><td><input type="checkbox"></td><td>Nowa zależność: MapLibre GL (BSD-3) i geotiff (MIT)</td><td>Tak. Pełnoekranowa mapa całej Polski i odczyt Sentinel-2.</td></tr>
+    <tr><td><input type="checkbox"></td><td>Hosting dla jury</td><td>Serwer Node (np. Railway, Render, własny VPS) zamiast funkcji serverless: DuckDB i zapytania do 30 s. Plus instrukcja uruchomienia lokalnie.</td></tr>
+    <tr><td><input type="checkbox"></td><td>Google Maps</td><td>Wyłączyć w wersji dla jury (płatne, pkt 5.4). Klucz unieważnić.</td></tr>
+    <tr><td><input type="checkbox"></td><td>Obecna mapa zastawek pod Bydgoszczą</td><td>Zostaje jako przykład w trybie „Przykładowa działka”, oznaczony.</td></tr>
+    <tr><td><input type="checkbox"></td><td>Strona główna</td><td>Twoja wersja; my tylko linkujemy do mapy.</td></tr>
+  </table>
+</section>
+
+</main>
+</body>
+</html>

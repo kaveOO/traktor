@@ -6,18 +6,18 @@ const ACTION_PL = { TRZYMAJ: "TRZYMAJ", OTWORZ: "OTWÓRZ", NIE_RUSZAJ: "NIE RUSZ
 export function templateText(site: Site, crestCm: CrestHeight, c: Conditions): string {
   const crest = site.crests.find((k) => k.heightCm === crestCm);
   const s: string[] = [];
-  s.push(`Zastawka ${site.id} stoi na rowie ${site.name.replace(/^Rów\s+/, "")}.`);
+  s.push(`Miejsce ${site.id} leży na rowie ${site.name.replace(/^Rów\s+/, "")}.`);
   if (!crest) {
     s.push(`Nie mamy obliczeń dla wysokości ${crestCm} cm.`);
   } else if (crest.status === "refused") {
     s.push(
       crest.refusal?.messagePl ?? `Przy ${crestCm} cm to miejsce jest zbyt ryzykowne.`,
-      `Tej wysokości nie stosujemy${site.maxAcceptedCrestCm ? `, maksimum to ${site.maxAcceptedCrestCm} cm` : ""}.`,
+      site.maxAcceptedCrestCm ? `Bezpieczne maksimum: ${site.maxAcceptedCrestCm} cm.` : "Tu nie budujemy.",
     );
   } else {
     s.push(
       `Przy ${crestCm} cm rów zatrzyma ${fmtRange(crest.storageM3, "m³")} wody na odcinku ${crest.backwaterM} m.`,
-      `Woda wraca pod ${fmtRange(crest.rehydratedHa, "ha")} pól.`,
+      `Woda nawodni ${fmtRange(crest.rehydratedHa, "ha")} pól (szacunek).`,
     );
   }
   const okCrest = crest?.status === "accepted" ? crestCm : site.maxAcceptedCrestCm;

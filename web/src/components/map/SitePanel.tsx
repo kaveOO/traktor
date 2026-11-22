@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Candidate, Conditions, CrestHeight, Order, Site } from "@/lib/traktor";
-import { CRESTS, DEMO_NOTE, GMINA, LEGAL, REFUSAL_LABEL, THRESHOLDS, bufferDays, ditches, fmtRange, summary } from "@/lib/traktor";
+import { CRESTS, DEMO_NOTE, GMINA, LEGAL, REFUSAL_LABEL, REFUSAL_RULE, THRESHOLDS, bufferDays, ditches, fmtRange, plural, summary } from "@/lib/traktor";
 import { Button, Eyebrow, SourceLine, StatusChip } from "@/components/brand/ui";
 import { OrderBadge, StateTiles } from "@/components/brand/StateTiles";
 import { CrossSection, LongProfile } from "./Sections";
@@ -66,7 +66,7 @@ export function CrestSlider({ site, crest, onCrest }: { site: Site; crest: Crest
 
 function WhyDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
   return (
-    <div className="absolute inset-0 z-20 flex flex-col bg-cream-deep" role="dialog" aria-label="Dlaczego taki rozkaz">
+    <div className="absolute inset-0 z-20 flex flex-col bg-cream-deep" role="dialog" aria-label="Dlaczego takie polecenie">
       <div className="flex items-center justify-between border-b border-forest/15 px-5 py-3">
         <Eyebrow>Dlaczego? · reguła {order.ruleId}</Eyebrow>
         <button type="button" onClick={onClose} className="eb rounded-[2px] border-[1.5px] border-forest px-2 py-1">
@@ -112,7 +112,7 @@ function WhyDrawer({ order, onClose }: { order: Order; onClose: () => void }) {
           </table>
         </div>
         <p className="text-[12px] opacity-75">
-          Wykonawca: {order.operatorPl}. Rozkaz ważny 24 h. {LEGAL.permit}
+          Wykonuje: {order.operatorPl}. Polecenie ważne 24 h. {LEGAL.permit}
         </p>
       </div>
     </div>
@@ -148,10 +148,10 @@ export function SitePanel({
       <div className="space-y-4 px-5 pt-4 pb-6">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="eb num">SITE {site.id} · {site.status === "accepted" ? "PRZYJĘTE" : "ODRZUCONE"}</p>
+            <p className="eb num">MIEJSCE {site.id}</p>
             <h2 className="sh mt-1 text-[24px]">{site.name}</h2>
             <p className="num mt-0.5 text-[12px] opacity-70">
-              Ranking {site.rank} z {summary.sitesAccepted} · gleba kat. {site.soilCategory} · spadek {site.slopePct.toLocaleString("pl-PL")}%
+              Ranking: {site.rank} z {summary.sitesAccepted} · spadek {site.slopePct.toLocaleString("pl-PL")}% · gleba kat. {site.soilCategory} (przykład)
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -164,14 +164,14 @@ export function SitePanel({
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <Eyebrow className="opacity-70">Rozkaz na dziś</Eyebrow>
+            <Eyebrow className="opacity-70">Polecenie na dziś</Eyebrow>
             <OrderBadge action={order.action} className="text-base" />
           </div>
           <StateTiles active={order.action} size="sm" />
           {order.action === "NIE_RUSZAJ" && (
             <p className="mt-2 rounded-[2px] border-2 border-forest/30 px-3 py-2 text-[13px]">
               <span className="eb">NIE RUSZAJ</span>
-              {order.consult ? " · skonsultuj ze spółką wodną" : " · warunki neutralne"}
+              {order.consult ? " · skonsultuj ze spółką wodną" : " · zostaw zastawkę bez zmian"}
             </p>
           )}
           <p className="mt-2 text-[13px] leading-snug">{order.reasons[0]}</p>
@@ -182,19 +182,19 @@ export function SitePanel({
 
         <div className="rounded-[4px] border border-forest/15 bg-cream p-2">
           <CrossSection site={site} crest={k} />
-          <p className="mt-1 px-1 text-[11px] opacity-70">Przekrój rowu przy zastawce (NMT, przewyższenie)</p>
+          <p className="mt-1 px-1 text-[11px] opacity-70">Przekrój przy zastawce z NMT 1 m. Skala pionowa powiększona.</p>
         </div>
 
         <CrestSlider site={site} crest={crest} onCrest={onCrest} />
 
         {refused && k.refusal && (
           <div className="rounded-[4px] bg-terra p-4 text-cream" role="alert">
-            <p className="eb">Odmowa · {REFUSAL_LABEL[k.refusal.code]}</p>
+            <p className="eb">Odrzucone · {REFUSAL_LABEL[k.refusal.code]}</p>
             <p className="sh mt-1 text-[19px] leading-snug">
-              To miejsce jest zbyt ryzykowne przy {crest} cm. Tu nie budujemy.
+              Przy {crest} cm to miejsce jest zbyt ryzykowne. Tu nie budujemy.
             </p>
             <p className="mt-2 text-[13.5px]">{k.refusal.messagePl}</p>
-            {k.refusal.objectRef && (
+            {k.refusal.objectRef && !k.refusal.messagePl.includes(k.refusal.objectRef) && (
               <p className="num mt-1 text-[12px] opacity-90">
                 Obiekt: działka {k.refusal.objectRef}
                 {k.refusal.distanceM ? ` · ${k.refusal.distanceM} m od zastawki` : ""}
@@ -202,23 +202,23 @@ export function SitePanel({
             )}
             {site.maxAcceptedCrestCm && (
               <button type="button" onClick={() => onCrest(site.maxAcceptedCrestCm!)} className="mt-3 text-[13px] font-semibold underline">
-                Wróć do bezpiecznej wysokości: {site.maxAcceptedCrestCm} cm
+                Wróć do {site.maxAcceptedCrestCm} cm (bezpiecznie)
               </button>
             )}
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-1.5">
-          <Metric label="Retencja" value={fmtRange(k.storageM3, "m³")} tag="NMT" />
+          <Metric label="Retencja" value={fmtRange(k.storageM3, "m³")} tag="szacunek" />
           <Metric label="Cofka" value={`${k.backwaterM.toLocaleString("pl-PL")} m`} tag="NMT" />
-          <Metric label="Nawodnienie" value={fmtRange(k.rehydratedHa, "ha")} tag="założenie" />
-          <Metric label="Zapas wody" value={days ? fmtRange(days, "dni") : "> 60 dni"} tag="założenie" />
+          <Metric label="Nawodnienie" value={fmtRange(k.rehydratedHa, "ha")} tag="szacunek" />
+          <Metric label="Zapas wody" value={days ? fmtRange(days, "dni") : "> 60 dni"} tag="szacunek" />
           <div className="col-span-2">
-            <Metric label="Odpływ uniknięty" value={fmtRange(k.outflowAvoidedMm, "mm/sezon")} tag="literatura" />
+            <Metric label="Mniej odpływu" value={fmtRange(k.outflowAvoidedMm, "mm/sezon")} tag="literatura" />
           </div>
         </div>
         <p className="text-[11px] opacity-70">
-          Zapas = zatrzymane mm / ET₀ {conditions.et0Mm.toLocaleString("pl-PL")} mm/d. Zakresy, nie prognoza plonu.
+          Zapas = zatrzymane mm ÷ ET₀ {conditions.et0Mm.toLocaleString("pl-PL")} mm/d. To nie prognoza plonu.
         </p>
 
         <div className="rounded-[4px] border border-forest/15 p-3 text-[13px]">
@@ -226,14 +226,14 @@ export function SitePanel({
           <dl className="space-y-1">
             <div className="flex justify-between gap-2">
               <dt className="opacity-75">Rów widoczny w NMT</dt>
-              <dd className="font-semibold">{ditch?.resolvable ? "TAK" : "NIE"}</dd>
+              <dd className="font-semibold">{ditch?.resolvable ? "tak" : "nie"}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="opacity-75">Drenowanie podziemne</dt>
-              <dd className="font-semibold">NIEZNANE → wizja</dd>
+              <dd className="font-semibold">nieznane</dd>
             </div>
             <div className="flex justify-between gap-2">
-              <dt className="opacity-75">Właściciel urządzenia</dt>
+              <dt className="opacity-75">Właściciel zastawki</dt>
               <dd className="font-semibold">do potwierdzenia</dd>
             </div>
             <div className="flex justify-between gap-2">
@@ -247,7 +247,7 @@ export function SitePanel({
         <div className="rounded-[4px] border border-forest/15 bg-cream p-2">
           <LongProfile site={site} crest={k} />
           <p className="mt-1 px-1 text-[11px] opacity-70">
-            Profil podłużny: dno, skarpa i cofka {k.backwaterM.toLocaleString("pl-PL")} m
+            Profil podłużny: dno, brzeg i cofka {k.backwaterM.toLocaleString("pl-PL")} m
           </p>
         </div>
 
@@ -264,7 +264,7 @@ export function SitePanel({
         </div>
 
         <div className="text-forest">
-          <SourceLine>NMT LiDAR 1 m (GUGiK); BDOT10k; ULDK; IUNG; {conditions.sources.join(", ")}</SourceLine>
+          <SourceLine>NMT 1 m (GUGiK); BDOT10k; ULDK; {conditions.sources.join(", ")}</SourceLine>
           <p className="text-[11px] opacity-70">{DEMO_NOTE}</p>
         </div>
       </div>
@@ -276,19 +276,18 @@ export function CandidatePanel({ cand, onClose }: { cand: Candidate; onClose: ()
   return (
     <div className="space-y-3 px-5 pt-4 pb-6">
       <div className="flex items-start justify-between">
-        <p className="eb num">PUNKT {cand.id} · ODRZUCONE</p>
+        <p className="eb num">PUNKT {cand.id}</p>
         <button type="button" onClick={onClose} className="text-[12px] underline opacity-70">
           Zamknij
         </button>
       </div>
       <StatusChip status="refused" />
       <div className="rounded-[4px] bg-terra p-4 text-cream">
-        <p className="eb">Odrzucone: {cand.refusalCode ? REFUSAL_LABEL[cand.refusalCode] : "—"}</p>
+        {cand.refusalCode && <p className="eb">{REFUSAL_LABEL[cand.refusalCode]}</p>}
         <p className="sh mt-1 text-[20px]">To miejsce jest zbyt ryzykowne. Tu nie budujemy.</p>
+        {cand.refusalCode && <p className="mt-2 text-[13.5px]">{REFUSAL_RULE[cand.refusalCode]}</p>}
       </div>
-      <p className="text-[13px] opacity-80">
-        {ditches.find((d) => d.id === cand.ditchId)?.name}. Punkt nie przeszedł kontroli bezpieczeństwa.
-      </p>
+      <p className="text-[13px] opacity-80">{ditches.find((d) => d.id === cand.ditchId)?.name}</p>
       <p className="text-[11px] opacity-70">{DEMO_NOTE}</p>
     </div>
   );
@@ -309,20 +308,21 @@ export function GminaPanel({
   return (
     <div className="space-y-4 px-5 pt-4 pb-6">
       <div>
-        <Eyebrow className="opacity-70">{GMINA.short} · podsumowanie</Eyebrow>
+        <Eyebrow className="opacity-70">{GMINA.short}</Eyebrow>
         <h2 className="sh mt-1 text-[26px] leading-tight">
-          <span className="num">{summary.sitesAccepted}</span> bezpiecznych miejsc na zastawkę
+          <span className="num">{summary.sitesAccepted}</span>{" "}
+          {plural(summary.sitesAccepted, "bezpieczne miejsce", "bezpieczne miejsca", "bezpiecznych miejsc")} na zastawkę
         </h2>
         <p className="num mt-1 text-[13px] opacity-75">
-          z {summary.pointsAnalysed.toLocaleString("pl-PL")} przeanalizowanych punktów na rowach
+          z {summary.pointsAnalysed.toLocaleString("pl-PL")} sprawdzonych punktów na rowach
         </p>
       </div>
       <div className="grid grid-cols-2 gap-1.5">
-        <Metric label="Retencja razem" value={fmtRange(summary.totalStorageM3, "m³")} tag="NMT" />
-        <Metric label="Nawodnienie razem" value={fmtRange(summary.totalRehydratedHa, "ha")} tag="założenie" />
+        <Metric label="Retencja razem" value={fmtRange(summary.totalStorageM3, "m³")} tag="szacunek" />
+        <Metric label="Nawodnienie razem" value={fmtRange(summary.totalRehydratedHa, "ha")} tag="szacunek" />
       </div>
       <div className="rounded-[4px] border border-forest/15 p-3">
-        <Eyebrow className="mb-2 opacity-70">Rozkazy · {conditions.labelPl.replace("Scenariusz demonstracyjny: ", "")}</Eyebrow>
+        <Eyebrow className="mb-2 opacity-70">Polecenia · {conditions.labelPl.replace("Scenariusz demonstracyjny: ", "")}</Eyebrow>
         <div className="num grid grid-cols-3 gap-1 text-center text-[12px]">
           <div className="rounded-[2px] bg-forest py-2 text-cream transition-colors duration-[400ms]">
             <div className="text-[20px] font-semibold">{count("TRZYMAJ")}</div>TRZYMAJ
@@ -335,13 +335,13 @@ export function GminaPanel({
           </div>
         </div>
       </div>
-      <p className="rounded-[2px] bg-cream px-3 py-2 text-[14px] font-semibold">Kliknij zielony punkt, aby otworzyć miejsce.</p>
+      <p className="rounded-[2px] bg-cream px-3 py-2 text-[14px] font-semibold">Zielony punkt na mapie otwiera miejsce.</p>
       <div>
         <Eyebrow className="mb-1 opacity-70">Ranking miejsc{kowrOnly ? " · KOWR (ilustracyjnie)" : ""}</Eyebrow>
         <RankingList onSite={onSite} limit={10} kowrOnly={kowrOnly} />
       </div>
       <div>
-        <SourceLine>BDOT10k; NMT LiDAR 1 m (GUGiK); IUNG; obliczenia TRAKTOR</SourceLine>
+        <SourceLine>BDOT10k; NMT 1 m (GUGiK); ULDK; obliczenia TRAKTOR</SourceLine>
         <p className="text-[11px] opacity-70">{DEMO_NOTE}</p>
       </div>
     </div>

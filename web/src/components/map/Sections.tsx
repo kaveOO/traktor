@@ -81,10 +81,10 @@ export function CrossSection({ site, crest }: { site: Site; crest: Crest }) {
       />
       {/* labels */}
       <text x={6} y={H - 8} fontSize={10} fill={C.forest} opacity={0.75}>
-        pole właściciela
+        działka przy zastawce
       </text>
       <text x={W - 6} y={H - 8} fontSize={10} textAnchor="end" fill={refused ? C.terra : C.forest} fontWeight={refused ? 700 : 400} opacity={refused ? 1 : 0.75}>
-        {refused ? "woda na działce sąsiada" : "pole sąsiada"}
+        {refused ? "woda na działce sąsiada" : "działka sąsiada"}
       </text>
       <text x={xbR + 4} y={-6} fontSize={11} fill={C.soil} fontWeight={700} className="num" style={{ transform: `translateY(${yLevel}px)`, transition: "transform 1.2s ease-in-out" }}>
         {crest.heightCm} cm

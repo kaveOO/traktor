@@ -49,7 +49,7 @@ function Title({ active }: { active: boolean }) {
         <h1 className="hd rise mt-14 max-w-[1100px] text-[132px]">Let the land hold its water.</h1>
         <p className="sh rise mt-6 text-[40px]">{TAGLINE_PL}</p>
         <p className="eb rise mt-16 text-[14px] opacity-80">
-          Hackathon final · Jury pitch · KOWR „Zatrzymaj wodę, chroń plony”
+          HackNation 2026 · KOWR „Zatrzymaj wodę, chroń plony”
         </p>
       </Shell>
     </>
@@ -60,14 +60,14 @@ function Title({ active }: { active: boolean }) {
 function Problem() {
   const stats: { v: string; l: string; s: string; icon: IconName }[] = [
     { v: "6,4 mln ha", l: "zmeliorowanych użytków rolnych", s: "NIK / GUS", icon: "ditch" },
-    { v: "394 gminy", l: "z suszą w zbożach jarych w 2025 (16%)", s: "IUNG", icon: "drought" },
+    { v: "394 gminy", l: "z suszą w zbożach jarych w 2025 r. (16%)", s: "IUNG", icon: "drought" },
     { v: "do 3 000 zł/ha", l: "pomocy suszowej, wypłacanej po stracie", s: "pomoc suszowa 2024", icon: "tractor" },
     { v: "EMSR756", l: "powódź, wrzesień 2024", s: "Copernicus EMS", icon: "storm" },
   ];
   return (
     <Shell className="flex flex-col">
       <h2 className="hd rise text-[96px]">Za dużo, potem za mało.</h2>
-      <En className="rise mt-4">Too much, then too little — the same ditch.</En>
+      <En className="rise mt-4">Too much water, then too little.</En>
       <div className="mt-auto grid grid-cols-4 gap-6">
         {stats.map((s) => (
           <div key={s.v} className="rise border-t-2 border-forest pt-6">
@@ -79,7 +79,7 @@ function Problem() {
         ))}
       </div>
       <p className="sh rise mt-12 text-[30px]">
-        Ten sam rów odprowadza wodę wiosną i nie ma jej w sierpniu. Działa tylko w jedną stronę: na zewnątrz.
+        Wiosną rów odprowadza wodę. W sierpniu jej brakuje. Melioracja działa tylko w jedną stronę: na zewnątrz.
       </p>
     </Shell>
   );
@@ -164,8 +164,8 @@ function Insight() {
         <h2 className="hd rise text-[110px]">Jedna zastawka. Dwa tryby.</h2>
         <En className="rise mt-5">One board. Two states.</En>
         <p className="rise mt-8 max-w-[560px] text-[22px] leading-[1.45]">
-          Drewniana deska w istniejącym rowie melioracyjnym. Bez koparki, bez nowego zbiornika. W suszy trzyma wodę
-          przy korzeniach. Przed burzą zwalnia miejsce w rowie.
+          Drewniana zastawka w istniejącym rowie melioracyjnym. Bez koparki i bez nowego zbiornika. W suszy trzyma wodę
+          przy korzeniach. Przed burzą opróżnia rów.
         </p>
         <div className="rise mt-auto" data-noadvance>
           <StateTiles active={mode} onChange={setMode} size="md" showEnglish />
@@ -183,14 +183,14 @@ function Insight() {
 /* ---------- 04 How it works ---------- */
 function How() {
   const pillars: { icon: IconName; t: string; en: string; d: string }[] = [
-    { icon: "lidar", t: "Uziemione", en: "Grounded", d: "Istniejące rowy z BDOT10k i teren z NMT LiDAR 1 m. Żadnych nowych wykopów." },
-    { icon: "board", t: "Odwracalne", en: "Reversible", d: "Deska w górę, deska w dół. Jedno polecenie na dzień. Nic nie betonujemy." },
-    { icon: "pin", t: "Precyzyjne", en: "Precise", d: "Każde miejsce ma wysokość deski, objętość w przedziale i powód odmowy." },
+    { icon: "lidar", t: "Uziemione", en: "Grounded", d: "Istniejące rowy z BDOT10k, teren z NMT LiDAR 1 m. Bez nowych wykopów." },
+    { icon: "board", t: "Odwracalne", en: "Reversible", d: "Deska w górę albo w dół. Jedno polecenie dziennie. Bez betonu." },
+    { icon: "pin", t: "Precyzyjne", en: "Precise", d: "Każde miejsce ma wysokość deski w cm i zakres objętości w m³." },
   ];
   return (
     <Shell className="flex flex-col">
       <h2 className="hd rise text-[96px]">Od rowu do decyzji.</h2>
-      <En className="rise mt-4">From every ditch to one daily order.</En>
+      <En className="rise mt-4">From the ditch to a daily order.</En>
       <div className="rise mt-16 [&_li>span:last-child]:text-[15px]">
         <ProgressRail current={8} tone="onForest" />
       </div>
@@ -216,7 +216,7 @@ function Refusal() {
   return (
     <Shell className="grid grid-cols-[1fr_1fr] gap-20">
       <div className="flex flex-col">
-        <p className="eb rise opacity-70">{GMINA.name} · dane demonstracyjne</p>
+        <p className="eb rise opacity-70">{GMINA.name}</p>
         <p className="hd num rise mt-6 text-[150px]">{nbsp(summary.pointsAnalysed)}</p>
         <p className="sh rise text-[32px]">punktów na rowach</p>
         <p className="hd num rise mt-8 text-[150px] text-agri">→ {summary.sitesAccepted}</p>
@@ -228,7 +228,7 @@ function Refusal() {
       </div>
       <div className="flex flex-col justify-center">
         <p className="eb rise mb-6 opacity-70">
-          Odrzucone: <span className="num">{nbsp(refused)}</span> · powód odmowy
+          Odrzucone: <span className="num">{nbsp(refused)}</span>, według powodu
         </p>
         <ul className="space-y-5">
           {rows.map(([code, n]) => (
@@ -244,7 +244,7 @@ function Refusal() {
           ))}
           <li className="rise pt-3">
             <div className="flex justify-between text-[19px] font-semibold text-agri">
-              <span>Przyjęte: miejsce bezpieczne</span>
+              <span>Miejsca bezpieczne</span>
               <span className="num">{summary.sitesAccepted}</span>
             </div>
             <div className="mt-1.5 h-4 bg-forest/8">
@@ -253,7 +253,6 @@ function Refusal() {
           </li>
         </ul>
         <SourceLine className="mt-8">{SOURCES_MAP}</SourceLine>
-        <p className="mt-1 text-[11px] opacity-60">{DEMO_NOTE}</p>
       </div>
     </Shell>
   );
@@ -262,12 +261,13 @@ function Refusal() {
 /* ---------- 06 Demo ---------- */
 function Demo({ active }: { active: boolean }) {
   const steps = [
-    `Mapa: ${GMINA.name}, każdy rów. ${nbsp(summary.pointsAnalysed)} punktów → ${summary.sitesAccepted} bezpiecznych.`,
+    `Mapa na zachód od Bydgoszczy (${GMINA.short}): każdy rów z BDOT10k. ${nbsp(summary.pointsAnalysed)} punktów → ${summary.sitesAccepted} bezpiecznych.`,
     "Szukamy działki. Jej miejsca się podświetlają.",
-    `${FEATURED_SITE_ID}: deska 20 → 40 cm. m³, cofka, ha, dni zapasu. 60 cm: działka sąsiada. Odmowa.`,
+    `${FEATURED_SITE_ID}: deska z 20 na 40 cm. Rosną m³, cofka, hektary i dni zapasu.`,
+    "60 cm: woda wchodzi na działkę sąsiada. Odmowa.",
     "Polecenie: TRZYMAJ. „Dlaczego?” → KBW −86 mm, brak opadu, gleba kat. I.",
-    "Scenariusz: ostrzeżenie burzowe → OTWÓRZ, z terminem i zwolnionymi m³.",
-    "Karta miejsca: do druku, ścieżka prawna, „Wymaga wizji lokalnej”.",
+    "Ostrzeżenie burzowe → OTWÓRZ, z terminem i zwolnionymi m³.",
+    "Karta miejsca do druku: ścieżka prawna i „Wymaga wizji lokalnej”.",
   ];
   return (
     <>
@@ -275,7 +275,7 @@ function Demo({ active }: { active: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-r from-forest from-55% to-forest/0" />
       <Shell className="flex flex-col">
         <h2 className="hd rise text-[200px] leading-[0.85]">Demo</h2>
-        <En className="rise mt-4">Live, ~1:45. Dane demonstracyjne.</En>
+        <En className="rise mt-4">Na żywo, ok. 1:45. Mapa: dane rzeczywiste. Pogoda: scenariusze demonstracyjne.</En>
         <ol className="mt-10 max-w-[860px] space-y-4">
           {steps.map((s, i) => (
             <li key={i} className="rise flex gap-6 text-[22px] leading-[1.4]">
@@ -332,7 +332,7 @@ function Flip() {
     <Shell className="flex flex-col">
       <h2 className="hd rise text-[88px]">Ta sama deska. Inne polecenie.</h2>
       <En className="rise mt-3">
-        Same site, same board. The weather flips the order. Miejsce {FEATURED_SITE_ID}, deska {site.maxAcceptedCrestCm} cm.
+        Miejsce {FEATURED_SITE_ID}, deska {site.maxAcceptedCrestCm} cm. Same board: the weather sets the order.
       </En>
       <div className="mt-10 grid grid-cols-2 gap-8">
         {col(
@@ -357,7 +357,8 @@ function Flip() {
         )}
       </div>
       <p className="mt-auto text-[11px] opacity-60">
-        Scenariusze demonstracyjne (nagrania IMGW-PIB, Open-Meteo). Progi do kalibracji. {DEMO_NOTE}
+        Scenariusze demonstracyjne na danych IMGW-PIB i Open-Meteo. Progi do kalibracji. Zwolnione m³ to szacunek
+        przesiewowy.
       </p>
     </Shell>
   );
@@ -375,11 +376,11 @@ function Data() {
     ["IUNG", "susza rolnicza, gleby"],
   ];
   const honest: [string, string][] = [
-    ["Przedziały", "Objętość i hektary zawsze jako zakres, nie jedna liczba."],
+    ["Przedziały", "Retencja i hektary to szacunki przesiewowe. Zawsze podajemy zakres."],
     ["Odmowy", "Każde odrzucone miejsce ma nazwany powód."],
     ["Ścieżka prawna", LEGAL.permit],
-    ["Wizja lokalna", "Każda karta: „Wymaga wizji lokalnej”. Drenaż podziemny oznaczamy do sprawdzenia."],
-    ["Bez obietnic plonu", "Nie podajemy wzrostu plonów. Pilot to zmierzy."],
+    ["Wizja lokalna", "Na każdej karcie: „Wymaga wizji lokalnej”. Drenaż podziemny oznaczamy do sprawdzenia."],
+    ["Bez obietnic plonu", "Nie podajemy wzrostu plonów. Zmierzy go pilot."],
   ];
   return (
     <Shell className="grid grid-cols-[0.9fr_1.1fr] gap-16">
@@ -396,8 +397,7 @@ function Data() {
         </ul>
       </div>
       <div className="flex flex-col">
-        <p className="hd rise text-[48px]">Uczciwe z założenia</p>
-        <En className="rise mt-1 text-[18px]">Honest by design</En>
+        <p className="hd rise text-[48px]">Co mówimy wprost</p>
         <ul className="mt-6 space-y-4">
           {honest.map(([t, d]) => (
             <li key={t} className="rise grid grid-cols-[200px_1fr] gap-4 text-[18px] leading-[1.4]">
@@ -409,8 +409,8 @@ function Data() {
         <div className="rise mt-auto rounded-[4px] bg-cream-deep p-6">
           <p className="eb opacity-70">Gdzie jest AI</p>
           <p className="mt-2 text-[18px] leading-[1.45]">
-            Geometria i reguły są deterministyczne: nie stać nas na wymyśloną powódź. Prognozy z IMGW i Open-Meteo.
-            Model językowy tylko tłumaczy wynik na prosty polski, z kontrolą liczb.
+            Geometria i reguły są deterministyczne: nie stać nas na wymyśloną powódź. Prognozy pochodzą z IMGW i
+            Open-Meteo. Model językowy tylko opisuje wynik prostym polskim. Liczb nie zmienia.
           </p>
         </div>
       </div>
@@ -455,10 +455,10 @@ function Impact() {
   return (
     <Shell className="flex flex-col">
       <h2 className="hd rise text-[88px]">Woda zostaje tam, gdzie spadła.</h2>
-      <En className="rise mt-3">What one board, and one gmina, can hold (dane demonstracyjne).</En>
+      <En className="rise mt-3">What one board and one area can hold. Screening estimates.</En>
       <div className="mt-10 grid grid-cols-2 gap-16">
-        <Block title={`Miejsce ${FEATURED_SITE_ID} · ${site.name} · dane demonstracyjne`} rows={perSite} />
-        <Block title={`${GMINA.name} · ${summary.sitesAccepted} miejsc · dane demonstracyjne`} rows={gmina} />
+        <Block title={`Miejsce ${FEATURED_SITE_ID} · ${site.name}`} rows={perSite} />
+        <Block title={GMINA.name} rows={gmina} />
       </div>
       <div className="mt-auto grid grid-cols-3 gap-6 rounded-[4px] bg-cream-deep p-8">
         {cited.map(([v, l, s]) => (
@@ -470,7 +470,7 @@ function Impact() {
         ))}
       </div>
       <p className="mt-3 text-[11px] opacity-60">
-        Efekty z badań terenowych drenażu sterowanego, nie prognoza dla tej gminy. Bez deklaracji plonów. {DEMO_NOTE}
+        Wyniki badań terenowych drenażu sterowanego, nie prognoza dla tego obszaru. Bez deklaracji plonów. {DEMO_NOTE}
       </p>
     </Shell>
   );
@@ -480,8 +480,8 @@ function Impact() {
 function Ask({ active }: { active: boolean }) {
   const path: [string, string, string][] = [
     ["01", "Pilot KOWR", `${FACTS.kowrHa} gruntów państwowych. Jeden właściciel, jedna decyzja.`],
-    ["02", "Spółki wodne", "Utrzymanie rowów (art. 205). Zastawki w sieci, którą już prowadzą."],
-    ["03", "Cała Polska", `${FACTS.drainedHa} zmeliorowanych. Dane krajowe, liczone per powiat.`],
+    ["02", "Spółki wodne", "Już utrzymują rowy (art. 205). Zastawki stają w ich sieci."],
+    ["03", "Cała Polska", `${FACTS.drainedHa} zmeliorowanych. Dane krajowe, liczone dla każdego powiatu.`],
   ];
   return (
     <>
@@ -499,10 +499,10 @@ function Ask({ active }: { active: boolean }) {
             </div>
           ))}
         </div>
-        <p className="eb rise mt-20 opacity-70">Prośba · The ask</p>
+        <p className="eb rise mt-20 opacity-70">Prośba</p>
         <p className="sh rise mt-4 max-w-[1300px] text-[54px] leading-[1.1]">
-          „Dajcie nam jeden oddział KOWR i jego dzierżawy. Zindeksujemy je i zweryfikujemy 10 miejsc ze spółką wodną tej
-          wiosny.”
+          „Dajcie nam jeden oddział KOWR i jego dzierżawy. Przeliczymy ich rowy i tej wiosny sprawdzimy 10 miejsc ze
+          spółką wodną.”
         </p>
         <En className="rise mt-4">
           Give us one KOWR branch and its leased land. We&apos;ll index it and validate ten sites with one spółka wodna
@@ -532,7 +532,7 @@ export const SLIDES: SlideDef[] = [
     eyebrow: "01 — TRAKTOR",
     ground: "forest",
     Body: Title,
-    notes: `Polska zbudowała już maszynę wodną na ${FACTS.drainedHa}. Działa tylko w jedną stronę: na zewnątrz. TRAKTOR sprawia, że działa w obie. ${TAGLINE_EN}`,
+    notes: `Polska zbudowała już maszynę wodną na ${FACTS.drainedHa}. Działa tylko w jedną stronę: na zewnątrz. TRAKTOR uruchamia ją w obie strony. ${TAGLINE_EN}`,
   },
   {
     id: "problem",
@@ -540,63 +540,63 @@ export const SLIDES: SlideDef[] = [
     ground: "cream",
     Body: Problem,
     notes:
-      "6,4 mln ha zmeliorowane. W 2025 IUNG: susza w 394 gminach (16%). Pomoc suszowa do 3 000 zł/ha przychodzi po stracie. Wrzesień 2024: powódź EMSR756. Ten sam rów.",
+      "6,4 mln ha jest zmeliorowanych. W 2025 r. IUNG wskazał suszę w 394 gminach, to 16%. Pomoc suszowa, do 3 000 zł/ha, przychodzi po stracie. We wrześniu 2024 r. była powódź, EMSR756. To ten sam rów.",
   },
   {
     id: "insight",
     eyebrow: "03 — Pomysł",
     ground: "cream",
     Body: Insight,
-    notes: "Jedna deska w istniejącym rowie. Dwa tryby: TRZYMAJ w suszy, OTWÓRZ przed burzą. Kliknij kafelek, pokaż poziom wody.",
+    notes: "Jedna zastawka w istniejącym rowie. Dwa tryby: TRZYMAJ w suszy, OTWÓRZ przed burzą. Kliknij kafelek i pokaż, jak zmienia się poziom wody.",
   },
   {
     id: "how",
     eyebrow: "04 — Jak to działa",
     ground: "forest",
     Body: How,
-    notes: "Siedem kroków: od sieci rowów przez LiDAR i kontrolę bezpieczeństwa do cotygodniowego polecenia i monitoringu. Uziemione, odwracalne, precyzyjne.",
+    notes: "Siedem kroków. Bierzemy każdy rów z BDOT10k i teren z LiDAR 1 m. Oceniamy punkty i sprawdzamy bezpieczeństwo. Potem mówimy, gdzie stoi zastawka, i dajemy jedno polecenie dziennie.",
   },
   {
     id: "refusal",
     eyebrow: "05 — Odmowa",
     ground: "cream",
     Body: Refusal,
-    notes: `Dane demonstracyjne: ${nbsp(summary.pointsAnalysed)} punktów, ${summary.sitesAccepted} bezpiecznych. Najczęstsze powody: spadek i woda na działce sąsiada. Odmowa to produkt, nie błąd.`,
+    notes: `Prawdziwe rowy na zachód od Bydgoszczy. ${nbsp(summary.pointsAnalysed)} punktów, ${summary.sitesAccepted} bezpiecznych. Każda odmowa ma powód. Najczęstszy: rów niewidoczny w NMT 1 m. Wtedy nie zgadujemy, tylko odmawiamy.`,
   },
   {
     id: "demo",
     eyebrow: "06 — Demo",
     ground: "forest",
     Body: Demo,
-    notes: "Kliknij przycisk. Mapa → działka → S-007 → 60 cm odmowa → TRZYMAJ i „Dlaczego?” → burza → OTWÓRZ → karta. Wróć klawiszem 7.",
+    notes: "Kliknij przycisk. Mapa → działka → S-007 (działka 040307_2.0023.306/2) → 60 cm: woda na działce .304/1, odmowa → TRZYMAJ i „Dlaczego?” → burza → OTWÓRZ → karta. Wróć klawiszem 7.",
   },
   {
     id: "flip",
     eyebrow: "07 — Przełączenie",
     ground: "cream",
     Body: Flip,
-    notes: "Ta sama deska. Susza: KBW −86 mm, TRZYMAJ. Ostrzeżenie IMGW st. 2, 42 mm w 72 h: OTWÓRZ z terminem i zwolnioną pojemnością. Reguły, nie zgadywanie.",
+    notes: "Ta sama deska. Susza: KBW −86 mm, więc TRZYMAJ. Ostrzeżenie IMGW st. 2 i 42 mm w 72 h: OTWÓRZ, z terminem i zwolnioną pojemnością. Decyduje reguła z progiem. Progi skalibrujemy w pilocie.",
   },
   {
     id: "data",
     eyebrow: "08 — Dane i uczciwość",
     ground: "cream",
     Body: Data,
-    notes: "Siedem darmowych źródeł publicznych. Przedziały, odmowy, pozwolenie wodnoprawne art. 389 pkt 6, wizja lokalna. AI tylko tłumaczy, nie liczy.",
+    notes: "Siedem darmowych źródeł publicznych. Wyniki podajemy jako zakres. Każda odmowa ma powód. Każda karta wskazuje pozwolenie wodnoprawne, art. 389 pkt 6, i wymaga wizji lokalnej. Model językowy tylko opisuje wynik. Nie liczy.",
   },
   {
     id: "impact",
     eyebrow: "09 — Efekt",
     ground: "cream",
     Body: Impact,
-    notes: `S-007 przy ${maxCrest.heightCm} cm: ${fmtRange(maxCrest.storageM3, "m³")}. Gmina: ${fmtRange(summary.totalStorageM3, "m³")} (dane demonstracyjne). Badania: −30,5% odpływu, −33,6% azotanów, 23% → 41%.`,
+    notes: `S-007 przy ${maxCrest.heightCm} cm: ${fmtRange(maxCrest.storageM3, "m³")}. Cały obszar: ${fmtRange(summary.totalStorageM3, "m³")}. To szacunki przesiewowe. Z badań: −30,5% odpływu, −33,6% azotanów, wykorzystanie rowu z 23% do 41%. Plonów nie obiecujemy.`,
   },
   {
     id: "ask",
     eyebrow: "10 — Droga i prośba",
     ground: "forest",
     Body: Ask,
-    notes: "KOWR: 1,324 mln ha, jeden właściciel. Potem spółki wodne, potem kraj. Prośba: jeden oddział KOWR, 10 miejsc ze spółką wodną tej wiosny.",
+    notes: "KOWR: 1,324 mln ha i jeden właściciel. Potem spółki wodne, potem kraj. Prośba: jeden oddział KOWR i 10 miejsc sprawdzonych ze spółką wodną tej wiosny.",
   },
 ];
 

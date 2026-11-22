@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { RefusalCode, Site } from "@/lib/traktor";
-import { DEMO_NOTE, REFUSAL_LABEL, SOURCES_MAP, mapFeatures, sites, summary } from "@/lib/traktor";
+import { DEMO_NOTE, REFUSAL_LABEL, REFUSAL_RULE, SOURCES_MAP, mapFeatures, plural, sites, summary } from "@/lib/traktor";
 import { SourceLine } from "@/components/brand/ui";
 import { C, shortParcel } from "./geo";
 
@@ -56,12 +56,11 @@ export function RefusalCounter({
       <div className="mt-1 flex items-baseline gap-2">
         <span className="hd num text-[44px]">{n.toLocaleString("pl-PL")}</span>
         <span className={`sh text-[15px] transition-colors duration-500 ${done ? "text-agri" : "opacity-60"}`}>
-          {done ? "bezpiecznych miejsc" : "punktów"}
+          {done ? plural(to, "bezpieczne miejsce", "bezpieczne miejsca", "bezpiecznych miejsc") : "punktów"}
         </span>
       </div>
       <p className="text-[12px] opacity-75">
-        Przeanalizowano <span className="num">{from.toLocaleString("pl-PL")}</span> punktów →{" "}
-        <span className="num font-semibold">{to}</span> bezpiecznych miejsc
+        z <span className="num">{from.toLocaleString("pl-PL")}</span> sprawdzonych punktów na rowach
       </p>
       <button
         type="button"
@@ -92,6 +91,7 @@ export function RefusalCounter({
               type="button"
               onClick={() => onFilter(filter === c ? null : c)}
               aria-pressed={filter === c}
+              title={REFUSAL_RULE[c]}
               className={`flex w-full items-center gap-2 rounded-[2px] px-1.5 py-1 text-left text-[12.5px] hover:bg-cream-deep ${
                 filter === c ? "bg-cream-deep font-semibold" : ""
               }`}
@@ -151,7 +151,7 @@ export function ParcelSearch({
       />
       {qq.length >= 2 && !picked && (
         <ul className="mt-2 space-y-0.5">
-          {hits.length === 0 && <li className="text-[12px] opacity-70">Brak działki w danych demonstracyjnych.</li>}
+          {hits.length === 0 && <li className="text-[12px] opacity-70">Brak takiej działki przy rowach na mapie. Wpisz numer, np. 306/2.</li>}
           {hits.map((p) => (
             <li key={p.id}>
               <button type="button" onClick={() => pick(p.id)} className="num w-full rounded-[2px] px-2 py-1 text-left text-[13px] hover:bg-cream-deep">
@@ -172,7 +172,7 @@ export function ParcelSearch({
               </button>
             ))
           ) : (
-            <p className="opacity-75">Brak zastawki na tej działce.</p>
+            <p className="opacity-75">Na tej działce nie ma miejsca na zastawkę.</p>
           )}
         </div>
       )}
@@ -226,7 +226,7 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
         </span>
         <span className={row}>
           <span className="inline-block h-0 w-4 border-t-2 border-dashed" style={{ borderColor: C.water, opacity: 0.6 }} />
-          Rów niewidoczny
+          Rów niewidoczny w NMT
         </span>
         <span className={row}>
           <span className="inline-block h-2.5 w-4 rounded-[1px]" style={{ background: C.water, opacity: 0.28 }} />

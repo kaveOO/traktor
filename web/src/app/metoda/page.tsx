@@ -3,7 +3,7 @@ import { Eyebrow, SourceLine } from "@/components/brand/ui";
 import { OrderBadge } from "@/components/brand/StateTiles";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { SiteNav } from "@/components/landing/SiteNav";
-import { CRESTS, DEMO_NOTE, LEGAL, THRESHOLDS, type OrderAction } from "@/lib/traktor";
+import { CRESTS, DEMO_NOTE, LEGAL, THRESHOLDS, plural, summary, type OrderAction } from "@/lib/traktor";
 
 export const metadata: Metadata = {
   title: "Metoda i dane · TRAKTOR",
@@ -11,24 +11,24 @@ export const metadata: Metadata = {
 };
 
 const SOURCES = [
-  ["BDOT10k (GUGiK)", "Rowy, drogi, przepusty, budynki", "wektor, skala 1:10 000", "W demo: geometria syntetyczna"],
-  ["NMT LiDAR (GUGiK)", "Wysokość terenu, dno i skarpy rowu", "siatka 1 m", "W demo: teren syntetyczny"],
-  ["ULDK (GUGiK)", "Granice i identyfikatory działek", "działka ewidencyjna", "W demo: działki przykładowe"],
-  ["IMGW-PIB", "Ostrzeżenia meteorologiczne i hydrologiczne", "powiat", "API na żywo, zapas: scenariusz"],
-  ["Open-Meteo", "Prognoza opadu, parowanie ET₀", "siatka modelu, krok godzinowy", "API na żywo, zapas: scenariusz"],
-  ["ISOK (Wody Polskie)", "Obszary szczególnego zagrożenia powodzią", "mapy zagrożenia powodziowego", "W demo: strefa przykładowa"],
-  ["IUNG-PIB", "Podatność na suszę, kategoria gleby", "gmina, kategoria gleby", "W demo: wartości przykładowe"],
+  ["BDOT10k (GUGiK)", "Rowy, cieki, kanały, drogi, budynki, pokrycie terenu", "wektor, 1:10 000", "Wczytane: TERYT 0403 i 0461"],
+  ["NMT 1 m (GUGiK)", "Wysokość dna i brzegów rowu", "siatka 1 m", "Wczytane: próbki przy każdym punkcie"],
+  ["ULDK (GUGiK)", "Działki po obu brzegach rowu", "działka ewidencyjna", "Wczytane: 9 m od osi rowu"],
+  ["IMGW-PIB", "Ostrzeżenia meteorologiczne", "powiat", "Na żywo albo scenariusz"],
+  ["Open-Meteo", "Prognoza opadu, ET₀, KBW z 60 dni", "siatka modelu", "Na żywo albo scenariusz"],
+  ["ISOK (Wody Polskie)", "Obszary zagrożenia powodzią", "mapy zagrożenia", "Niewczytane. Zamiast tego: 80 m od cieku"],
+  ["IUNG-PIB", "Kategoria gleby", "kompleks glebowy", "Niewczytane. Kategoria przykładowa"],
 ];
 
 const STEPS = [
-  ["Clip rowów", "Wycinamy z BDOT10k rowy w granicach gminy lub dzierżawy KOWR."],
-  ["Profil co 5 m", "Wzdłuż każdego rowu czytamy z NMT wysokość dna i skarp co 5 m."],
-  ["Widoczność rowu w NMT", "Sprawdzamy, czy rów jest widoczny w terenie 1 m. Jeśli nie, odmawiamy: „Rów niewidoczny w NMT”."],
-  ["Kandydaci co 100 m", "Co 100 m stawiamy punkt kandydacki na zastawkę."],
-  ["Cofka i retencja", `Dla zastawki ${CRESTS[0]}–${CRESTS[CRESTS.length - 1]} cm liczymy zasięg cofki i objętość zatrzymanej wody.`],
-  ["Reguły odmowy", "Droga lub przepust, budynek, strefa zalewowa ISOK, za duży spadek, woda na działce sąsiada: miejsce odpada."],
-  ["Metryki z zakresami", "Objętość, nawodnione hektary i dni zapasu podajemy jako zakres, nigdy jedną liczbę."],
-  ["Ranking", "Bezpieczne miejsca układamy według retencji i powierzchni pól powyżej zastawki."],
+  ["Okno 10 × 6,4 km", "Z BDOT10k bierzemy warstwy dla TERYT 0403 i 0461. Wycinamy okno 10 × 6,4 km na zachód od Bydgoszczy."],
+  ["Punkt co 100 m", "Na każdym rowie co 100 m stawiamy punkt kandydacki na zastawkę."],
+  ["Dno i brzegi z NMT", "Dno to najniższa wysokość z osi rowu i 1,5 m oraz 3 m w bok. Brzegi czytamy 7 m od osi, po obu stronach."],
+  ["Rów widoczny w NMT?", "Rów płytszy niż 0,3 m odpada jako „Rów niewidoczny w NMT”. Nie zgadujemy."],
+  ["Reguły odmowy", "Droga bliżej niż 20 m. Budynek bliżej niż 60 m. Rzeka lub kanał bliżej niż 80 m albo punkt w wodzie. Spadek dna ponad 0,6%. Rów płytszy niż 0,4 m: woda wyjdzie do sąsiada."],
+  ["Działki z ULDK", "Działki pobieramy 9 m od osi, po obu brzegach. Sąsiad to działka przy niższym brzegu."],
+  ["Zastawka 20–60 cm", `Dla ${CRESTS.join(", ")} cm liczymy cofkę i retencję. Wysokość odpada, gdy woda podeszłaby bliżej niż 10 cm pod brzeg.`],
+  ["Zakresy i ranking", "Retencję, hektary i dni zapasu podajemy jako zakres. To wstępne szacunki. Ranking: retencja przy najwyższej bezpiecznej zastawce."],
 ];
 
 const months = (m: number[]) => {
@@ -40,7 +40,7 @@ const RULES: { action: OrderAction; consult?: boolean; when: string; then: strin
   {
     action: "OTWORZ",
     when: `Ostrzeżenie meteo IMGW stopnia ${THRESHOLDS.stormWarningLevel} lub wyższego albo prognoza ≥ ${THRESHOLDS.rain72hMm} mm opadu w 72 h.`,
-    then: "Otwórz rów 12 h przed początkiem ostrzeżenia. Rów ma miejsce na deszcz.",
+    then: "Otwórz najpóźniej 12 h przed początkiem ostrzeżenia. Rów zrobi miejsce na deszcz.",
   },
   {
     action: "NIE_RUSZAJ",
@@ -56,7 +56,7 @@ const RULES: { action: OrderAction; consult?: boolean; when: string; then: strin
   {
     action: "NIE_RUSZAJ",
     when: "Żadna reguła powyżej nie pasuje.",
-    then: "Warunki neutralne. Zostaw zastawkę tak, jak jest.",
+    then: "Warunki neutralne. Zostaw zastawkę bez zmian.",
   },
 ];
 
@@ -66,6 +66,9 @@ const NOT_CLAIMED = [
   "Nie twierdzimy, że jesteśmy pierwsi. Nie znaleźliśmy istniejącego narzędzia, które robi to samo.",
   "NMT 1 m nie zawsze widzi rów. Wtedy odmawiamy, zamiast zgadywać.",
   "Nie znamy drenażu podziemnego. Każde miejsce oznaczamy do wizji lokalnej.",
+  "Nie mamy map ISOK. Zamiast nich odrzucamy punkty bliżej niż 80 m od rzeki lub kanału.",
+  "Kategoria gleby jest przykładowa. Danych IUNG jeszcze nie wczytaliśmy.",
+  "Warunki pogodowe na mapie to nagrane scenariusze, chyba że wybierzesz „Na żywo”.",
   "Nie zastępujemy pozwolenia wodnoprawnego ani decyzji spółki wodnej.",
 ];
 
@@ -88,7 +91,12 @@ export default function MetodaPage() {
             <Eyebrow className="opacity-80">Metoda i dane</Eyebrow>
             <h1 className="hd rise mt-4 text-[48px] md:text-[64px]">Jak TRAKTOR liczy.</h1>
             <p className="mt-5 max-w-2xl text-[18px] leading-[1.5]">
-              Publiczne dane, stałe reguły, zakresy zamiast pojedynczych liczb. Gdy czegoś nie wiemy, mówimy nie.
+              Dane publiczne GUGiK dla obszaru na zachód od Bydgoszczy. Stałe reguły. Zakresy zamiast pojedynczych liczb.
+              Gdy czegoś nie wiemy, mówimy nie.
+            </p>
+            <p className="num mt-3 text-[16px] opacity-85">
+              {summary.pointsAnalysed.toLocaleString("pl-PL")} punktów na rowach → {summary.sitesAccepted}{" "}
+              {plural(summary.sitesAccepted, "miejsce bezpieczne", "miejsca bezpieczne", "miejsc bezpiecznych")}.
             </p>
           </div>
         </div>
@@ -138,7 +146,7 @@ export default function MetodaPage() {
           </section>
 
           <section>
-            <H2 eyebrow="03 — Polecenie dnia">Reguły: pierwsza pasująca wygrywa</H2>
+            <H2 eyebrow="03 — Polecenie na dziś">Reguły: pierwsza pasująca wygrywa</H2>
             <p className="mt-4 text-[16px] leading-[1.5]">
               Progi w wersji <span className="num">{THRESHOLDS.version}</span>, do kalibracji w pilotażu. Te same
               reguły działają na mapie i na karcie miejsca.
@@ -189,7 +197,6 @@ export default function MetodaPage() {
                 </li>
               ))}
             </ul>
-            <p className="eb mt-8 opacity-75">{DEMO_NOTE}</p>
           </section>
         </div>
       </main>

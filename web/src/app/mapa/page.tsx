@@ -4,8 +4,8 @@ import { ProgressLine } from "@/components/brand/ui";
 import MapApp from "@/components/map/MapApp";
 
 export const metadata: Metadata = {
-  title: "Mapa gminy · TRAKTOR",
-  description: "Bezpieczne i odrzucone miejsca na zastawki w rowach melioracyjnych. TRZYMAJ albo OTWÓRZ.",
+  title: "Mapa · TRAKTOR",
+  description: "Miejsca bezpieczne i odrzucone na zastawki w rowach na zachód od Bydgoszczy. TRZYMAJ albo OTWÓRZ.",
 };
 
 export default function MapaPage() {

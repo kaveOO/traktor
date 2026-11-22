@@ -16,7 +16,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "TRAKTOR · Niech ziemia zatrzyma swoją wodę",
   description:
-    "TRAKTOR zamienia istniejące rowy melioracyjne w odwracalny magazyn wody. Jedna zastawka. Dwa tryby: TRZYMAJ i OTWÓRZ.",
+    "Zastawka w istniejącym rowie melioracyjnym trzyma wodę w suszy i oddaje ją przed burzą. Jedna zastawka. Dwa tryby: TRZYMAJ i OTWÓRZ.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

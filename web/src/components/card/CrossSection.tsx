@@ -73,10 +73,10 @@ export function CrossSection({ site, crestCm }: { site: Site; crestCm: CrestHeig
         Zastawka {crestCm} cm
       </text>
       <text x={4} y={H - 4} fontSize={9} fill="#1F3A22" opacity={0.7} fontFamily="var(--font-inter)">
-        działka własna (pn.)
+        działka przy zastawce
       </text>
       <text x={W - 4} y={H - 4} fontSize={9} textAnchor="end" fill={spills ? "#B5573B" : "#1F3A22"} opacity={spills ? 1 : 0.7} fontFamily="var(--font-inter)">
-        {spills ? "woda wychodzi na działkę sąsiada" : "działka sąsiada (pd.)"}
+        {spills ? "woda wychodzi na działkę sąsiada" : "działka sąsiada"}
       </text>
     </svg>
   );

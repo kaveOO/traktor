@@ -44,8 +44,8 @@ const MISSING = [
   "Wizja lokalna",
   "Pomiar geodezyjny przekroju i spadku",
   "Operat wodnoprawny",
-  "Sprawdzenie drenowania podziemnego",
-  "Potwierdzenie właściciela urządzenia",
+  "Drenowanie podziemne",
+  "Właściciel zastawki",
 ];
 
 function readParams() {
@@ -77,8 +77,8 @@ export default function SiteCard() {
     return (
       <main className="mx-auto max-w-xl px-6 py-24">
         <Logo height={22} />
-        <h1 className="sh mt-10 text-[40px]">Nie znamy miejsca „{siteId}”.</h1>
-        <p className="mt-4 text-[17px]">Wybierz zastawkę na mapie. Tam są wszystkie przyjęte miejsca.</p>
+        <h1 className="sh mt-10 text-[40px]">Nie ma miejsca „{siteId}”.</h1>
+        <p className="mt-4 text-[17px]">Wybierz miejsce na mapie.</p>
         <Link href="/mapa" className="mt-8 inline-flex min-h-12 items-center rounded-[2px] bg-forest px-6 text-cream">
           ← Wróć do mapy
         </Link>
@@ -97,20 +97,20 @@ export default function SiteCard() {
   const mapHref = `/mapa?site=${site.id}&crest=${crestCm}&scenario=${scenario}`;
 
   const metrics: { label: string; value: string; src: string }[] = [
-    { label: "Retencja w rowie i glebie", value: fmtRange(crest.storageM3, "m³"), src: "NMT + model (założenie)" },
-    { label: "Zasięg piętrzenia (cofka)", value: `${crest.backwaterM.toLocaleString("pl-PL")} m`, src: "NMT (spadek dna)" },
-    { label: "Pole pod wpływem wody", value: fmtRange(crest.rehydratedHa, "ha"), src: "założenie (pas 2 × 60 m)" },
-    { label: "Woda nad pasem pola", value: fmtRange(crest.storageMm, "mm"), src: "model (założenie)" },
+    { label: "Retencja w rowie i glebie", value: fmtRange(crest.storageM3, "m³"), src: "szacunek (NMT + model)" },
+    { label: "Cofka", value: `${crest.backwaterM.toLocaleString("pl-PL")} m`, src: "NMT (spadek dna)" },
+    { label: "Pole nawodnione", value: fmtRange(crest.rehydratedHa, "ha"), src: "szacunek (pas 2 × 60 m)" },
+    { label: "Woda w pasie pola", value: fmtRange(crest.storageMm, "mm"), src: "szacunek (model)" },
     {
       label: "Zapas na suszę",
       value: buf ? `${fmtRange(buf, "dni")}` : "> 60 dni",
       src: `ET₀ ${cond.et0Mm.toLocaleString("pl-PL")} mm/d (scenariusz)`,
     },
     { label: "Mniej odpływu z pola", value: fmtRange(crest.outflowAvoidedMm, "mm"), src: "literatura (Kęsicka et al. 2022)" },
-    { label: "Spadek dna rowu", value: `${site.slopePct.toLocaleString("pl-PL")} %`, src: "NMT" },
+    { label: "Spadek dna rowu", value: `${site.slopePct.toLocaleString("pl-PL")}%`, src: "NMT" },
     { label: "Rzędna terenu", value: `${site.elevationM.toLocaleString("pl-PL")} m n.p.m.`, src: "NMT" },
     { label: "Długość rowu", value: `${site.ditchLengthM.toLocaleString("pl-PL")} m`, src: "BDOT10k" },
-    { label: "Gleba", value: `kat. ${site.soilCategory}`, src: "IUNG" },
+    { label: "Gleba", value: `kat. ${site.soilCategory}`, src: "przykład (bez IUNG)" },
   ];
 
   return (
@@ -208,7 +208,7 @@ export default function SiteCard() {
       <article className="karta-sheet mt-6 w-[210mm] min-h-[297mm] bg-cream px-[12mm] py-[11mm] text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] print:mt-0">
         <header className="flex items-center justify-between gap-4 border-b-2 border-forest pb-3">
           <Logo height={18} />
-          <div className="hd text-center text-[17px]">Karta miejsca · zastawka nr {site.id}</div>
+          <div className="hd text-center text-[17px]">Karta miejsca</div>
           <div className="flex items-center gap-2">
             <StatusChip status={refused ? "refused" : "accepted"} />
             <span className="num text-[11px]">{today}</span>
@@ -217,17 +217,16 @@ export default function SiteCard() {
 
         <section className="mt-4">
           <p className={`eb ${refused ? "text-terra" : "text-agri"}`}>
-            SITE {site.id} · {refused ? `ODRZUCONE PRZY ${crestCm} CM` : "PRZYJĘTE"}
+            MIEJSCE {site.id}
           </p>
           <h1 className="sh mt-1 text-[28px]">{site.name}</h1>
           <p className="num mt-1.5 text-[14px] font-medium">
-            Wysokość zastawki {crestCm} cm · Retencja {fmtRange(crest.storageM3, "m³")} · Pola powyżej{" "}
-            {site.upstreamFieldsHa.toLocaleString("pl-PL")} ha
+            Wysokość zastawki {crestCm} cm · Retencja {fmtRange(crest.storageM3, "m³")} (szacunek) · Spadek {site.slopePct.toLocaleString("pl-PL")}%
           </p>
           {refused && (
             <p className="mt-1.5 rounded-[4px] border-2 border-terra px-3 py-1 text-[11px] leading-snug text-terra">
-              <strong>Ta wysokość jest odrzucona.</strong> {crest.refusal?.messagePl}{" "}
-              {site.maxAcceptedCrestCm ? `Najwyższa bezpieczna wysokość: ${site.maxAcceptedCrestCm} cm.` : ""}
+              <strong>{crestCm} cm: odrzucone.</strong> {crest.refusal?.messagePl}{" "}
+              {site.maxAcceptedCrestCm ? `Bezpieczne maksimum: ${site.maxAcceptedCrestCm} cm.` : ""}
             </p>
           )}
         </section>
@@ -248,7 +247,7 @@ export default function SiteCard() {
 
             <div className="mt-2 rounded-[4px] border-2 border-forest/25 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="eb">Polecenie teraz</p>
+                <p className="eb">Polecenie na dziś</p>
                 <OrderBadge action={order.action} className="!px-2 !py-1 !text-[15px]" />
               </div>
               <ul className="mt-1.5 space-y-0.5 text-[10.5px] leading-snug">
@@ -294,21 +293,21 @@ export default function SiteCard() {
           </div>
           <div className="space-y-2 text-[10.5px] leading-snug">
             <div>
-              <p className="eb mb-1">Działki objęte</p>
+              <p className="eb mb-1">Działki</p>
               <ul className="space-y-0.5">
                 {site.ownParcels.map((p) => (
                   <li key={p} className="num">
-                    <span className="inline-block size-2 border border-agri bg-agri/20" /> {p} · własna
+                    <span className="inline-block size-2 border border-agri bg-agri/20" /> {p} · przy zastawce
                   </li>
                 ))}
-                {refusedCrests.map((k) =>
-                  k.refusal?.objectRef ? (
+                {refusedCrests
+                  .filter((k, i, all) => k.refusal?.objectRef && all.findIndex((q) => q.refusal?.objectRef === k.refusal?.objectRef) === i)
+                  .map((k) => (
                     <li key={k.heightCm} className="num text-terra">
-                      <span className="inline-block size-2 border border-dashed border-terra" /> {k.refusal.objectRef} · sąsiad
-                      · {REFUSAL_LABEL[k.refusal.code]} przy {k.heightCm} cm (odrzucone)
+                      <span className="inline-block size-2 border border-dashed border-terra" /> {k.refusal!.objectRef} · sąsiad ·{" "}
+                      {REFUSAL_LABEL[k.refusal!.code].toLowerCase()} od {k.heightCm} cm
                     </li>
-                  ) : null,
-                )}
+                  ))}
               </ul>
             </div>
             <div>
@@ -324,7 +323,7 @@ export default function SiteCard() {
 
         <section className="karta-avoid mt-3 grid grid-cols-2 gap-4 text-[10.5px] leading-snug">
           <div>
-            <p className="eb mb-1">Czego jeszcze brakuje</p>
+            <p className="eb mb-1">Do sprawdzenia</p>
             <ul className="space-y-0.5">
               {MISSING.map((m) => (
                 <li key={m} className="flex items-center gap-1.5">
@@ -338,9 +337,9 @@ export default function SiteCard() {
             <div className="flex items-start gap-2">
               <Icon name="water" size={20} className="mt-0.5 shrink-0 text-water" />
               <p>
-                Sterowany odpływ w badaniach: <strong>{FACTS.outflow}</strong> i <strong>{FACTS.nitrate}</strong> w wodzie
-                z drenażu.
-                <span className="block text-[10px] opacity-70">Kęsicka et al. 2022, PLoS ONE. Nie jest to prognoza dla tego miejsca.</span>
+                Drenaż sterowany w badaniach: <strong>{FACTS.outflow}</strong> i <strong>{FACTS.nitrate}</strong> w wodzie
+                z drenów.
+                <span className="block text-[10px] opacity-70">Kęsicka et al. 2022, PLoS ONE. To nie prognoza dla tego miejsca.</span>
               </p>
             </div>
           </div>
@@ -357,7 +356,7 @@ export default function SiteCard() {
         <footer className="mt-3 flex items-end justify-between gap-4 border-t border-forest/30 pt-2 text-[10px]">
           <div>
             <p className="opacity-75">{DEMO_NOTE}</p>
-            <SourceLine>BDOT10k, NMT (GUGiK), IUNG; IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
+            <SourceLine>BDOT10k, NMT 1 m, ULDK (GUGiK); IMGW-PIB; Open-Meteo (CC BY 4.0)</SourceLine>
           </div>
           <p className="sh shrink-0 text-[13px]">{TAGLINE_EN}</p>
         </footer>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Conditions, Order, ScenarioName } from "@/lib/traktor";
-import { GMINA, SCENARIO_LABEL, fmtRange } from "@/lib/traktor";
+import { GMINA, SCENARIO_LABEL, fmtRange, miejsc } from "@/lib/traktor";
 
 type BasemapChoice = "osm" | "google-roadmap" | "google-satellite" | "ortho" | "schema";
 import { Logo } from "@/components/brand/Logo";
@@ -31,7 +31,7 @@ export function TopBar({
         <Logo color="cream" height={18} />
       </Link>
       <div className="shrink-0 border-l border-cream/25 pl-4 max-[900px]:hidden">
-        <p className="eb opacity-70">Mapa gminy</p>
+        <p className="eb opacity-70">Mapa rowów</p>
         <p className="text-[13px] font-medium">{GMINA.name} · pow. {GMINA.powiat}</p>
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] max-[900px]:order-last max-[900px]:basis-full max-[900px]:gap-x-3 max-[900px]:text-[11.5px]" aria-live="polite">
@@ -59,7 +59,7 @@ export function TopBar({
             IMGW: {warn.event}, st. {warn.level}
           </span>
         ) : (
-          <span className="opacity-70">Ostrzeżenia: brak</span>
+          <span className="opacity-70">Brak ostrzeżeń</span>
         )}
         {liveNote && <span className="text-[11.5px] opacity-80">{liveNote}</span>}
       </div>
@@ -161,12 +161,12 @@ export function ScenarioDock({
       <div className="num min-w-0 flex-1 text-[13px] max-[900px]:order-first max-[900px]:basis-full max-[900px]:text-[12px]" aria-live="polite">
         {open.length > 0 ? (
           <span className="font-semibold text-water">
-            OTWÓRZ: {open.length} miejsc · zwolniona pojemność {fmtRange(freed, "m³")}
+            OTWÓRZ: {open.length} {miejsc(open.length)} · zwolniona pojemność {fmtRange(freed, "m³")}
             {still.length > 0 && <span className="font-normal text-forest"> · NIE RUSZAJ: {still.length}</span>}
           </span>
         ) : (
           <span>
-            <b>TRZYMAJ: {hold.length} miejsc</b>
+            <b>TRZYMAJ: {hold.length} {miejsc(hold.length)}</b>
             {still.length > 0 && <span> · NIE RUSZAJ: {still.length}</span>}
           </span>
         )}

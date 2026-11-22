@@ -18,7 +18,7 @@ Challenge: KOWR "Zatrzymaj wodę, chroń plony", HackNation 2026, Bydgoszcz.
 - A weir needs a **pozwolenie wodnoprawne (art. 389 pkt 6 Prawa wodnego)**; maintenance by owners / spółka wodna (art. 205).
 
 ## Never say
-Yield increase from controlled drainage in Poland · cost per weir · "first tool ever" (say "we found no existing tool") · "AI-validated" anything. Demo numbers come from the mock gmina: label them "(dane demonstracyjne)".
+Yield increase from controlled drainage in Poland · cost per weir · "first tool ever" (say "we found no existing tool") · "AI-validated" anything. Map numbers are real (BDOT10k + NMT 1 m + ULDK, west of Bydgoszcz); storage, hectares and days of buffer are "szacunki przesiewowe" (screening estimates); weather scenarios are labelled "scenariusz demonstracyjny".
 
 ## One-liners
 - "Poland already built a water machine on 6.4 million hectares. It only runs one way: out. TRAKTOR makes it run both ways."
