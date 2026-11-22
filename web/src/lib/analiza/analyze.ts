@@ -395,6 +395,9 @@ async function analyzeIn(req: AnalysisRequest, opts: AnalyzeOptions | number): P
       smsrThresholdMm: mode === "smsr" ? thrNum(decisive) : null,
       smsrWindowPl: mode === "smsr" && decisive ? decisive.w.labelPl : null,
       smsrKbwMm: mode === "smsr" && decisive ? (decisiveProjected ? decisive.projected ?? decisive.K : decisive.K) : null,
+      smsrWindowPartial: mode === "smsr" && decisive ? decisive.partial : null,
+      smsrKbwProjected: mode === "smsr" && decisive ? decisiveProjected && decisive.projected != null : null,
+      smsrProjectionPl: mode === "smsr" && decisive && decisiveProjected && decisive.projected != null ? decisive.projSrc ?? null : null,
       etpMethodPl,
     };
 

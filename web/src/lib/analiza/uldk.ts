@@ -84,8 +84,10 @@ export type ParcelLookup = { parcel: Parcel; source: SourceInfo; matches: number
 
 export type ParcelCandidate = { id: string; commune?: string; county?: string; voivodeship?: string; region?: string };
 export class AmbiguousParcel extends UpstreamError {
-  constructor(public readonly candidates: ParcelCandidate[], input: string) {
+  readonly candidates: ParcelCandidate[];
+  constructor(candidates: ParcelCandidate[], input: string) {
     super("AMBIGUOUS", `„${input}” pasuje do ${candidates.length} działek w różnych gminach. Wybierz właściwą z listy albo podaj pełny identyfikator.`);
+    this.candidates = candidates;
   }
 }
 const NO_TYPE = /^(\d{6})\.(\d{4})\.(.+)$/;

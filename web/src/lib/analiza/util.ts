@@ -4,8 +4,10 @@ import type { SourceInfo } from "./types";
 export const UA = "TRAKTOR-hackathon/2.0 (parcel water assistant)";
 
 export class UpstreamError extends Error {
-  constructor(msg: string, public readonly userPl?: string) {
+  readonly userPl?: string;
+  constructor(msg: string, userPl?: string) {
     super(msg);
+    this.userPl = userPl; // no parameter property: the engine stays runnable with node --experimental-strip-types
   }
 }
 

@@ -87,6 +87,12 @@ export type Assessment = {
     smsrWindowPl?: string | null;
     /** KBW (mm) of that window with the verdict's ETP method */
     smsrKbwMm?: number | null;
+    /** true = that window is still running (KBW measured only up to the last data day) */
+    smsrWindowPartial?: boolean | null;
+    /** true = smsrKbwMm is a projection to the window end ("prognoza"), not a measured value */
+    smsrKbwProjected?: boolean | null;
+    /** how the projection was made, e.g. "prognoza Open-Meteo na 7 dni"; null when measured */
+    smsrProjectionPl?: string | null;
     /** evapotranspiration method behind kbw60Mm / percentile / verdict, e.g. "ETP SMSR (Doroszewski i in. 2012)" */
     etpMethodPl?: string;
     /** monthly climatology for the chart: mean deficit P - ETc per month over 10 years */
