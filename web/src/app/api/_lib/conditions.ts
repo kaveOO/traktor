@@ -5,8 +5,9 @@ const LON = GMINA.center.lon;
 const TERYT_POWIAT = GMINA.powiatTeryt;
 const TIMEOUT_MS = 5000;
 
-export const SOURCE_IMGW = "Źródłem pochodzenia danych jest IMGW-PIB";
-export const SOURCE_OM = "Open-Meteo (CC BY 4.0)";
+export const SOURCE_IMGW =
+  "Źródłem pochodzenia danych jest Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (dane przetworzone)";
+export const SOURCE_OM = "Open-Meteo.com (CC BY 4.0)";
 
 type Daily = { precipitation_sum?: (number | null)[]; et0_fao_evapotranspiration?: (number | null)[] };
 
