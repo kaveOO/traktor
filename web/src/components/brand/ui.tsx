@@ -68,21 +68,33 @@ export function StatusChip({ status, className = "" }: { status: "accepted" | "r
   return (
     <span
       className={`eb inline-flex items-center gap-1.5 rounded-[2px] px-2 py-1 ${
-        ok ? "bg-agri text-cream" : "bg-terra text-cream"
+        ok ? "bg-agri-ink text-cream" : "bg-terra-ink text-cream"
       } ${className}`}
     >
-      <span className="inline-block size-1.5 rounded-full bg-cream" />
+      <span className="inline-block size-1.5 rounded-full bg-cream" aria-hidden />
       {ok ? "Przyjęte" : "Odrzucone"}
     </span>
   );
 }
 
 /** Thin progress line: the only allowed loading indicator. */
-export function ProgressLine({ className = "" }: { className?: string }) {
+export function ProgressLine({ className = "", label = "Ładowanie…" }: { className?: string; label?: string }) {
   return (
-    <div className={`h-px w-full overflow-hidden bg-forest/15 ${className}`} role="progressbar" aria-label="Ładowanie">
-      <div className="h-full origin-left bg-forest [animation:progress-line_1.2s_ease-in-out_infinite]" />
+    <div className={`h-px w-full overflow-hidden bg-forest/15 ${className}`} role="progressbar" aria-label={label}>
+      <div className="progress-line h-full origin-left bg-forest" />
     </div>
+  );
+}
+
+/** Skip link (WCAG 2.4.1): first focusable element on a page. */
+export function SkipLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="sr-only z-[100] rounded-[2px] bg-forest px-4 py-3 font-medium text-cream focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus-visible:outline-cream"
+    >
+      {children}
+    </a>
   );
 }
 

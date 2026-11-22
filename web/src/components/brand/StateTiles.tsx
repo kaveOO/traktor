@@ -2,6 +2,7 @@
 
 import type { OrderAction } from "@/lib/traktor/types";
 import { Icon } from "./Icon";
+import { radioKeyDown } from "./radio";
 
 /**
  * 11 The two states. A reusable pair of tiles; exactly one is active.
@@ -38,33 +39,66 @@ export function StateTiles({
       pl: "Wypuść wodę przed prognozowaną burzą",
       en: "Release water before a forecast storm",
       icon: "storm" as const,
-      on: "bg-water text-cream border-water",
-      off: "border-water text-water",
+      // ink variant: the tile carries 11-15px text, brand water (#3B7FA3) is only 3.76:1 with cream
+      on: "bg-water-ink text-cream border-water-ink",
+      off: "border-water text-water-ink",
     },
   ];
+  const keys = tiles.map((t) => t.key);
+  const body = (t: (typeof tiles)[number], isOn: boolean) => (
+    <>
+      <div className="flex items-start justify-between">
+        <span className="eb">{isOn ? "Aktywny" : "Nieaktywny"}</span>
+        <Icon name={t.icon} size={20} />
+      </div>
+      <div className={`hd mt-3 ${title}`}>{t.label}</div>
+      <div className="sh mt-2 text-[15px]">{t.pl}</div>
+      {showEnglish && (
+        <div lang="en" className="mt-1 text-[12px]">
+          {t.en}
+        </div>
+      )}
+    </>
+  );
+
+  // read-only: a plain status, not two disabled radios
+  if (!onChange) {
+    const cur = tiles.find((t) => t.key === active);
+    return (
+      <div className="grid grid-cols-2 gap-3" role="group" aria-label={`Tryb zastawki: ${cur ? cur.label : "NIE RUSZAJ"}`}>
+        {tiles.map((t) => {
+          const isOn = active === t.key;
+          return (
+            <div key={t.key} className={`rounded-[4px] border-2 transition-colors duration-[400ms] ${pad} ${isOn ? t.on : `${t.off} bg-transparent`}`}>
+              {body(t, isOn)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const sel = keys.find((k) => k === active);
   return (
     <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Tryb zastawki">
-      {tiles.map((t) => {
+      {tiles.map((t, i) => {
         const isOn = active === t.key;
+        // roving tabindex; if neither is active (NIE RUSZAJ) the first tile takes the tab stop
+        const tab = isOn || (!sel && i === 0) ? 0 : -1;
         return (
           <button
             key={t.key}
             type="button"
             role="radio"
             aria-checked={isOn}
-            disabled={!onChange}
-            onClick={() => onChange?.(t.key)}
-            className={`rounded-[4px] border-2 text-left transition-colors duration-[400ms] ${pad} ${
+            tabIndex={tab}
+            onClick={() => onChange(t.key)}
+            onKeyDown={(e) => radioKeyDown(e, keys, sel ?? keys[0], onChange)}
+            className={`cursor-pointer rounded-[4px] border-2 text-left transition-colors duration-[400ms] ${pad} ${
               isOn ? t.on : `${t.off} bg-transparent`
-            } ${onChange ? "cursor-pointer" : "cursor-default"}`}
+            }`}
           >
-            <div className="flex items-start justify-between">
-              <span className="eb opacity-80">{isOn ? "Aktywny" : "Nieaktywny"}</span>
-              <Icon name={t.icon} size={20} />
-            </div>
-            <div className={`hd mt-3 ${title}`}>{t.label}</div>
-            <div className="sh mt-2 text-[15px]">{t.pl}</div>
-            {showEnglish && <div className="mt-1 text-[12px] opacity-80">{t.en}</div>}
+            {body(t, isOn)}
           </button>
         );
       })}
@@ -76,7 +110,8 @@ export function StateTiles({
 export function OrderBadge({ action, className = "" }: { action: OrderAction; className?: string }) {
   const map = {
     TRZYMAJ: { cls: "bg-forest text-cream", label: "TRZYMAJ", icon: "drought" as const },
-    OTWORZ: { cls: "bg-water text-cream", label: "OTWÓRZ", icon: "storm" as const },
+    // ink fill: the badge is also used at 15-16px (card, panel), where brand water fails 4.5:1
+    OTWORZ: { cls: "bg-water-ink text-cream", label: "OTWÓRZ", icon: "storm" as const },
     NIE_RUSZAJ: { cls: "border-2 border-forest/40 text-forest", label: "NIE RUSZAJ", icon: "board" as const },
   }[action];
   return (

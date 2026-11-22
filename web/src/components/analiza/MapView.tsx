@@ -24,11 +24,12 @@ const STYLE: StyleSpecification = {
   sources: {
     s2: {
       type: "raster",
-      tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg"],
+      // 2016 layer: CC BY 4.0 (2018+ layers are CC BY-NC-SA, not allowed for transfer to KOWR)
+      tiles: ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"],
       tileSize: 256,
       maxzoom: 14,
       attribution:
-        '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless 2020</a> by EOX IT Services GmbH (zmodyfikowane dane Copernicus Sentinel 2020)',
+        '<a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), CC BY 4.0',
     },
     orto: {
       type: "raster",

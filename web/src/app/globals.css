@@ -11,6 +11,17 @@
   --color-water: #3b7fa3;
   --color-terra: #b5573b;
 
+  /* Text-safe "ink" variants (WCAG 1.4.3). Use for text below 24px (19px bold) and for
+     chips/fills that carry small cream text. Brand colours above stay for fills, large text, graphics.
+     Contrast on cream #F3ECDD / cream-deep #EFE6D3 (and cream text on the ink fill = first value). */
+  --color-water-ink: #2e6585; /* 5.38 / 5.10 */
+  --color-terra-ink: #984630; /* 5.49 / 5.20 */
+  --color-agri-ink: #3f6630; /* 5.66 / 5.37 */
+  /* Secondary text instead of forest at 50-70% opacity: 5.96 cream, 5.65 deep, 7.01 white */
+  --color-forest-muted: #4a5e4c;
+  /* Secondary text on forest grounds: 7.11 on forest */
+  --color-cream-muted: #c4c5b4;
+
   /* elevation tints, low -> high */
   --color-elev-1: #2f5f73;
   --color-elev-2: #8fa86a;
@@ -93,12 +104,50 @@ body {
   }
 }
 
+.progress-line {
+  animation: progress-line 1.2s ease-in-out infinite;
+}
+
+/* Screen only, below 800px (print keeps the A4 layout) */
+@custom-variant narrow (@media screen and (max-width: 799.98px));
+
+/* Focus: always visible (WCAG 2.4.7). Low specificity so component utilities win. */
+@layer base {
+  :where(:focus-visible) {
+    outline: 2px solid var(--color-forest);
+    outline-offset: 2px;
+  }
+  :where(.bg-forest, .bg-water, .bg-water-ink, .bg-terra, .bg-terra-ink, .bg-agri-ink) :focus-visible {
+    outline-color: var(--color-cream);
+  }
+  html {
+    scroll-padding-top: 72px;
+  }
+}
+
+/* Map markers (SVG): focus ring drawn by an inner circle */
+.site-marker {
+  outline: none;
+}
+.site-marker .focus-ring {
+  opacity: 0;
+}
+.site-marker:focus-visible .focus-ring {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+  /* the loader must stand still, not loop every frame */
+  .progress-line {
+    animation: none !important;
+    transform: scaleX(0.4);
   }
 }
 

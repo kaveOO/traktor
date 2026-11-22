@@ -15,14 +15,53 @@ const LAND_LEGEND: [string, string, number][] = [
 ];
 const SHADE = [1, 0.82, 0.66, 0.52, 0.4, 0.3];
 
+const REFUSED = candidates.filter((c) => c.status === "refused");
+const PAGE = 25;
+
+/** Keyboard/touch path to refused points of one reason (the dots on the map are too dense to tab through). */
+function RefusedPoints({ code, onPoint }: { code: RefusalCode; onPoint: (id: string) => void }) {
+  const [n, setN] = useState(PAGE);
+  useEffect(() => setN(PAGE), [code]);
+  const list = REFUSED.filter((c) => c.refusalCode === code);
+  return (
+    <div className="mt-2">
+      <p className="text-[12px] text-forest-muted" id={`rule-${code}`}>
+        {REFUSAL_RULE[code]}
+      </p>
+      <p className="eb mt-2 text-forest-muted">Punkty: {list.length.toLocaleString("pl-PL")}</p>
+      <ul className="mt-1 flex max-h-32 flex-wrap gap-1 overflow-y-auto" aria-label={`Odrzucone punkty: ${REFUSAL_LABEL[code]}`}>
+        {list.slice(0, n).map((c) => (
+          <li key={c.id}>
+            <button
+              type="button"
+              onClick={() => onPoint(c.id)}
+              className="num inline-flex min-h-6 items-center rounded-[2px] border border-terra-ink/60 px-1.5 text-[11.5px] text-terra-ink hover:bg-cream-deep"
+            >
+              {c.id}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {n < list.length && (
+        <button type="button" className="mt-1 inline-flex min-h-6 items-center text-[11.5px] underline" onClick={() => setN((k) => k + PAGE)}>
+          Pokaż kolejne {Math.min(PAGE, list.length - n)}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Animated count: all points analysed → safe sites. */
 export function RefusalCounter({
   filter,
   onFilter,
+  onPoint,
   compact = false,
 }: {
   filter: RefusalCode | null;
   onFilter: (c: RefusalCode | null) => void;
+  /** open a refused point in the panel */
+  onPoint: (id: string) => void;
   /** collapse to the headline when a site is open, so the card never covers it */
   compact?: boolean;
 }) {
@@ -51,22 +90,26 @@ export function RefusalCounter({
   const total = from;
 
   return (
-    <div data-ui className="w-[300px] rounded-[4px] bg-cream/95 p-4 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
-      <p className="eb opacity-70">Kontrola bezpieczeństwa</p>
-      <div className="mt-1 flex items-baseline gap-2">
+    <div data-ui className="w-[300px] max-w-full rounded-[4px] bg-cream/95 p-4 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
+      <p className="eb text-forest-muted">Kontrola bezpieczeństwa</p>
+      <p className="sr-only">
+        {to} {plural(to, "bezpieczne miejsce", "bezpieczne miejsca", "bezpiecznych miejsc")} z {from.toLocaleString("pl-PL")}{" "}
+        sprawdzonych punktów na rowach.
+      </p>
+      <div className="mt-1 flex items-baseline gap-2" aria-hidden>
         <span className="hd num text-[44px]">{n.toLocaleString("pl-PL")}</span>
-        <span className={`sh text-[15px] transition-colors duration-500 ${done ? "text-agri" : "opacity-60"}`}>
+        <span className={`sh text-[15px] transition-colors duration-500 ${done ? "text-agri-ink" : "text-forest-muted"}`}>
           {done ? plural(to, "bezpieczne miejsce", "bezpieczne miejsca", "bezpiecznych miejsc") : "punktów"}
         </span>
       </div>
-      <p className="text-[12px] opacity-75">
+      <p className="text-[12px] text-forest-muted" aria-hidden>
         z <span className="num">{from.toLocaleString("pl-PL")}</span> sprawdzonych punktów na rowach
       </p>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="mt-1 text-[11px] underline opacity-70"
+        className="mt-1 inline-flex min-h-6 items-center text-[11.5px] text-forest-muted underline"
       >
         {open ? "Zwiń powody odmowy" : "Pokaż powody odmowy"}
       </button>
@@ -91,20 +134,21 @@ export function RefusalCounter({
               type="button"
               onClick={() => onFilter(filter === c ? null : c)}
               aria-pressed={filter === c}
-              title={REFUSAL_RULE[c]}
-              className={`flex w-full items-center gap-2 rounded-[2px] px-1.5 py-1 text-left text-[12.5px] hover:bg-cream-deep ${
+              aria-describedby={filter === c ? `rule-${c}` : undefined}
+              className={`flex min-h-6 w-full items-center gap-2 rounded-[2px] px-1.5 py-1 text-left text-[12.5px] hover:bg-cream-deep ${
                 filter === c ? "bg-cream-deep font-semibold" : ""
               }`}
             >
-              <span className="inline-block size-2.5 rounded-full" style={{ background: C.terra, opacity: SHADE[i] }} />
+              <span className="inline-block size-2.5 rounded-full" style={{ background: C.terra, opacity: SHADE[i] }} aria-hidden />
               <span className="flex-1">{REFUSAL_LABEL[c]}</span>
               <span className="num">{summary.refusalsByCode[c].toLocaleString("pl-PL")}</span>
             </button>
           </li>
         ))}
       </ul>
+      {filter && <RefusedPoints code={filter} onPoint={onPoint} />}
       {filter && (
-        <button type="button" className="mt-1 text-[11px] underline opacity-70" onClick={() => onFilter(null)}>
+        <button type="button" className="mt-1 inline-flex min-h-6 items-center text-[11.5px] text-forest-muted underline" onClick={() => onFilter(null)}>
           Pokaż wszystkie powody
         </button>
       )}
@@ -132,8 +176,8 @@ export function ParcelSearch({
   };
 
   return (
-    <div data-ui className="w-[280px] rounded-[4px] bg-cream/95 p-4 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)]">
-      <label className="eb opacity-70" htmlFor="parcel-q">
+    <div data-ui className="w-[280px] max-w-full rounded-[4px] bg-cream/95 p-4 text-forest shadow-[0_8px_24px_rgba(31,58,34,.18)] max-[640px]:p-2.5">
+      <label className="eb text-forest-muted max-[640px]:sr-only" htmlFor="parcel-q">
         Szukaj działki
       </label>
       <input
