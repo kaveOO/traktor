@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/* TRAKTOR brand tokens. Source: TRAKTOR Brand Guidelines 1.0 (page 07 Colour, 08 Typography, 10 Data & GIS). */
+@theme inline {
+  --color-forest: #1f3a22;
+  --color-cream: #f3ecdd;
+  --color-cream-deep: #efe6d3;
+  --color-agri: #4f7a3a;
+  --color-soil: #6b4a2e;
+  --color-sky: #a9bfcf;
+  --color-water: #3b7fa3;
+  --color-terra: #b5573b;
+
+  /* elevation tints, low -> high */
+  --color-elev-1: #2f5f73;
+  --color-elev-2: #8fa86a;
+  --color-elev-3: #c9bf86;
+  --color-elev-4: #b98d5f;
+  --color-elev-5: #efe6d3;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-archivo), system-ui, sans-serif;
+
+  --radius-board: 4px;
+  --shadow-card: 0 8px 24px rgba(31, 58, 34, 0.18);
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root {
+  --background: #f3ecdd;
+  --foreground: #1f3a22;
+}
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Type roles from the brand guide */
+.hd {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-stretch: 78%;
+  text-transform: uppercase;
+  line-height: 0.93;
+  letter-spacing: -0.008em;
+}
+.sh {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-stretch: 85%;
+  line-height: 1.12;
+}
+.eb {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Motion: text fades and rises 16px, 600ms. Never letter by letter. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 600ms var(--ease-brand) both;
+}
+
+/* Loading = one thin progress line */
+@keyframes progress-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff;
+  }
+}

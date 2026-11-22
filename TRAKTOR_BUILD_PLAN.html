@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAKTOR: Build Plan v0.2 (draft)</title>
+<style>
+  :root{--ink:#1b1f23;--muted:#5b6470;--line:#dde2e7;--bg:#f6f7f9;--g:#1f8a4c;--r:#c0392b;--b:#1f5fbf;--a:#c77d00;--n:#6b7280;--acc:#2f6b3a}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  header{background:linear-gradient(135deg,#24452b,#4c8a3f);color:#fff;padding:22px 28px}
+  header h1{margin:0;font-size:28px}
+  header p{margin:4px 0 0;opacity:.9}
+  .tb{margin-top:12px;display:flex;gap:8px}
+  .tb button{border:1px solid #ffffff99;background:#ffffff1f;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
+  main{max-width:1050px;margin:0 auto;padding:20px}
+  section{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 22px;margin-bottom:16px}
+  h2{margin:0 0 10px;font-size:19px;color:var(--acc)}
+  h3{margin:12px 0 6px;font-size:15px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{border-bottom:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#eef2ee}
+  code{font:12.5px ui-monospace,Consolas,monospace;background:#eef1f4;padding:1px 4px;border-radius:3px}
+  ul{margin:4px 0;padding-left:20px}
+  .p{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;color:#fff;white-space:nowrap}
+  .p0{background:var(--r)}.p1{background:var(--a)}.p2{background:var(--b)}.p3{background:var(--n)}
+  .hold{background:var(--b)}.open{background:var(--a)}.none{background:var(--n)}.ok{background:var(--g)}.no{background:var(--r)}
+  .warn{border-left:4px solid var(--r);background:#fdecea;padding:8px 12px;border-radius:0 6px 6px 0;margin:6px 0;font-size:14px}
+  .gate{background:#eaf6ee;border-left:4px solid var(--g);padding:6px 12px;margin:6px 0 12px;font-weight:600;font-size:13.5px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+  .flow span{background:#eef2ee;border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+  .flow b{color:var(--acc)}
+  input[type=checkbox]{transform:scale(1.15);cursor:pointer}
+  tr.done td{opacity:.5;text-decoration:line-through}
+  .sm{font-size:12.5px;color:var(--muted)}
+  @media(max-width:800px){.cols{grid-template-columns:1fr}}
+  @media print{.tb{display:none}body{background:#fff;font-size:11.5px}section{border:0;padding:0;margin-bottom:12px;break-inside:avoid}header,.p,th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAKTOR · Build Plan <span style="font-size:13px;background:#ffe08a;color:#5a4300;padding:2px 8px;border-radius:99px;vertical-align:middle">v0.2 draft</span></h1>
+  <p><i>Rów, który pracuje w obie strony</i> (The ditch that works both ways) · KOWR "Zatrzymaj wodę, chroń plony" · HackNation 2026</p>
+  <div class="tb"><button onclick="dl()">⬇ Download HTML</button><button onclick="print()">🖨 Print / PDF</button></div>
+</header>
+<main>
+
+<section>
+  <h2>1. In one line</h2>
+  <p>For <b>one real gmina</b>, TRAKTOR maps every drainage ditch and finds where a board (weir) can hold water. It <b>refuses</b> unsafe sites and says why. Each day it tells the farmer <span class="p hold">TRZYMAJ</span> (hold), <span class="p open">OTWÓRZ</span> (open) or <span class="p none">NIE RUSZAJ</span> (leave as is), and it prints a site card with the legal route.</p>
+  <div class="warn"><b>Check first:</b> the event runs 21–22 Nov, so it may end today; confirm how many hours are left. The repo is empty, and Python isn't installed on this machine.</div>
+  <p class="sm">Priority: <span class="p p0">P0</span> must · <span class="p p1">P1</span> should · <span class="p p2">P2</span> bonus · <span class="p p3">P3</span> stretch. Owners: <b>G</b> geo/data · <b>B</b> backend · <b>F</b> frontend · <b>P</b> product/pitch.</p>
+</section>
+
+<section>
+  <h2>2. Decisions to approve</h2>
+  <table>
+    <tr><th></th><th>Decision</th><th>Recommended</th><th>Alternative</th></tr>
+    <tr><td><input type="checkbox" data-k="d1"></td><td>App</td><td>Fresh Next.js 16 + TS + Tailwind 4 + shadcn/ui, pnpm</td><td>Team's existing template</td></tr>
+    <tr><td><input type="checkbox" data-k="d2"></td><td>Pipeline</td><td>Python 3.12 via <code>uv</code> (geopandas, rasterio, scipy, duckdb)</td><td>Node + GDAL CLI</td></tr>
+    <tr><td><input type="checkbox" data-k="d3"></td><td>Map</td><td>MapLibre GL JS</td><td>Leaflet</td></tr>
+    <tr><td><input type="checkbox" data-k="d4"></td><td>Hosting</td><td>Vercel</td><td>Cloudflare (OpenNext)</td></tr>
+    <tr><td><input type="checkbox" data-k="d5"></td><td>Demo area</td><td>1 gmina in kujawsko-pomorskie; go/no-go after the DTM check</td><td>Wielkopolska</td></tr>
+    <tr><td><input type="checkbox" data-k="d6"></td><td>AI (bonus)</td><td>Claude Sonnet 5.5, server-side, template fallback</td><td>No LLM</td></tr>
+    <tr><td><input type="checkbox" data-k="d7"></td><td>Language</td><td>UI in Polish, code in English</td><td>–</td></tr>
+    <tr><td><input type="checkbox" data-k="d8"></td><td>Event rules</td><td>Confirm pre-downloaded data is OK, and the pitch length</td><td>–</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>3. All features</h2>
+  <table>
+    <tr><th>Feature</th><th>What the user gets</th><th>Pri</th></tr>
+    <tr><td colspan="3"><b>Gmina view</b></td></tr>
+    <tr><td>Ditch map</td><td>All BDOT10k ditches on a basemap with the gmina outline. Ditches the terrain data can't resolve are greyed.</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Conditions banner</td><td>60-day water balance (KBW), 72 h rain forecast, ET₀ (evaporation), IMGW warnings, and a live/scenario label</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Refusal counter</td><td>"1 240 points → 31 suitable" (illustrative) with a breakdown by reason; click a reason to filter the map</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Parcel search</td><td>Enter a parcel number or click the map (ULDK) → zoom in and highlight the sites that affect that field</td><td><span class="p p1">P1</span></td></tr>
+    <tr><td>Layers</td><td>OSM or orthophoto basemap, ISOK flood zones, parcels, refused points, legend</td><td><span class="p p1">P1</span></td></tr>
+    <tr><td colspan="3"><b>Site</b></td></tr>
+    <tr><td>Cross-section</td><td>SVG of the ditch with the board and the water level at the chosen height</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Crest slider (20–60 cm)</td><td>m³ stored, backwater length, ha rehydrated, days of buffer, outflow avoided, all shown as ranges with their source</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Refusal card</td><td>Red, names the object (neighbour's parcel ID, road, building, flood zone) and the distance</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Uncertainty strip</td><td>Channel visible in the terrain data (yes/no) · buried drains unknown → site visit · owner not yet confirmed</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Long profile</td><td>Bed and bank along the ditch, with the backwater wedge</td><td><span class="p p1">P1</span></td></tr>
+    <tr><td colspan="3"><b>Decision</b></td></tr>
+    <tr><td>Order of the day</td><td>TRZYMAJ / OTWÓRZ / NIE RUSZAJ per site, with a deadline, expiry, operator and m³ freed</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Scenario switch</td><td>Live · August drought · storm warning · wet spring. The order flips instantly; keys 1–4.</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>"Dlaczego?" (Why?)</td><td>The rule that fired, its inputs and the thresholds, marked "do kalibracji" (to be calibrated)</td><td><span class="p p1">P1</span></td></tr>
+    <tr><td colspan="3"><b>Output</b></td></tr>
+    <tr><td>Site card</td><td>One A4 page to print or save as PDF: map, cross-section, metrics, affected parcels, legal route (art. 389/395/205), what's missing, nitrate benefit, sources</td><td><span class="p p0">P0</span></td></tr>
+    <tr><td>Landing + "Metoda" page</td><td>Short intro; data sources, assumptions, limits</td><td><span class="p p1">P1</span></td></tr>
+    <tr><td colspan="3"><b>Bonus</b></td></tr>
+    <tr><td>Plain-Polish explanation</td><td>LLM writes the text, the server fills in the numbers, and the answer is rejected if it contains any number not in the data</td><td><span class="p p2">P2</span></td></tr>
+    <tr><td>KOWR mode</td><td>Filter to state land, labelled "ilustracyjnie" (illustrative)</td><td><span class="p p2">P2</span></td></tr>
+    <tr><td>ŁATA · Sentinel-1 · SMS</td><td>Read a gauge from a photo · satellite wet-spot check · send the order by SMS</td><td><span class="p p3">P3</span></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>4. How it works</h2>
+  <h3>Offline pipeline (Python, run once for the demo gmina) → static files</h3>
+  <div class="flow">
+    <span><b>1</b> Clip ditches</span>→<span><b>2</b> Profile every 5 m from 1 m LiDAR</span>→<span><b>3</b> Channel visible?</span>→<span><b>4</b> Candidates every 100 m, skipping culverts</span>→<span><b>5</b> Backwater + m³ per crest + overflow fill</span>→<span><b>6</b> Refusals</span>→<span><b>7</b> Metrics (ranges)</span>→<span><b>8</b> Rank + export GeoJSON</span>
+  </div>
+  <p class="sm">Inputs: BDOT10k ditches/roads/buildings, NMT 1 m sheets, ULDK parcels, ISOK flood zones, IUNG soil drought. Outputs in <code>public/data/traktor/</code>: <code>ditches</code>, <code>sites</code>, <code>parcels</code>, <code>profiles/{id}</code>, <code>summary</code>. Target size under 5 MB.</p>
+  <p class="sm"><b>Refusal reasons:</b> road or culvert · building · flood zone · channel not visible · water spills onto a road or building · water spills onto a neighbour's parcel · slope too steep. <b>Flags:</b> buried drains unknown · owner unconfirmed · Natura 2000 not checked · sensitive downstream.</p>
+
+  <h3>Live app (Next.js)</h3>
+  <table>
+    <tr><th>Endpoint</th><th>Does</th><th>Fallback</th></tr>
+    <tr><td><code>GET /api/traktor/conditions</code></td><td>IMGW warnings and station data + Open-Meteo forecast and archive → KBW, rain, ET₀ (cached 30 min)</td><td>Recorded data</td></tr>
+    <tr><td><code>GET /api/traktor/scenario/[name]</code></td><td>The 3 demo scenarios</td><td>Static</td></tr>
+    <tr><td><code>POST /api/traktor/order</code></td><td>Rules engine (also runs in the browser so the flip is instant)</td><td>–</td></tr>
+    <tr><td><code>GET /api/traktor/parcel</code></td><td>ULDK parcel lookup</td><td>Precomputed parcels</td></tr>
+    <tr><td><code>POST /api/traktor/explain</code></td><td>LLM text (bonus)</td><td>Template text</td></tr>
+    <tr><td><code>GET /api/health</code></td><td>Commit SHA + mode</td><td>–</td></tr>
+  </table>
+
+  <h3>Order rules (the first match wins; thresholds are configurable)</h3>
+  <ul>
+    <li><span class="p open">OTWÓRZ</span> if: IMGW rain warning at level 2 or above for the powiat · <b>or</b> at least 30 mm forecast in 72 h · <b>or</b> a hydro warning while the pool is more than half full</li>
+    <li>…but <span class="p none">NIE RUSZAJ</span> + "skonsultuj" (consult) if there is something sensitive downstream</li>
+    <li><span class="p hold">TRZYMAJ</span> if: KBW is −50 mm or lower, there are no warnings and it is April–September · <b>or</b> it is spring and dry</li>
+    <li><span class="p none">NIE RUSZAJ</span> otherwise</li>
+  </ul>
+  <p class="sm">Demo mode: <code>DEMO_MODE=live|hybrid|fixtures</code>. Fixtures are recorded from real API responses, so the whole demo runs with Wi-Fi off.</p>
+</section>
+
+<section>
+  <h2>5. Timeline (hours from approval: 48 h track, [24 h track])</h2>
+  <table>
+    <tr><th></th><th>Phase</th><th>G (data)</th><th>B (backend)</th><th>F (frontend)</th><th>P (product)</th></tr>
+    <tr><td><input type="checkbox" data-k="t0"></td><td><b>0 · Setup</b><br>h0–2 [0–1]</td><td>Install Python, download data, <b>DTM go/no-go</b></td><td>Scaffold the app, deploy, health endpoint</td><td>–</td><td>Approve decisions, check event rules</td></tr>
+    <tr><td><input type="checkbox" data-k="t1"></td><td><b>1 · Foundation</b><br>h2–8 [1–4]</td><td>Steps 1–3 → real ditches</td><td>Data contracts (Zod), recorded data, 10 mock sites</td><td>Map + ditches + panel shell</td><td>Polish copy + legal text, slide outline</td></tr>
+    <tr><td colspan="6"><div class="gate">Gate: real ditches on the deployed map; mock sites clickable</div></td></tr>
+    <tr><td><input type="checkbox" data-k="t2"></td><td><b>2 · Core</b><br>h8–28 [4–15]</td><td>Steps 4–8 → real sites + refusals; flood zones</td><td>Rules engine + tests, conditions, scenarios, parcel API</td><td>Site panel, slider, refusal card, order badge, counter, scenario switch</td><td>Review thresholds, pick the demo sites</td></tr>
+    <tr><td colspan="6"><div class="gate">Gate: slider works · 60 cm refused because of a neighbour · storm scenario flips TRZYMAJ → OTWÓRZ</div></td></tr>
+    <tr><td><input type="checkbox" data-k="t3"></td><td><b>3 · Demo-ready</b><br>h28–40 [15–20]</td><td>(Sentinel-1)</td><td>Playwright test, <code>pnpm check</code>, production deploy, (LLM)</td><td>Site card, Why? drawer, long profile, Polish/mobile polish, (KOWR)</td><td>Site card text, Metoda page</td></tr>
+    <tr><td colspan="6"><div class="gate">Gate: feature freeze; bug fixes only after this</div></td></tr>
+    <tr><td><input type="checkbox" data-k="t4"></td><td><b>4 · Pitch</b><br>h40–48 [20–24]</td><td colspan="4">Real numbers in the slides · rehearse 3× · <b>backup video</b> · laptop in offline mode · Q&amp;A drill · tag <code>demo-final</code></td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="cols">
+    <div>
+      <h2>6. Cut when behind (top first)</h2>
+      <ol style="padding-left:20px;margin:0">
+        <li>P3 bonuses</li><li>LLM explanation</li><li>KOWR mode</li><li>Live parcel search</li><li>Flood-zone refusal</li><li>Long profile</li><li>Metoda page</li>
+      </ol>
+      <p><b>Never cut:</b> real ditches · refusals with reasons · slider + red card · the flip · site card · offline mode · backup video</p>
+    </div>
+    <div>
+      <h2>7. Honesty rules</h2>
+      <ul>
+        <li>Show ranges everywhere; every card says "wymaga wizji lokalnej" (requires a site visit)</li>
+        <li>A weir needs a <b>pozwolenie wodnoprawne</b> (water-law permit, art. 389 pkt 6)</li>
+        <li>No yield claims and no cost claims. Use only the cited −30.5% outflow and −33.6% nitrate</li>
+        <li>Scenarios, the KOWR overlay and manual fixes are always labelled as such</li>
+        <li>Credit the data sources on screen (IMGW, GUGiK, Open-Meteo, ISOK, IUNG, OSM)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>8. Done when</h2>
+  <table>
+    <tr><td><input type="checkbox" data-k="x1"></td><td>A public URL shows one real gmina with real ditches and sites, and the real counter</td></tr>
+    <tr><td><input type="checkbox" data-k="x2"></td><td>A neighbour refusal and a road/building refusal are both shown with the object named</td></tr>
+    <tr><td><input type="checkbox" data-k="x3"></td><td>The 3 scenarios work; the storm flips the orders and shows a deadline and m³ freed</td></tr>
+    <tr><td><input type="checkbox" data-k="x4"></td><td>The site card prints as one clean A4 page</td></tr>
+    <tr><td><input type="checkbox" data-k="x5"></td><td>The demo works offline; tests pass; the health SHA matches the <code>demo-final</code> tag; the backup video is recorded</td></tr>
+  </table>
+  <p class="sm">Full detail (data formats, pipeline thresholds, components) is in <code>research/technical_architecture.md</code> and <code>research/product_blueprint.md</code>. Change log: v0.1 full draft · v0.2 condensed.</p>
+</section>
+
+</main>
+<script>
+  const K="traktor-plan",s=JSON.parse(localStorage.getItem(K)||"{}");
+  const bx=[...document.querySelectorAll("input[data-k]")];
+  const paint=()=>bx.forEach(b=>{b.checked=!!s[b.dataset.k];b.closest("tr")?.classList.toggle("done",b.checked)});
+  bx.forEach(b=>b.onchange=()=>{s[b.dataset.k]=b.checked;localStorage.setItem(K,JSON.stringify(s));paint()});
+  function dl(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["<!DOCTYPE html>\n"+document.documentElement.outerHTML],{type:"text/html"}));a.download="TRAKTOR_BUILD_PLAN.html";a.click()}
+  paint();
+</script>
+</body>
+</html>
