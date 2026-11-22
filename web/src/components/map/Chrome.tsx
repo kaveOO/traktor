@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { Conditions, Order, ScenarioName } from "@/lib/traktor";
 import { GMINA, SCENARIO_LABEL, fmtRange } from "@/lib/traktor";
+
+type BasemapChoice = "osm" | "google-roadmap" | "google-satellite" | "ortho" | "schema";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
 
@@ -107,9 +109,11 @@ export function ScenarioDock({
   onRefused,
   basemap,
   onBasemap,
+  googleEnabled = false,
 }: {
-  basemap: "osm" | "ortho" | "schema";
-  onBasemap: (b: "osm" | "ortho" | "schema") => void;
+  basemap: BasemapChoice;
+  onBasemap: (b: BasemapChoice) => void;
+  googleEnabled?: boolean;
   scenario: ScenarioChoice;
   onScenario: (s: ScenarioChoice) => void;
   orders: Order[];
@@ -171,10 +175,16 @@ export function ScenarioDock({
         <span className="eb mr-0.5 opacity-70 max-[900px]:hidden">Mapa</span>
         {(
           [
+            ...(googleEnabled
+              ? ([
+                  ["google-roadmap", "Google"],
+                  ["google-satellite", "Google satelita"],
+                ] as const)
+              : []),
             ["osm", "OSM"],
             ["ortho", "Ortofoto"],
             ["schema", "Schemat"],
-          ] as const
+          ] as [BasemapChoice, string][]
         ).map(([k, label]) => (
           <Toggle key={k} on={basemap === k} onClick={() => onBasemap(k)}>
             {label}

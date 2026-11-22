@@ -36,6 +36,22 @@ export default function MapApp() {
   const [kowr, setKowr] = useState(init.kowr);
   const [flood, setFlood] = useState(false);
   const [basemap, setBasemap] = useState<Basemap>("osm");
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  // Google basemaps appear only when the server has GOOGLE_MAPS_API_KEY and a session works
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/tiles/google/status")
+      .then((r) => r.json())
+      .then((j: { enabled?: boolean }) => {
+        if (!alive || !j.enabled) return;
+        setGoogleEnabled(true);
+        setBasemap((b) => (b === "osm" ? "google-roadmap" : b));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [showRefused, setShowRefused] = useState(true);
   const [filter, setFilter] = useState<RefusalCode | null>(null);
   const [candId, setCandId] = useState<string | null>(null);
@@ -192,7 +208,7 @@ export default function MapApp() {
           </div>
           <div className="pointer-events-none absolute bottom-2 left-4 z-10 flex flex-col items-start gap-2 [&>*]:pointer-events-auto max-[900px]:hidden">
             <Legend showFlood={flood} />
-            <MapSource />
+            <MapSource google={basemap.startsWith("google")} />
           </div>
         </main>
         <aside
@@ -228,6 +244,7 @@ export default function MapApp() {
         onFlood={() => setFlood((f) => !f)}
         basemap={basemap}
         onBasemap={setBasemap}
+        googleEnabled={googleEnabled}
         refused={showRefused}
         onRefused={() => setShowRefused((r) => !r)}
       />

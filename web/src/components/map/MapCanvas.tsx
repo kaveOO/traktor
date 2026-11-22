@@ -6,7 +6,8 @@ import { candidates, ditches, mapFeatures, sites } from "@/lib/traktor";
 import { C, ORDER_COLOR, centroid, neighbourParcel, ownParcel, path, pts, retentionPath } from "./geo";
 import { OsmTiles } from "./OsmTiles";
 
-export type Basemap = "osm" | "ortho" | "schema";
+export type Basemap = "osm" | "google-roadmap" | "google-satellite" | "ortho" | "schema";
+const isTiles = (b: Basemap) => b === "osm" || b === "google-roadmap" || b === "google-satellite";
 
 /* ---- static real layers, computed once ---- */
 const LAND_STYLE: Record<string, [string, number]> = {
@@ -234,10 +235,17 @@ export function MapCanvas({
 
         <rect x={-1000} y={-1000} width={3000} height={2640} fill={C.cream} />
         {/* GUGiK orthophoto (WMS, EPSG:2180, exact AOI bbox) or real land cover (BDOT10k PT*) */}
-        {basemap === "osm" ? (
+        {isTiles(basemap) ? (
           <>
-            <OsmTiles vb={vb} />
-            <rect x={-1000} y={-1000} width={3000} height={2640} fill={C.cream} fillOpacity={0.12} />
+            <OsmTiles vb={vb} source={basemap as "osm" | "google-roadmap" | "google-satellite"} />
+            <rect
+              x={-1000}
+              y={-1000}
+              width={3000}
+              height={2640}
+              fill={basemap === "google-satellite" ? C.forest : C.cream}
+              fillOpacity={basemap === "google-satellite" ? 0.15 : 0.12}
+            />
           </>
         ) : basemap === "ortho" ? (
           <>
@@ -255,10 +263,10 @@ export function MapCanvas({
             <path key={`f${i}`} d={path(r.points)} fill="none" stroke="url(#isok)" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" />
           ))}
         {/* rivers and canals (OSM tiles already draw them) */}
-        {basemap !== "osm" && RIVERS.map((r, i) => (
+        {!isTiles(basemap) && RIVERS.map((r, i) => (
           <path key={`r${i}`} d={path(r.points)} fill="none" stroke={C.water} strokeWidth={3.5} strokeOpacity={0.9} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         ))}
-        {basemap !== "osm" && RIVER_LABELS.map((r) => (
+        {!isTiles(basemap) && RIVER_LABELS.map((r) => (
           <text key={r.name} x={r.xy[0]} y={r.xy[1] - 4} textAnchor="middle" fill={C.water} style={{ fontSize: fs(10.5), fontWeight: 600, fontStyle: "italic" }}>
             {r.name}
           </text>
@@ -287,7 +295,7 @@ export function MapCanvas({
 
         {/* roads */}
         {/* roads by class: minor first, major on top */}
-        {basemap !== "osm" && ROADS.map((r) => {
+        {!isTiles(basemap) && ROADS.map((r) => {
           const w = roadWidth(r.cls);
           return (
             <g key={r.id}>
@@ -296,7 +304,7 @@ export function MapCanvas({
             </g>
           );
         })}
-        {basemap !== "osm" && ROAD_LABELS.map((r) => (
+        {!isTiles(basemap) && ROAD_LABELS.map((r) => (
           <g key={r.name}>
             <rect x={r.xy[0] - fs(14)} y={r.xy[1] - fs(7)} width={fs(28)} height={fs(13)} rx={fs(2)} fill={C.forest} />
             <text x={r.xy[0]} y={r.xy[1] + fs(3.5)} textAnchor="middle" fill={C.cream} style={{ fontSize: fs(9.5), fontWeight: 700 }}>

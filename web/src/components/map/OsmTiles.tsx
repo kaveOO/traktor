@@ -48,7 +48,14 @@ function fit(z: number) {
 const LEVELS = { 14: fit(14), 15: fit(15), 16: fit(16), 17: fit(17) } as const;
 
 /** View box in map units -> pick zoom (~1 tile px per screen px) and only the visible tiles. */
-export function OsmTiles({ vb }: { vb: { x: number; y: number; w: number; h: number } }) {
+export type TileSource = "osm" | "google-roadmap" | "google-satellite";
+const TILE_URL: Record<TileSource, (z: number, x: number, y: number) => string> = {
+  osm: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+  "google-roadmap": (z, x, y) => `/api/tiles/google/roadmap/${z}/${x}/${y}`,
+  "google-satellite": (z, x, y) => `/api/tiles/google/satellite/${z}/${x}/${y}`,
+};
+
+export function OsmTiles({ vb, source = "osm" }: { vb: { x: number; y: number; w: number; h: number }; source?: TileSource }) {
   const z = vb.w > 700 ? 14 : vb.w > 350 ? 15 : vb.w > 170 ? 16 : 17;
   const g = LEVELS[z];
   const [a, b, c, d, e, f] = g.m;
@@ -66,8 +73,8 @@ export function OsmTiles({ vb }: { vb: { x: number; y: number; w: number; h: num
     <g transform={g.matrix}>
       {tiles.map(({ x, y }) => (
         <image
-          key={`${z}/${x}/${y}`}
-          href={`https://tile.openstreetmap.org/${z}/${x}/${y}.png`}
+          key={`${source}/${z}/${x}/${y}`}
+          href={TILE_URL[source](z, x, y)}
           x={x * 256}
           y={y * 256}
           width={256.6}

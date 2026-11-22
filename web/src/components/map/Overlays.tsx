@@ -259,12 +259,13 @@ export function Legend({ showFlood }: { showFlood: boolean }) {
   );
 }
 
-export function MapSource() {
+export function MapSource({ google = false }: { google?: boolean }) {
   return (
     <div data-ui className="max-w-[520px] rounded-[2px] bg-cream/90 px-2.5 py-1.5 text-forest">
       <SourceLine>{SOURCES_MAP}</SourceLine>
       <p className="text-[11px] opacity-75">{DEMO_NOTE}</p>
       <p className="text-[11px] opacity-75">
+        {google && <>Dane mapy ©{new Date().getFullYear()} Google · </>}
         Podkład: ©{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline">
           autorzy OpenStreetMap
