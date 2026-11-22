@@ -37,7 +37,7 @@ export function TopBar({
           className={`eb rounded-[2px] px-2 py-1 ${isLive ? "bg-cream text-forest" : "border border-cream/60"}`}
           title={conditions.labelPl}
         >
-          {isLive ? "NA ŻYWO" : "SCENARIUSZ DEMONSTRACYJNY"}
+          {isLive ? "NA ŻYWO" : conditions.mode === "fixture" ? "DANE ZAPISANE" : "SCENARIUSZ DEMONSTRACYJNY"}
         </span>
         <span className="num">
           <span className="opacity-70">KBW 60 dni </span>

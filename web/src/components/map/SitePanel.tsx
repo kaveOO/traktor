@@ -252,7 +252,10 @@ export function SitePanel({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" type="button" onClick={() => setWhy(true)} className="flex-1">
+          <Button variant="secondary" type="button" onClick={(e) => {
+              e.currentTarget.closest("aside")?.scrollTo({ top: 0 });
+              setWhy(true);
+            }} className="flex-1">
             Dlaczego?
           </Button>
           <Button href={`/karta?site=${site.id}&crest=${crest}&scenario=${scenarioParam}`} className="flex-1">

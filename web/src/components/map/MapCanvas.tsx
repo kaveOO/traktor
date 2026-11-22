@@ -154,6 +154,7 @@ export function MapCanvas({
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest("[data-ui]")) return;
         if (anim.current) cancelAnimationFrame(anim.current);
+        suppressClick.current = false;
         drag.current = { x: e.clientX, y: e.clientY, vb: vbRef.current, moved: false, id: e.pointerId };
       }}
       onPointerMove={(e) => {
